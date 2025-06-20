@@ -105,12 +105,7 @@ export function FinancialModule() {
           </Button>
         )
       case "cash-flow":
-        return (
-          <Button className="bg-green-600 hover:bg-green-700" onClick={() => {}}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Transação
-          </Button>
-        )
+        return null // Botão já existe na própria página
       case "reports":
         return (
           <Button variant="outline" onClick={() => {}}>

@@ -22,11 +22,13 @@ import {
   TrendingUp,
   TrendingDown,
   Search,
+  Plus,
 } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import type { DateRange } from "react-day-picker"
+import { AddTransactionDialog } from "./add-transaction-dialog"
 
 interface CashFlowEntry {
   id: number
@@ -48,9 +50,8 @@ export function CashFlowPage() {
   const [selectedAccount, setSelectedAccount] = useState<string>("all")
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState<string>("")
-
-  // Dados de exemplo do fluxo de caixa
-  const cashFlowData: CashFlowEntry[] = [
+  const [isAddTransactionDialogOpen, setIsAddTransactionDialogOpen] = useState(false)
+  const [cashFlowData, setCashFlowData] = useState<CashFlowEntry[]>([
     {
       id: 1,
       date: "2024-06-13",
@@ -139,7 +140,12 @@ export function CashFlowPage() {
       category: "Utilities",
       reference: "ENE202406"
     },
-  ]
+  ])
+
+  // Função para adicionar nova transação
+  const handleAddTransaction = (newTransaction: any) => {
+    setCashFlowData(prev => [...prev, newTransaction])
+  }
 
   const accounts = [
     "Conta Corrente Banco do Brasil",
@@ -204,10 +210,19 @@ export function CashFlowPage() {
           <h1 className="text-3xl font-bold text-gray-900">Fluxo de Caixa</h1>
           <p className="text-gray-600 mt-1">Controle de entradas e saídas financeiras</p>
         </div>
-        <Button className="bg-green-600 hover:bg-green-700">
-          <Download className="w-4 h-4 mr-2" />
-          Exportar
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Exportar
+          </Button>
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => setIsAddTransactionDialogOpen(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Transação
+          </Button>
+        </div>
       </div>
 
       {/* Resumo */}
@@ -435,6 +450,13 @@ export function CashFlowPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal de Adicionar Transação */}
+      <AddTransactionDialog
+        isOpen={isAddTransactionDialogOpen}
+        onClose={() => setIsAddTransactionDialogOpen(false)}
+        onSave={handleAddTransaction}
+      />
     </div>
   )
 }
