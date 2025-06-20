@@ -18,6 +18,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
+import { AddPayableDialog } from "./add-payable-dialog"
 import type { DateRange } from "react-day-picker"
 import { format, isWithinInterval, parseISO } from "date-fns"
 
@@ -26,6 +27,8 @@ interface AccountsPayablePageProps {
   dateRange: DateRange | undefined
   selectedAccounts: string[]
   selectedPaymentMethods: string[]
+  isAddDialogOpen?: boolean
+  setIsAddDialogOpen?: (open: boolean) => void
 }
 
 export function AccountsPayablePage({
@@ -33,13 +36,13 @@ export function AccountsPayablePage({
   dateRange,
   selectedAccounts,
   selectedPaymentMethods,
+  isAddDialogOpen: externalIsAddDialogOpen,
+  setIsAddDialogOpen: externalSetIsAddDialogOpen,
 }: AccountsPayablePageProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
-
-  // Dados de exemplo para contas a pagar
-  const payables = [
+  const [payablesList, setPayablesList] = useState([
     {
       id: 1,
       value: 2500.0,
@@ -105,10 +108,15 @@ export function AccountsPayablePage({
       status: "Atrasado",
       attachments: ["conta-energia.pdf"],
     },
-  ]
+  ])
+
+  // Função para adicionar novo pagável
+  const handleAddPayable = (newPayable: any) => {
+    setPayablesList(prev => [...prev, newPayable])
+  }
 
   // Aplicar filtros
-  const filteredPayables = payables.filter((invoice) => {
+  const filteredPayables = payablesList.filter((invoice) => {
     // Filtro de busca
     const searchFilter =
       invoice.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -469,6 +477,19 @@ export function AccountsPayablePage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Adicionar Conta a Pagar */}
+      <AddPayableDialog
+        isOpen={externalIsAddDialogOpen ?? isAddDialogOpen}
+        onClose={() => {
+          if (externalSetIsAddDialogOpen) {
+            externalSetIsAddDialogOpen(false)
+          } else {
+            setIsAddDialogOpen(false)
+          }
+        }}
+        onSave={handleAddPayable}
+      />
     </div>
   )
 }

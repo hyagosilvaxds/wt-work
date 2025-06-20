@@ -18,6 +18,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
+import { AddReceivableDialog } from "./add-receivable-dialog"
 import type { DateRange } from "react-day-picker"
 import { format, isWithinInterval, parseISO } from "date-fns"
 
@@ -26,6 +27,8 @@ interface AccountsReceivablePageProps {
   dateRange: DateRange | undefined
   selectedAccounts: string[]
   selectedPaymentMethods: string[]
+  isAddDialogOpen?: boolean
+  setIsAddDialogOpen?: (open: boolean) => void
 }
 
 export function AccountsReceivablePage({
@@ -33,13 +36,13 @@ export function AccountsReceivablePage({
   dateRange,
   selectedAccounts,
   selectedPaymentMethods,
+  isAddDialogOpen: externalIsAddDialogOpen,
+  setIsAddDialogOpen: externalSetIsAddDialogOpen,
 }: AccountsReceivablePageProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
-
-  // Dados de exemplo para contas a receber
-  const receivables = [
+  const [receivablesList, setReceivablesList] = useState([
     {
       id: 1,
       value: 1500.0,
@@ -105,10 +108,15 @@ export function AccountsReceivablePage({
       status: "Atrasado",
       attachments: ["contrato-mercado.pdf"],
     },
-  ]
+  ])
+
+  // Função para adicionar novo recebível
+  const handleAddReceivable = (newReceivable: any) => {
+    setReceivablesList(prev => [...prev, newReceivable])
+  }
 
   // Aplicar filtros
-  const filteredReceivables = receivables.filter((invoice) => {
+  const filteredReceivables = receivablesList.filter((invoice) => {
     // Filtro de busca
     const searchFilter =
       invoice.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -469,6 +477,19 @@ export function AccountsReceivablePage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Adicionar Conta a Receber */}
+      <AddReceivableDialog
+        isOpen={externalIsAddDialogOpen ?? isAddDialogOpen}
+        onClose={() => {
+          if (externalSetIsAddDialogOpen) {
+            externalSetIsAddDialogOpen(false)
+          } else {
+            setIsAddDialogOpen(false)
+          }
+        }}
+        onSave={handleAddReceivable}
+      />
     </div>
   )
 }

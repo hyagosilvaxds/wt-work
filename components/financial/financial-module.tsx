@@ -23,6 +23,8 @@ import { ptBR } from "date-fns/locale"
 export function FinancialModule() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [isAddAccountDialogOpen, setIsAddAccountDialogOpen] = useState(false)
+  const [isAddReceivableDialogOpen, setIsAddReceivableDialogOpen] = useState(false)
+  const [isAddPayableDialogOpen, setIsAddPayableDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -90,14 +92,14 @@ export function FinancialModule() {
         )
       case "receivable":
         return (
-          <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => {}}>
+          <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => setIsAddReceivableDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nova Conta a Receber
           </Button>
         )
       case "payable":
         return (
-          <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => {}}>
+          <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => setIsAddPayableDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nova Conta a Pagar
           </Button>
@@ -287,6 +289,8 @@ export function FinancialModule() {
             dateRange={dateRange}
             selectedAccounts={selectedAccounts}
             selectedPaymentMethods={selectedPaymentMethods}
+            isAddDialogOpen={isAddReceivableDialogOpen}
+            setIsAddDialogOpen={setIsAddReceivableDialogOpen}
           />
         </TabsContent>
 
@@ -296,6 +300,8 @@ export function FinancialModule() {
             dateRange={dateRange}
             selectedAccounts={selectedAccounts}
             selectedPaymentMethods={selectedPaymentMethods}
+            isAddDialogOpen={isAddPayableDialogOpen}
+            setIsAddDialogOpen={setIsAddPayableDialogOpen}
           />
         </TabsContent>
 
