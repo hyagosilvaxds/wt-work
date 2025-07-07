@@ -1,9 +1,13 @@
-import { Bell, Search, Calendar, Settings, HelpCircle, MessageSquare, Zap } from "lucide-react"
+import { Bell, Search, Calendar, Settings, HelpCircle, MessageSquare, Zap, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/hooks/use-auth"
+import LogoutButton from "@/components/logout-button"
 
 export function Header() {
+  const { user } = useAuth()
+
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 sticky top-0 z-10 backdrop-blur-sm bg-white/95">
       <div className="flex items-center justify-between">
@@ -38,15 +42,22 @@ export function Header() {
               <Settings className="h-5 w-5 text-gray-600" />
             </Button>
 
+            <LogoutButton 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-xl hover:bg-red-50 text-red-600 hover:text-red-700"
+              showText={false}
+            />
+
             <div className="ml-4 flex items-center space-x-3 bg-gray-50 rounded-xl p-2">
               <div className="relative">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 flex items-center justify-center text-white font-bold">
-                  A
+                  {user?.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
               </div>
               <div className="hidden lg:block">
-                <p className="text-sm font-medium text-gray-900">Admin</p>
+                <p className="text-sm font-medium text-gray-900">{user?.name || 'Usuário'}</p>
                 <p className="text-xs text-gray-500">Online</p>
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">

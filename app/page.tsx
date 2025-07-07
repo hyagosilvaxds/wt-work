@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
-import { DashboardContent } from "@/components/dashboard-content"
+import DashboardContent from "@/components/dashboard-working-final"
 import { StudentsPage } from "@/components/students-page"
 import { TrainingsPage } from "@/components/trainings-page"
 import { ClassesPage } from "@/components/classes-page"
@@ -14,6 +14,8 @@ import { RoomsPage } from "@/components/rooms-page"
 import { CertificatesPage } from "@/components/certificates-page"
 import { ReportsPage } from "@/components/reports-page"
 import { FinancialModule } from "@/components/financial/financial-module"
+import { SettingsPage } from "@/components/settings-page-simple"
+import ProtectedRoute from "@/components/protected-route"
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard")
@@ -42,20 +44,24 @@ export default function Home() {
         return <FinancialModule />
       case "reports":
         return <ReportsPage />
+      case "settings":
+        return <SettingsPage />
       default:
         return <DashboardContent />
     }
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6 animate-fade-in">
-          {renderContent()}
-        </main>
+    <ProtectedRoute>
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6 animate-fade-in">
+            {renderContent()}
+          </main>
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   )
 }

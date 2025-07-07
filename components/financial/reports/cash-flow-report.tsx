@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   FileSpreadsheet,
-  FileIcon as FilePdf,
+  FileText,
   Filter,
   Printer,
   ArrowUpRight,
@@ -227,7 +227,7 @@ export function CashFlowReport() {
             Excel
           </Button>
           <Button variant="outline" onClick={handleExportPDF}>
-            <FilePdf className="mr-2 h-4 w-4" />
+            <FileText className="mr-2 h-4 w-4" />
             PDF
           </Button>
           <Button variant="outline" onClick={handlePrint}>

@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { Toaster } from '@/components/ui/toaster'
+import { AuthProvider } from '@/hooks/use-auth'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -12,8 +14,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="pt-BR">
+      <body>
+        <AuthProvider>
+          {children}
+          <Toaster />
+        </AuthProvider>
+      </body>
     </html>
   )
 }

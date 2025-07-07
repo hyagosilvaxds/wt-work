@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, Download, Trash2, Edit, Eye, FileText } from "lucide-react"
+import { MoreHorizontal, Download, Trash2, Edit, Eye, FileText, CheckCircle } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -18,6 +18,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
+import { toast } from "@/hooks/use-toast"
 import { AddReceivableDialog } from "./add-receivable-dialog"
 import type { DateRange } from "react-day-picker"
 import { format, isWithinInterval, parseISO } from "date-fns"
@@ -42,6 +43,7 @@ export function AccountsReceivablePage({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  const [selectedReceivables, setSelectedReceivables] = useState<number[]>([])
   const [receivablesList, setReceivablesList] = useState([
     {
       id: 1,
@@ -109,6 +111,53 @@ export function AccountsReceivablePage({
       attachments: ["contrato-mercado.pdf"],
     },
   ])
+
+  // Função para marcar/desmarcar recebível
+  const handleSelectReceivable = (id: number) => {
+    setSelectedReceivables(prev => 
+      prev.includes(id) 
+        ? prev.filter(item => item !== id)
+        : [...prev, id]
+    )
+  }
+
+  // Função para selecionar/deselecionar todos
+  const handleSelectAll = () => {
+    if (selectedReceivables.length === filteredReceivables.length) {
+      setSelectedReceivables([])
+    } else {
+      setSelectedReceivables(filteredReceivables.map(item => item.id))
+    }
+  }
+
+  // Função para quitar contas selecionadas
+  const handleSettleSelected = () => {
+    const countToSettle = selectedReceivables.filter(id => {
+      const item = receivablesList.find(r => r.id === id)
+      return item && item.status !== "Pago"
+    }).length
+
+    setReceivablesList(prev => 
+      prev.map(item => 
+        selectedReceivables.includes(item.id) && item.status !== "Pago"
+          ? { 
+              ...item, 
+              status: "Pago", 
+              paymentDate: new Date().toISOString().split('T')[0],
+              paymentMethod: item.paymentMethod || "Transferência"
+            }
+          : item
+      )
+    )
+    setSelectedReceivables([])
+    
+    // Mostrar mensagem de sucesso
+    toast({
+      title: "Contas quitadas com sucesso!",
+      description: `${countToSettle} conta(s) foram marcadas como pagas.`,
+      duration: 3000,
+    })
+  }
 
   // Função para adicionar novo recebível
   const handleAddReceivable = (newReceivable: any) => {
@@ -206,13 +255,41 @@ export function AccountsReceivablePage({
       {/* Accounts Receivable Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Contas a Receber</CardTitle>
-          <CardDescription>{filteredReceivables.length} conta(s) encontrada(s)</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Contas a Receber</CardTitle>
+              <CardDescription>{filteredReceivables.length} conta(s) encontrada(s)</CardDescription>
+            </div>
+            {selectedReceivables.length > 0 && (
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSettleSelected}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  size="sm"
+                >
+                  Quitar {selectedReceivables.length} Conta(s)
+                </Button>
+                <Button
+                  onClick={() => setSelectedReceivables([])}
+                  variant="outline"
+                  size="sm"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox 
+                    checked={selectedReceivables.length === filteredReceivables.length && filteredReceivables.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>ID</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Valor</TableHead>
@@ -225,6 +302,13 @@ export function AccountsReceivablePage({
             <TableBody>
               {filteredReceivables.map((invoice) => (
                 <TableRow key={invoice.id}>
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedReceivables.includes(invoice.id)}
+                      onCheckedChange={() => handleSelectReceivable(invoice.id)}
+                      disabled={invoice.status === "Pago"}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{invoice.id}</TableCell>
                   <TableCell>{invoice.client}</TableCell>
                   <TableCell>R$ {invoice.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>

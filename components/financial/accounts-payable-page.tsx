@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, Download, Trash2, Edit, Eye, FileText } from "lucide-react"
+import { MoreHorizontal, Download, Trash2, Edit, Eye, FileText, CheckCircle } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -18,6 +18,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
+import { toast } from "@/hooks/use-toast"
 import { AddPayableDialog } from "./add-payable-dialog"
 import type { DateRange } from "react-day-picker"
 import { format, isWithinInterval, parseISO } from "date-fns"
@@ -42,6 +43,7 @@ export function AccountsPayablePage({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  const [selectedPayables, setSelectedPayables] = useState<number[]>([])
   const [payablesList, setPayablesList] = useState([
     {
       id: 1,
@@ -110,9 +112,60 @@ export function AccountsPayablePage({
     },
   ])
 
-  // Função para adicionar novo pagável
+  // Função para marcar/desmarcar conta a pagar
+  const handleSelectPayable = (id: number) => {
+    setSelectedPayables(prev => 
+      prev.includes(id) 
+        ? prev.filter(item => item !== id)
+        : [...prev, id]
+    )
+  }
+
+  // Função para selecionar/deselecionar todos
+  const handleSelectAll = () => {
+    if (selectedPayables.length === filteredPayables.length) {
+      setSelectedPayables([])
+    } else {
+      setSelectedPayables(filteredPayables.map(item => item.id))
+    }
+  }
+
+  // Função para quitar contas selecionadas
+  const handleSettleSelected = () => {
+    const countToSettle = selectedPayables.filter(id => {
+      const item = payablesList.find(p => p.id === id)
+      return item && item.status !== "Pago"
+    }).length
+
+    setPayablesList(prev => 
+      prev.map(item => 
+        selectedPayables.includes(item.id) && item.status !== "Pago"
+          ? { 
+              ...item, 
+              status: "Pago", 
+              paymentDate: new Date().toISOString().split('T')[0],
+              paymentMethod: item.paymentMethod || "Transferência"
+            }
+          : item
+      )
+    )
+    setSelectedPayables([])
+    
+    // Mostrar mensagem de sucesso
+    toast({
+      title: "Contas quitadas com sucesso!",
+      description: `${countToSettle} conta(s) foram marcadas como pagas.`,
+      duration: 3000,
+    })
+  }
+
+  // Função para adicionar nova conta a pagar
   const handleAddPayable = (newPayable: any) => {
     setPayablesList(prev => [...prev, newPayable])
+    toast({
+      title: "Sucesso!",
+      description: `Conta adicionada com sucesso!`,
+    })
   }
 
   // Aplicar filtros
@@ -206,13 +259,41 @@ export function AccountsPayablePage({
       {/* Accounts Payable Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Contas a Pagar</CardTitle>
-          <CardDescription>{filteredPayables.length} conta(s) encontrada(s)</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Contas a Pagar</CardTitle>
+              <CardDescription>{filteredPayables.length} conta(s) encontrada(s)</CardDescription>
+            </div>
+            {selectedPayables.length > 0 && (
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSettleSelected}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  size="sm"
+                >
+                  Quitar {selectedPayables.length} Conta(s)
+                </Button>
+                <Button
+                  onClick={() => setSelectedPayables([])}
+                  variant="outline"
+                  size="sm"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox 
+                    checked={selectedPayables.length === filteredPayables.length && filteredPayables.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>ID</TableHead>
                 <TableHead>Fornecedor</TableHead>
                 <TableHead>Valor</TableHead>
@@ -225,6 +306,13 @@ export function AccountsPayablePage({
             <TableBody>
               {filteredPayables.map((invoice) => (
                 <TableRow key={invoice.id}>
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedPayables.includes(invoice.id)}
+                      onCheckedChange={() => handleSelectPayable(invoice.id)}
+                      disabled={invoice.status === "Pago"}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{invoice.id}</TableCell>
                   <TableCell>{invoice.supplier}</TableCell>
                   <TableCell>R$ {invoice.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>

@@ -163,6 +163,11 @@ body {
   animation: float 6s ease-in-out infinite;
 }
 
+.animate-float-delayed {
+  animation: float 6s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
 .animate-shimmer {
   animation: shimmer 2s infinite;
   background: linear-gradient(

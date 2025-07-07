@@ -42,6 +42,7 @@ const menuItems = [
   { id: "certificates", label: "Certificados", icon: Award, badge: "892" },
   { id: "financial", label: "Financeiro", icon: DollarSign, badge: null },
   { id: "reports", label: "Relatórios", icon: BarChart3, badge: null },
+  { id: "settings", label: "Configurações", icon: Settings, badge: null },
 ]
 
 export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {

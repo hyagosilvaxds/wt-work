@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, CalendarIcon, Clock, MapPin, Users, Plus } from "lucide-react"
@@ -44,129 +44,132 @@ export function WeeklyTimelineCalendar() {
   }
 
   // Eventos de exemplo para a semana
-  const weeklyEvents: TimelineEvent[] = [
-    // Domingo (16)
-    {
-      id: 1,
-      title: "Consultoria Empresarial",
-      startTime: "08:00",
-      endTime: "09:15",
-      date: getWeekDays()[0].toISOString().split("T")[0],
-      type: "meeting",
-      instructor: "Roberto Lima",
-      location: "Sala Executiva",
-      participants: 5,
-      maxParticipants: 8,
-    },
+  const weeklyEvents: TimelineEvent[] = useMemo(() => {
+    const weekDays = getWeekDays()
+    return [
+      // Domingo (16)
+      {
+        id: 1,
+        title: "Consultoria Empresarial",
+        startTime: "08:00",
+        endTime: "09:15",
+        date: weekDays[0].toISOString().split("T")[0],
+        type: "meeting",
+        instructor: "Roberto Lima",
+        location: "Sala Executiva",
+        participants: 5,
+        maxParticipants: 8,
+      },
 
-    // Segunda (17)
-    {
-      id: 2,
-      title: "Análise de Dados",
-      startTime: "11:00",
-      endTime: "12:00",
-      date: getWeekDays()[1].toISOString().split("T")[0],
-      type: "class",
-      instructor: "Ana Santos",
-      location: "Lab Informática",
-      participants: 16,
-      maxParticipants: 20,
-    },
+      // Segunda (17)
+      {
+        id: 2,
+        title: "Análise de Dados",
+        startTime: "11:00",
+        endTime: "12:00",
+        date: weekDays[1].toISOString().split("T")[0],
+        type: "class",
+        instructor: "Ana Santos",
+        location: "Lab Informática",
+        participants: 16,
+        maxParticipants: 20,
+      },
 
-    // Terça (18)
-    {
-      id: 3,
-      title: "Consultoria Técnica",
-      startTime: "13:00",
-      endTime: "14:15",
-      date: getWeekDays()[2].toISOString().split("T")[0],
-      type: "meeting",
-      instructor: "Carlos Silva",
-      location: "Sala de Reuniões",
-      participants: 8,
-      maxParticipants: 10,
-    },
+      // Terça (18)
+      {
+        id: 3,
+        title: "Consultoria Técnica",
+        startTime: "13:00",
+        endTime: "14:15",
+        date: weekDays[2].toISOString().split("T")[0],
+        type: "meeting",
+        instructor: "Carlos Silva",
+        location: "Sala de Reuniões",
+        participants: 8,
+        maxParticipants: 10,
+      },
 
-    // Quarta (19)
-    {
-      id: 4,
-      title: "Operação de Segurança",
-      startTime: "09:00",
-      endTime: "11:40",
-      date: getWeekDays()[3].toISOString().split("T")[0],
-      type: "workshop",
-      instructor: "Equipe Segurança",
-      location: "Campo de Treinamento",
-      participants: 25,
-      maxParticipants: 30,
-    },
-    {
-      id: 5,
-      title: "Consultoria Estratégica",
-      startTime: "14:00",
-      endTime: "15:15",
-      date: getWeekDays()[3].toISOString().split("T")[0],
-      type: "meeting",
-      instructor: "Diretoria",
-      location: "Sala VIP",
-      participants: 6,
-      maxParticipants: 8,
-    },
+      // Quarta (19)
+      {
+        id: 4,
+        title: "Operação de Segurança",
+        startTime: "09:00",
+        endTime: "11:40",
+        date: weekDays[3].toISOString().split("T")[0],
+        type: "workshop",
+        instructor: "Equipe Segurança",
+        location: "Campo de Treinamento",
+        participants: 25,
+        maxParticipants: 30,
+      },
+      {
+        id: 5,
+        title: "Consultoria Estratégica",
+        startTime: "14:00",
+        endTime: "15:15",
+        date: weekDays[3].toISOString().split("T")[0],
+        type: "meeting",
+        instructor: "Diretoria",
+        location: "Sala VIP",
+        participants: 6,
+        maxParticipants: 8,
+      },
 
-    // Quinta (20)
-    {
-      id: 6,
-      title: "Análise Financeira",
-      startTime: "09:00",
-      endTime: "10:30",
-      date: getWeekDays()[4].toISOString().split("T")[0],
-      type: "class",
-      instructor: "Contador",
-      location: "Sala Financeira",
-      participants: 12,
-      maxParticipants: 15,
-    },
-    {
-      id: 7,
-      title: "Reabilitação de Processos",
-      startTime: "12:00",
-      endTime: "13:30",
-      date: getWeekDays()[4].toISOString().split("T")[0],
-      type: "certification",
-      instructor: "Consultor ISO",
-      location: "Auditório",
-      participants: 20,
-      maxParticipants: 25,
-    },
+      // Quinta (20)
+      {
+        id: 6,
+        title: "Análise Financeira",
+        startTime: "09:00",
+        endTime: "10:30",
+        date: weekDays[4].toISOString().split("T")[0],
+        type: "class",
+        instructor: "Contador",
+        location: "Sala Financeira",
+        participants: 12,
+        maxParticipants: 15,
+      },
+      {
+        id: 7,
+        title: "Reabilitação de Processos",
+        startTime: "12:00",
+        endTime: "13:30",
+        date: weekDays[4].toISOString().split("T")[0],
+        type: "certification",
+        instructor: "Consultor ISO",
+        location: "Auditório",
+        participants: 20,
+        maxParticipants: 25,
+      },
 
-    // Sexta (21)
-    {
-      id: 8,
-      title: "Reabilitação Técnica",
-      startTime: "14:00",
-      endTime: "15:30",
-      date: getWeekDays()[5].toISOString().split("T")[0],
-      type: "certification",
-      instructor: "Eng. Marcos",
-      location: "Oficina",
-      participants: 10,
-      maxParticipants: 12,
-    },
+      // Sexta (21)
+      {
+        id: 8,
+        title: "Reabilitação Técnica",
+        startTime: "14:00",
+        endTime: "15:30",
+        date: weekDays[5].toISOString().split("T")[0],
+        type: "certification",
+        instructor: "Eng. Marcos",
+        location: "Oficina",
+        participants: 10,
+        maxParticipants: 12,
+      },
 
-    // Sábado (22)
-    {
-      id: 9,
-      title: "Consultoria de Gestão",
-      startTime: "11:00",
-      endTime: "12:15",
-      date: getWeekDays()[6].toISOString().split("T")[0],
-      type: "meeting",
-      instructor: "Consultor Externo",
-      location: "Sala de Reuniões",
-      participants: 8,
-      maxParticipants: 10,
-    },
-  ]
+      // Sábado (22)
+      {
+        id: 9,
+        title: "Consultoria de Gestão",
+        startTime: "11:00",
+        endTime: "12:15",
+        date: weekDays[6].toISOString().split("T")[0],
+        type: "meeting",
+        instructor: "Consultor Externo",
+        location: "Sala de Reuniões",
+        participants: 8,
+        maxParticipants: 10,
+      },
+    ]
+  }, [currentWeek])
 
   // Horários da timeline (8:00 às 16:00)
   const timeSlots = [

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileSpreadsheet, FileIcon as FilePdf, Filter, Printer } from "lucide-react"
+import { FileSpreadsheet, FileText, Filter, Printer } from "lucide-react"
 
 export function AccountsPayableReport() {
   const [dateType, setDateType] = useState("dueDate")
@@ -268,7 +268,7 @@ export function AccountsPayableReport() {
             Excel
           </Button>
           <Button variant="outline" onClick={handleExportPDF}>
-            <FilePdf className="mr-2 h-4 w-4" />
+            <FileText className="mr-2 h-4 w-4" />
             PDF
           </Button>
           <Button variant="outline" onClick={handlePrint}>
