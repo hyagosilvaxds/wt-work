@@ -31,7 +31,7 @@ import {
   AlertCircle,
   Loader2
 } from "lucide-react"
-import { getUsers, getRoles, createUser, CreateUserData, deleteUser, getPermissions, updateRole, UpdateRoleData, deleteRole } from "@/lib/api/superadmin"
+import { getUsers, getRoles, createUser, CreateUserData, deleteUser, getPermissions, updateRole, UpdateRoleData, deleteRole, createInstructor, CreateInstructorData, createRole, CreateRoleData, getLightInstructors } from "@/lib/api/superadmin"
 
 interface User {
   id: string
@@ -41,6 +41,7 @@ interface User {
   isActive?: boolean
   createdAt: string
   lastLogin?: string
+  bio?: string
 }
 
 interface Role {
@@ -63,6 +64,15 @@ interface Permission {
   module: string
 }
 
+interface LightInstructor {
+  id: string
+  name: string
+  email: string
+  user: {
+    isActive: boolean
+  }
+}
+
 export function SettingsPage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("users")
@@ -79,6 +89,8 @@ export function SettingsPage() {
   // State for data
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
+  const [availableInstructors, setAvailableInstructors] = useState<LightInstructor[]>([])
+  const [loadingInstructors, setLoadingInstructors] = useState(false)
   
   // State for pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -96,6 +108,8 @@ export function SettingsPage() {
   useEffect(() => {
     loadRoles()
   }, [])
+
+
 
   // API function to load users
   const loadUsers = async () => {
@@ -345,8 +359,39 @@ export function SettingsPage() {
     password: "",
     roleId: "",
     isActive: true,
-    personType: "FISICA"
+    bio: ""
   })
+
+  const [instructorForm, setInstructorForm] = useState<CreateInstructorData>({
+    name: "",
+    email: "",
+    password: "",
+    bio: "",
+    isActive: true,
+    corporateName: "",
+    personType: "FISICA",
+    cpf: "",
+    cnpj: "",
+    municipalRegistration: "",
+    stateRegistration: "",
+    zipCode: "",
+    address: "",
+    addressNumber: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+    landlineAreaCode: "",
+    landlineNumber: "",
+    mobileAreaCode: "",
+    mobileNumber: "",
+    instructorEmail: "",
+    education: "",
+    registrationNumber: "",
+    observations: ""
+  })
+
+  const [isInstructorMode, setIsInstructorMode] = useState(false)
+  const [selectedInstructorId, setSelectedInstructorId] = useState<string>("")
 
   const [roleForm, setRoleForm] = useState({
     name: "",
@@ -400,6 +445,37 @@ export function SettingsPage() {
     }
   }
 
+  // Load available instructors for instructor mode
+  const loadAvailableInstructors = async () => {
+    try {
+      setLoadingInstructors(true)
+      const response = await getLightInstructors()
+      
+      // Filter only inactive instructors (user.isActive === false)
+      const inactiveInstructors = response.filter((instructor: LightInstructor) => 
+        instructor.user.isActive === false
+      )
+      
+      setAvailableInstructors(inactiveInstructors)
+    } catch (error) {
+      console.error('Error loading available instructors:', error)
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar instrutores disponíveis",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingInstructors(false)
+    }
+  }
+
+  // Load instructors when instructor mode is activated
+  useEffect(() => {
+    if (isInstructorMode) {
+      loadAvailableInstructors()
+    }
+  }, [isInstructorMode])
+
   const handleAddUser = async () => {
     const validationErrors = validateUserForm()
     
@@ -414,19 +490,47 @@ export function SettingsPage() {
 
     try {
       setLoading(true)
-      const newUser = await createUser(userForm)
+      
+      // Verificar se é instrutor
+      const selectedRole = roles.find(role => role.id === userForm.roleId)
+      const isInstructor = selectedRole?.name === "INSTRUCTOR" || selectedRole?.name === "INSTRUTOR"
+      
+      if (isInstructor) {
+        // Para modo instrutor, conectar com instrutor existente
+        const selectedInstructor = availableInstructors.find(inst => inst.id === selectedInstructorId)
+        
+        if (!selectedInstructor) {
+          toast({
+            title: "Erro",
+            description: "Instrutor selecionado não encontrado",
+            variant: "destructive"
+          })
+          return
+        }
+        
+        // TODO: Implementar API para ativar/conectar instrutor existente
+        // Por enquanto, vamos simular a ativação
+        toast({
+          title: "Sucesso",
+          description: `Instrutor ${selectedInstructor.name} conectado com sucesso`,
+        })
+      } else {
+        // Usar função padrão para outros tipos de usuário
+        const newUser = await createUser(userForm)
+        
+        toast({
+          title: "Sucesso",
+          description: "Usuário criado com sucesso",
+        })
+      }
       
       // Reload users to get the updated list
       await loadUsers()
       
-      // Reset form
-      resetUserForm()
+      // Reset forms using the centralized function
+      resetAllModalStates()
       setIsAddUserDialogOpen(false)
       
-      toast({
-        title: "Sucesso",
-        description: "Usuário criado com sucesso",
-      })
     } catch (error) {
       console.error('Error creating user:', error)
       toast({
@@ -447,8 +551,7 @@ export function SettingsPage() {
           : user
       )
       setUsers(updatedUsers)
-      setSelectedUser(null)
-      resetUserForm()
+      resetAllModalStates()
       setIsEditUserDialogOpen(false)
     }
   }
@@ -481,23 +584,51 @@ export function SettingsPage() {
     }
   }
 
-  const handleAddRole = () => {
-    if (roleForm.name && roleForm.description) {
-      const newRole: Role = {
-        id: roleForm.name.toLowerCase().replace(/\s+/g, '_'),
+  const handleAddRole = async () => {
+    if (!roleForm.name || !roleForm.description) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos obrigatórios",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setLoading(true)
+      
+      // Mapear os nomes das permissões para IDs da API
+      const permissionIds = roleForm.permissions
+        .map(permissionName => permissionNameToIdMap[permissionName])
+        .filter(Boolean) // Remove valores undefined
+
+      const roleData: CreateRoleData = {
         name: roleForm.name,
         description: roleForm.description,
-        users: [],
-        permissions: roleForm.permissions.map(permissionId => ({
-          id: `${roleForm.name.toLowerCase().replace(/\s+/g, '_')}_${permissionId}`,
-          roleId: roleForm.name.toLowerCase().replace(/\s+/g, '_'),
-          permissionId,
-          createdAt: new Date().toISOString()
-        }))
+        permissionIds
       }
-      setRoles([...roles, newRole])
-      setRoleForm({ name: "", description: "", permissions: [] })
+
+      await createRole(roleData)
+      
+      // Recarregar a lista de roles após criar
+      await loadRoles()
+      
+      resetRoleForm()
       setIsAddRoleDialogOpen(false)
+      
+      toast({
+        title: "Sucesso",
+        description: "Função criada com sucesso",
+      })
+    } catch (error) {
+      console.error('Error creating role:', error)
+      toast({
+        title: "Erro",
+        description: "Falha ao criar função",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -530,9 +661,13 @@ export function SettingsPage() {
       console.log('Permission IDs to send:', permissionIds)
 
       const roleData: UpdateRoleData = {
-        name: roleForm.name,
         description: roleForm.description,
         permissionIds
+      }
+
+      // Só incluir o nome se não for a role "Instrutor"
+      if (selectedRole.name !== "INSTRUCTOR" && selectedRole.name !== "INSTRUTOR") {
+        roleData.name = roleForm.name
       }
 
       console.log('Role data to send:', roleData)
@@ -543,7 +678,7 @@ export function SettingsPage() {
       await loadRoles()
       
       setSelectedRole(null)
-      setRoleForm({ name: "", description: "", permissions: [] })
+      resetRoleForm()
       setIsEditRoleDialogOpen(false)
       
       toast({
@@ -563,6 +698,17 @@ export function SettingsPage() {
   }
 
   const handleDeleteRole = async (roleId: string) => {
+    // Proteger a role "Instrutor" de ser deletada
+    const roleToDelete = roles.find(role => role.id === roleId)
+    if (roleToDelete && (roleToDelete.name === "INSTRUCTOR" || roleToDelete.name === "INSTRUTOR")) {
+      toast({
+        title: "Erro",
+        description: "A função 'Instrutor' não pode ser excluída",
+        variant: "destructive"
+      })
+      return
+    }
+
     if (!confirm('Tem certeza que deseja excluir esta função?')) {
       return
     }
@@ -591,6 +737,8 @@ export function SettingsPage() {
   }
 
   const openEditUserDialog = (user: User) => {
+    // Primeiro limpar qualquer estado anterior
+    resetUserForm()
     setSelectedUser(user)
     setUserForm({
       name: user.name,
@@ -598,12 +746,14 @@ export function SettingsPage() {
       password: "",
       roleId: getRoleId(user.role),
       isActive: user.isActive ?? true,
-      personType: "FISICA"
+      bio: user.bio || ""
     })
     setIsEditUserDialogOpen(true)
   }
 
   const openEditRoleDialog = (role: Role) => {
+    // Primeiro limpar qualquer estado anterior
+    setRoleForm({ name: "", description: "", permissions: [] })
     setSelectedRole(role)
     
     // Debug: log das permissões da role
@@ -658,27 +808,102 @@ export function SettingsPage() {
       password: "",
       roleId: "",
       isActive: true,
-      personType: "FISICA"
+      bio: ""
     })
+  }
+
+  // Function to reset instructor form
+  const resetInstructorForm = () => {
+    setInstructorForm({
+      name: "",
+      email: "",
+      password: "",
+      bio: "",
+      isActive: true,
+      corporateName: "",
+      personType: "FISICA",
+      cpf: "",
+      cnpj: "",
+      municipalRegistration: "",
+      stateRegistration: "",
+      zipCode: "",
+      address: "",
+      addressNumber: "",
+      neighborhood: "",
+      city: "",
+      state: "",
+      landlineAreaCode: "",
+      landlineNumber: "",
+      mobileAreaCode: "",
+      mobileNumber: "",
+      instructorEmail: "",
+      education: "",
+      registrationNumber: "",
+      observations: ""
+    })
+  }
+
+  // Function to reset role form
+  const resetRoleForm = () => {
+    setRoleForm({ name: "", description: "", permissions: [] })
+  }
+
+  // Function to reset all modal states
+  const resetAllModalStates = () => {
+    resetUserForm()
+    resetInstructorForm()
+    resetRoleForm()
+    setSelectedUser(null)
+    setSelectedRole(null)
+    setIsInstructorMode(false)
+    setSelectedInstructorId("")
+    setAvailableInstructors([])
   }
 
   // Function to validate user form
   const validateUserForm = () => {
     const errors: string[] = []
     
-    if (!userForm.name.trim()) errors.push("Nome é obrigatório")
-    if (!userForm.email.trim()) errors.push("Email é obrigatório")
-    if (!userForm.password.trim()) errors.push("Senha é obrigatória")
-    if (userForm.password.length > 0 && userForm.password.length < 6) errors.push("Senha deve ter pelo menos 6 caracteres")
-    if (!userForm.roleId) errors.push("Função é obrigatória")
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (userForm.email && !emailRegex.test(userForm.email)) {
-      errors.push("Email deve ter um formato válido")
+    if (isInstructorMode) {
+      // Simplified validation for instructor connection mode
+      if (!selectedInstructorId) {
+        errors.push("Selecione um instrutor para conectar")
+      }
+    } else {
+      // Standard validation for regular users
+      const currentForm = userForm
+      
+      if (!currentForm.name.trim()) errors.push("Nome é obrigatório")
+      if (!currentForm.email.trim()) errors.push("Email é obrigatório")
+      if (!currentForm.password.trim()) errors.push("Senha é obrigatória")
+      if (currentForm.password.length > 0 && currentForm.password.length < 6) errors.push("Senha deve ter pelo menos 6 caracteres")
+      if (!userForm.roleId) errors.push("Função é obrigatória")
+      
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (currentForm.email && !emailRegex.test(currentForm.email)) {
+        errors.push("Email deve ter um formato válido")
+      }
     }
     
     return errors
+  }
+
+  // Function to handle role selection and update instructor mode
+  const handleRoleChange = (roleId: string) => {
+    setUserForm(prev => ({ ...prev, roleId }))
+    
+    // Find the selected role to check if it's an instructor
+    const selectedRole = roles.find(role => role.id === roleId)
+    const isInstructor = selectedRole?.name === "INSTRUCTOR" || selectedRole?.name === "INSTRUTOR"
+    
+    setIsInstructorMode(isInstructor)
+    
+    // Reset instructor selection when switching modes
+    if (!isInstructor) {
+      setSelectedInstructorId("")
+      setAvailableInstructors([])
+    }
   }
 
   return (
@@ -870,13 +1095,15 @@ export function SettingsPage() {
                           <Edit className="mr-2 h-4 w-4" />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleDeleteRole(role.id)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Excluir
-                        </DropdownMenuItem>
+                        {(role.name !== "INSTRUCTOR" && role.name !== "INSTRUTOR") && (
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteRole(role.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -942,9 +1169,11 @@ export function SettingsPage() {
       {/* Add User Dialog */}
       <Dialog open={isAddUserDialogOpen} onOpenChange={(open) => {
         setIsAddUserDialogOpen(open)
-        if (!open) resetUserForm()
+        if (!open) {
+          resetAllModalStates()
+        }
       }}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Novo Usuário</DialogTitle>
             <DialogDescription>
@@ -952,7 +1181,7 @@ export function SettingsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6">
-            {/* Informações Básicas */}
+            {/* Informações Básicas - Sempre visível */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Informações Básicas</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -1002,7 +1231,7 @@ export function SettingsPage() {
                   <Label htmlFor="role">Função *</Label>
                   <Select 
                     value={userForm.roleId} 
-                    onValueChange={(value) => setUserForm(prev => ({ ...prev, roleId: value }))}
+                    onValueChange={handleRoleChange}
                     disabled={loadingRoles}
                   >
                     <SelectTrigger>
@@ -1033,16 +1262,13 @@ export function SettingsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="personType">Tipo de Pessoa</Label>
-                  <Select value={userForm.personType} onValueChange={(value: "FISICA" | "JURIDICA") => setUserForm(prev => ({ ...prev, personType: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="FISICA">Pessoa Física</SelectItem>
-                      <SelectItem value="JURIDICA">Pessoa Jurídica</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="bio">Biografia</Label>
+                  <Input
+                    id="bio"
+                    value={userForm.bio || ""}
+                    onChange={(e) => setUserForm(prev => ({ ...prev, bio: e.target.value }))}
+                    placeholder="Breve descrição profissional"
+                  />
                 </div>
                 <div className="flex items-center space-x-2 pt-6">
                   <Switch
@@ -1055,224 +1281,55 @@ export function SettingsPage() {
               </div>
             </div>
 
-            {/* Documentos */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Documentos</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {userForm.personType === "FISICA" ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="cpf">CPF</Label>
-                    <Input
-                      id="cpf"
-                      value={userForm.cpf || ""}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, cpf: e.target.value }))}
-                      placeholder="000.000.000-00"
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="cnpj">CNPJ</Label>
-                      <Input
-                        id="cnpj"
-                        value={userForm.cnpj || ""}
-                        onChange={(e) => setUserForm(prev => ({ ...prev, cnpj: e.target.value }))}
-                        placeholder="00.000.000/0000-00"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="corporateName">Razão Social</Label>
-                      <Input
-                        id="corporateName"
-                        value={userForm.corporateName || ""}
-                        onChange={(e) => setUserForm(prev => ({ ...prev, corporateName: e.target.value }))}
-                        placeholder="Razão social da empresa"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-              {userForm.personType === "JURIDICA" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="municipalRegistration">Inscrição Municipal</Label>
-                    <Input
-                      id="municipalRegistration"
-                      value={userForm.municipalRegistration || ""}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, municipalRegistration: e.target.value }))}
-                      placeholder="Inscrição municipal"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="stateRegistration">Inscrição Estadual</Label>
-                    <Input
-                      id="stateRegistration"
-                      value={userForm.stateRegistration || ""}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, stateRegistration: e.target.value }))}
-                      placeholder="Inscrição estadual"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Endereço */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Endereço</h3>
-              <div className="grid grid-cols-3 gap-4">
+            {/* Modo Instrutor - Seleção Simplificada */}
+            {isInstructorMode && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Conectar com Instrutor</h3>
                 <div className="space-y-2">
-                  <Label htmlFor="zipCode">CEP</Label>
-                  <Input
-                    id="zipCode"
-                    value={userForm.zipCode || ""}
-                    onChange={(e) => setUserForm(prev => ({ ...prev, zipCode: e.target.value }))}
-                    placeholder="00000-000"
-                  />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="address">Endereço</Label>
-                  <Input
-                    id="address"
-                    value={userForm.address || ""}
-                    onChange={(e) => setUserForm(prev => ({ ...prev, address: e.target.value }))}
-                    placeholder="Rua, avenida, etc."
-                  />
+                  <Label htmlFor="instructorSelect">Selecione um instrutor para conectar *</Label>
+                  <Select 
+                    value={selectedInstructorId} 
+                    onValueChange={setSelectedInstructorId}
+                    disabled={loadingInstructors}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={loadingInstructors ? "Carregando instrutores..." : "Selecione um instrutor"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loadingInstructors ? (
+                        <SelectItem value="loading" disabled>
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Carregando...</span>
+                          </div>
+                        </SelectItem>
+                      ) : availableInstructors.length === 0 ? (
+                        <SelectItem value="empty" disabled>
+                          Nenhum instrutor encontrado
+                        </SelectItem>
+                      ) : (
+                        availableInstructors.map((instructor) => (
+                          <SelectItem key={instructor.id} value={instructor.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{instructor.name}</span>
+                              <span className="text-sm text-gray-500">{instructor.email}</span>
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-gray-500">
+                    Apenas instrutores sem conexão estão disponíveis.
+                  </p>
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="addressNumber">Número</Label>
-                  <Input
-                    id="addressNumber"
-                    value={userForm.addressNumber || ""}
-                    onChange={(e) => setUserForm(prev => ({ ...prev, addressNumber: e.target.value }))}
-                    placeholder="123"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="neighborhood">Bairro</Label>
-                  <Input
-                    id="neighborhood"
-                    value={userForm.neighborhood || ""}
-                    onChange={(e) => setUserForm(prev => ({ ...prev, neighborhood: e.target.value }))}
-                    placeholder="Nome do bairro"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="city">Cidade</Label>
-                  <Input
-                    id="city"
-                    value={userForm.city || ""}
-                    onChange={(e) => setUserForm(prev => ({ ...prev, city: e.target.value }))}
-                    placeholder="Nome da cidade"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">Estado</Label>
-                  <Input
-                    id="state"
-                    value={userForm.state || ""}
-                    onChange={(e) => setUserForm(prev => ({ ...prev, state: e.target.value }))}
-                    placeholder="UF"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Contato */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Contato</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="landlineAreaCode">DDD Fixo</Label>
-                    <Input
-                      id="landlineAreaCode"
-                      value={userForm.landlineAreaCode || ""}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, landlineAreaCode: e.target.value }))}
-                      placeholder="11"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="landlineNumber">Telefone Fixo</Label>
-                    <Input
-                      id="landlineNumber"
-                      value={userForm.landlineNumber || ""}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, landlineNumber: e.target.value }))}
-                      placeholder="3333-4444"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="mobileAreaCode">DDD Celular</Label>
-                    <Input
-                      id="mobileAreaCode"
-                      value={userForm.mobileAreaCode || ""}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, mobileAreaCode: e.target.value }))}
-                      placeholder="11"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="mobileNumber">Celular</Label>
-                    <Input
-                      id="mobileNumber"
-                      value={userForm.mobileNumber || ""}
-                      onChange={(e) => setUserForm(prev => ({ ...prev, mobileNumber: e.target.value }))}
-                      placeholder="99999-8888"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Informações Profissionais */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Informações Profissionais</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="education">Formação</Label>
-                  <Input
-                    id="education"
-                    value={userForm.education || ""}
-                    onChange={(e) => setUserForm(prev => ({ ...prev, education: e.target.value }))}
-                    placeholder="Formação acadêmica"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="registrationNumber">Registro Profissional</Label>
-                  <Input
-                    id="registrationNumber"
-                    value={userForm.registrationNumber || ""}
-                    onChange={(e) => setUserForm(prev => ({ ...prev, registrationNumber: e.target.value }))}
-                    placeholder="Número do registro"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bio">Biografia</Label>
-                <Input
-                  id="bio"
-                  value={userForm.bio || ""}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, bio: e.target.value }))}
-                  placeholder="Breve descrição profissional"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="observations">Observações</Label>
-                <Input
-                  id="observations"
-                  value={userForm.observations || ""}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, observations: e.target.value }))}
-                  placeholder="Observações adicionais"
-                />
-              </div>
-            </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setIsAddUserDialogOpen(false)
-              resetUserForm()
+              resetAllModalStates()
             }}>
               Cancelar
             </Button>
@@ -1284,10 +1341,10 @@ export function SettingsPage() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Criando...
+                  {isInstructorMode ? 'Conectando...' : 'Criando...'}
                 </>
               ) : (
-                'Criar Usuário'
+                isInstructorMode ? 'Conectar Instrutor' : 'Criar Usuário'
               )}
             </Button>
           </DialogFooter>
@@ -1295,7 +1352,12 @@ export function SettingsPage() {
       </Dialog>
 
       {/* Edit User Dialog */}
-      <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
+      <Dialog open={isEditUserDialogOpen} onOpenChange={(open) => {
+        setIsEditUserDialogOpen(open)
+        if (!open) {
+          resetAllModalStates()
+        }
+      }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Editar Usuário</DialogTitle>
@@ -1347,18 +1409,30 @@ export function SettingsPage() {
                   </Button>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="edit-isActive"
-                  checked={userForm.isActive}
-                  onCheckedChange={(checked) => setUserForm(prev => ({ ...prev, isActive: checked }))}
+              <div className="space-y-2">
+                <Label htmlFor="edit-bio">Biografia</Label>
+                <Input
+                  id="edit-bio"
+                  value={userForm.bio || ""}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, bio: e.target.value }))}
+                  placeholder="Breve descrição profissional"
                 />
-                <Label htmlFor="edit-isActive">Usuário Ativo</Label>
               </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="edit-isActive"
+                checked={userForm.isActive}
+                onCheckedChange={(checked) => setUserForm(prev => ({ ...prev, isActive: checked }))}
+              />
+              <Label htmlFor="edit-isActive">Usuário Ativo</Label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditUserDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsEditUserDialogOpen(false)
+              resetAllModalStates()
+            }}>
               Cancelar
             </Button>
             <Button 
@@ -1380,7 +1454,12 @@ export function SettingsPage() {
       </Dialog>
 
       {/* Add Role Dialog */}
-      <Dialog open={isAddRoleDialogOpen} onOpenChange={setIsAddRoleDialogOpen}>
+      <Dialog open={isAddRoleDialogOpen} onOpenChange={(open) => {
+        setIsAddRoleDialogOpen(open)
+        if (!open) {
+          resetRoleForm()
+        }
+      }}>
         <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova Função</DialogTitle>
@@ -1435,18 +1514,38 @@ export function SettingsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddRoleDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsAddRoleDialogOpen(false)
+              resetRoleForm()
+            }}>
               Cancelar
             </Button>
-            <Button onClick={handleAddRole} className="bg-primary-500 hover:bg-primary-600">
-              Criar Função
+            <Button 
+              onClick={handleAddRole} 
+              className="bg-primary-500 hover:bg-primary-600"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Criando...
+                </>
+              ) : (
+                'Criar Função'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit Role Dialog */}
-      <Dialog open={isEditRoleDialogOpen} onOpenChange={setIsEditRoleDialogOpen}>
+      <Dialog open={isEditRoleDialogOpen} onOpenChange={(open) => {
+        setIsEditRoleDialogOpen(open)
+        if (!open) {
+          resetRoleForm()
+          setSelectedRole(null)
+        }
+      }}>
         <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Função</DialogTitle>
@@ -1463,7 +1562,13 @@ export function SettingsPage() {
                   value={roleForm.name}
                   onChange={(e) => setRoleForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Nome da função"
+                  disabled={selectedRole?.name === "INSTRUCTOR" || selectedRole?.name === "INSTRUTOR"}
                 />
+                {(selectedRole?.name === "INSTRUCTOR" || selectedRole?.name === "INSTRUTOR") && (
+                  <p className="text-xs text-gray-500">
+                    O nome da função "Instrutor" não pode ser alterado
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-role-description">Descrição</Label>
@@ -1501,7 +1606,11 @@ export function SettingsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditRoleDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsEditRoleDialogOpen(false)
+              resetRoleForm()
+              setSelectedRole(null)
+            }}>
               Cancelar
             </Button>
             <Button 

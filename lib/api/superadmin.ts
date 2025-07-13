@@ -35,25 +35,6 @@ export interface CreateUserData {
   
   // Campos opcionais
   isActive?: boolean
-  corporateName?: string
-  personType?: 'FISICA' | 'JURIDICA'
-  cpf?: string
-  cnpj?: string
-  municipalRegistration?: string
-  stateRegistration?: string
-  zipCode?: string
-  address?: string
-  addressNumber?: string
-  neighborhood?: string
-  city?: string
-  state?: string
-  landlineAreaCode?: string
-  landlineNumber?: string
-  mobileAreaCode?: string
-  mobileNumber?: string
-  education?: string
-  registrationNumber?: string
-  observations?: string
   bio?: string
 }
 
@@ -77,8 +58,20 @@ export const deleteUser = async (userId: string) => {
   }
 }
 
-export const createRole = async (roleName: string) => {
+export interface CreateRoleData {
+  name: string
+  description: string
+  permissionIds?: string[]
+}
 
+export const createRole = async (roleData: CreateRoleData) => {
+  try {
+    const response = await api.post('/superadmin/roles', roleData)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao criar role:', error)
+    throw error
+  }
 }
 
 export interface UpdateRoleData {
@@ -113,6 +106,74 @@ export const getPermissions = async () => {
     return response.data
   } catch (error) {
     console.error('Erro ao buscar permissões:', error)
+    throw error
+  }
+}
+
+export interface CreateInstructorData {
+  // Dados do usuário
+  name: string
+  email: string
+  password: string
+  bio?: string
+  skillIds?: string[]
+  isActive?: boolean
+
+  // Dados do instrutor
+  corporateName?: string
+  personType?: 'FISICA' | 'JURIDICA'
+  cpf?: string
+  cnpj?: string
+  municipalRegistration?: string
+  stateRegistration?: string
+  zipCode?: string
+  address?: string
+  addressNumber?: string
+  neighborhood?: string
+  city?: string
+  state?: string
+  landlineAreaCode?: string
+  landlineNumber?: string
+  mobileAreaCode?: string
+  mobileNumber?: string
+  instructorEmail?: string
+  education?: string
+  registrationNumber?: string
+  observations?: string
+}
+
+export const createInstructor = async (instructorData: CreateInstructorData) => {
+  try {
+    const response = await api.post('/superadmin/instructors', instructorData)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao criar instrutor:', error)
+    throw error
+  }
+}
+
+export const getInstructors = async (page: number, limit: number, search?: string) => {
+  try {
+    const response = await api.get('/superadmin/instructors', {
+      params: {
+        page,
+        limit,
+        search
+      }
+    })
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar instrutores:', error)
+    throw error
+  }
+}
+
+export const getLightInstructors = async () => {
+  try {
+    const response = await api.get('/superadmin/light-instructors')
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar instrutores leves:', error)
     throw error
   }
 }
