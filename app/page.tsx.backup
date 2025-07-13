@@ -49,6 +49,39 @@ export default function Home() {
       default:
         return <AdaptiveDashboard />
     }
+
+export default function Home() {
+  const [activeTab, setActiveTab] = useState("dashboard")
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "dashboard":
+        return <AdaptiveDashboard />
+      case "students":
+        return <StudentsPage />
+      case "trainings":
+        return <TrainingsPage />
+      case "classes":
+        return <ClassesPage />
+      case "instructors":
+        return <InstructorsPage />
+      case "clients":
+        return <ClientsPage />
+      case "groups":
+        return <GroupsPage />
+      case "rooms":
+        return <RoomsPage />
+      case "certificates":
+        return <CertificatesPage />
+      case "financial":
+        return <FinancialModule />
+      case "reports":
+        return <ReportsPage />
+      case "settings":
+        return <SettingsPage />
+      default:
+        return <AdaptiveDashboard />
+    }
   }
 
   return (

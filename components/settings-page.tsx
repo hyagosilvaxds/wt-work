@@ -32,13 +32,14 @@ import {
   AlertCircle,
   Loader2
 } from "lucide-react"
+import { getUsers, getRoles } from "@/lib/api/superadmin"
 
 interface User {
   id: string
   name: string
   email: string
-  role: string
-  status: 'active' | 'inactive'
+  role: { id: string; name: string; description?: string }
+  isActive?: boolean
   createdAt: string
   lastLogin?: string
 }
@@ -75,20 +76,25 @@ export function SettingsPage() {
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
+  
+  // State for pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalUsers, setTotalUsers] = useState(0)
+  const [usersPerPage] = useState(10)
 
   // Load data on component mount
   useEffect(() => {
     loadUsers()
     loadRoles()
     loadPermissions()
-  }, [])
+  }, [currentPage])
 
   const [userForm, setUserForm] = useState({
     name: "",
     email: "",
     password: "",
-    role: "",
-    status: "ACTIVE" as "ACTIVE" | "INACTIVE"
+    role: ""
   })
 
   const [roleForm, setRoleForm] = useState({
@@ -97,13 +103,27 @@ export function SettingsPage() {
     permissions: [] as string[]
   })
 
+  // Helper function to extract role ID from user.role (which can be string or object)
+  const getRoleId = (role: string | { id: string; name: string; description?: string }) => {
+    return typeof role === 'object' ? role.id || role.name : role;
+  }
+
+  // Helper function to get role display name
+  const getRoleDisplayName = (userRole: string | { id: string; name: string; description?: string }) => {
+    const roleId = getRoleId(userRole);
+    return roles.find(r => r.id === roleId)?.name || roleId;
+  }
+
   // API functions
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/users')
-      if (response.ok) {
-        const data = await response.json()
-        setUsers(data.users || [])
+      setLoading(true)
+      const data = await getUsers(currentPage, usersPerPage)
+      
+      if (data && data.users) {
+        setUsers(data.users)
+        setTotalUsers(data.pagination?.total || 0)
+        setTotalPages(Math.ceil((data.pagination?.total || 0) / usersPerPage))
       }
     } catch (error) {
       console.error('Error loading users:', error)
@@ -112,15 +132,17 @@ export function SettingsPage() {
         description: "Falha ao carregar usuários",
         variant: "destructive"
       })
+    } finally {
+      setLoading(false)
     }
   }
 
   const loadRoles = async () => {
     try {
-      const response = await fetch('/api/roles')
-      if (response.ok) {
-        const data = await response.json()
-        setRoles(data.roles || [])
+      const data = await getRoles()
+      
+      if (data && data.roles) {
+        setRoles(data.roles)
       }
     } catch (error) {
       console.error('Error loading roles:', error)
@@ -129,6 +151,34 @@ export function SettingsPage() {
         description: "Falha ao carregar funções",
         variant: "destructive"
       })
+      
+      // Use mock data if API fails
+      setRoles([
+        {
+          id: "super-admin",
+          name: "Super Admin",
+          description: "Acesso total ao sistema",
+          permissions: ["*"],
+          userCount: 1,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "admin",
+          name: "Administrador",
+          description: "Gerenciamento de usuários e configurações",
+          permissions: ["users.create", "users.read", "users.update", "users.delete"],
+          userCount: 2,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "instructor",
+          name: "Instrutor",
+          description: "Gerenciamento de cursos e treinamentos",
+          permissions: ["courses.create", "courses.read", "courses.update"],
+          userCount: 5,
+          createdAt: new Date().toISOString()
+        }
+      ])
     }
   }
 
@@ -152,26 +202,11 @@ export function SettingsPage() {
     }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case "INACTIVE":
-        return <XCircle className="h-4 w-4 text-red-500" />
-      default:
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return "bg-green-100 text-green-800"
-      case "INACTIVE":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-yellow-100 text-yellow-800"
-    }
+  // Helper function to get status badge class based on isActive boolean
+  const getStatusBadge = (isActive: boolean = false) => {
+    return isActive 
+      ? "bg-green-100 text-green-800 hover:bg-green-100" 
+      : "bg-red-100 text-red-800 hover:bg-red-100"
   }
 
   const getRoleBadge = (role: string) => {
@@ -212,7 +247,7 @@ export function SettingsPage() {
           title: "Sucesso",
           description: "Usuário criado com sucesso"
         })
-        setUserForm({ name: "", email: "", password: "", role: "", status: "ACTIVE" })
+        setUserForm({ name: "", email: "", password: "", role: "" })
         setIsAddUserDialogOpen(false)
         loadUsers()
       } else {
@@ -254,8 +289,7 @@ export function SettingsPage() {
         body: JSON.stringify({
           name: userForm.name,
           email: userForm.email,
-          role: userForm.role,
-          status: userForm.status
+          role: userForm.role
         }),
       })
 
@@ -265,7 +299,7 @@ export function SettingsPage() {
           description: "Usuário atualizado com sucesso"
         })
         setSelectedUser(null)
-        setUserForm({ name: "", email: "", password: "", role: "", status: "ACTIVE" })
+        setUserForm({ name: "", email: "", password: "", role: "" })
         setIsEditUserDialogOpen(false)
         loadUsers()
       } else {
@@ -454,8 +488,7 @@ export function SettingsPage() {
       name: user.name,
       email: user.email,
       password: "",
-      role: user.role,
-      status: user.status
+      role: getRoleId(user.role)
     })
     setIsEditUserDialogOpen(true)
   }
@@ -543,51 +576,102 @@ export function SettingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Badge className={getRoleBadge(user.role)}>
-                          {roles.find(r => r.id === user.role)?.name || user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(user.status)}
-                          <Badge className={getStatusBadge(user.status)}>
-                            {user.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
-                          </Badge>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <div className="flex items-center justify-center space-x-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Carregando usuários...</span>
                         </div>
                       </TableCell>
-                      <TableCell>{new Date(user.createdAt).toLocaleDateString('pt-BR')}</TableCell>
-                      <TableCell>{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('pt-BR') : 'Nunca'}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditUserDialog(user)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                    </TableRow>
+                  ) : users.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <span>Nenhum usuário encontrado</span>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Badge className={user.role.name}>
+                            {user.role.name} 
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            {user.isActive ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            )}
+                            <Badge className={getStatusBadge(user.isActive ?? false)}>
+                              {user.isActive ? 'Ativo' : 'Inativo'}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>{new Date(user.createdAt).toLocaleDateString('pt-BR')}</TableCell>
+                        <TableCell>{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('pt-BR') : 'Nunca'}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditUserDialog(user)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-gray-600">
+                    Mostrando {users.length} de {totalUsers} usuários
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1 || loading}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-sm">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages || loading}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -763,18 +847,6 @@ export function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={userForm.status} onValueChange={(value: "active" | "inactive") => setUserForm(prev => ({ ...prev, status: value }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </div>
           <DialogFooter>
@@ -832,18 +904,6 @@ export function SettingsPage() {
                         {role.name}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-status">Status</Label>
-                <Select value={userForm.status} onValueChange={(value: "active" | "inactive") => setUserForm(prev => ({ ...prev, status: value }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

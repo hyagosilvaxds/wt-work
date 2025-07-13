@@ -18,17 +18,17 @@ export async function login({ email, password }: { email: string; password: stri
         }
 
         // Armazena o token JWT no cookie
-        Cookies.set("jwtToken", accessToken, { expires: 1 });
+        Cookies.set("jwtToken", accessToken, { expires: 7 });
         
         // Armazena dados do usuário no cookie
         if (user) {
             const userDataToStore = typeof user === 'string' ? user : JSON.stringify(user);
-            Cookies.set("user", userDataToStore, { expires: 1 });
+            Cookies.set("user", userDataToStore, { expires: 7 });
         }
 
         // Decodifica o token para extrair dados adicionais
         const decodedToken = jwtDecode<{ roleId: string; id: string; [key: string]: any }>(accessToken);
-        Cookies.set("userId", decodedToken.id, { expires: 1 }); // Armazena o ID do usuário no cookie
+        Cookies.set("userId", decodedToken.id, { expires: 7 }); // Armazena o ID do usuário no cookie
 
         console.log("Usuário logado com sucesso:", response.data);
         console.log("Token decodificado:", decodedToken);
@@ -87,8 +87,8 @@ export async function register(userData: { email: string; password: string; name
         }
 
         // Armazena o token JWT no cookie
-        Cookies.set("jwtToken", accessToken, { expires: 1 }); 
-        Cookies.set("user", userData.name, { expires: 1 });
+        Cookies.set("jwtToken", accessToken, { expires: 7 }); 
+        Cookies.set("user", userData.name, { expires: 7 });
 
         console.log("Usuário registrado com sucesso:", response.data);
         return true;

@@ -33,7 +33,7 @@ export function middleware(request: NextRequest) {
   // Se há token, verificar se é válido
   if (token) {
     try {
-      const decoded = jwtDecode(token)
+      const decoded = jwtDecode<any>(token)
       const currentTime = Date.now() / 1000
       
       // Verificar se o token expirou
