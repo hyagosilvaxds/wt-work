@@ -782,6 +782,93 @@ export const deleteClass = async (id: string) => {
   }
 }
 
+// ============ CLASS STUDENTS MANAGEMENT ============
+
+export interface AddStudentsToClassData {
+  studentIds: string[]
+}
+
+export interface RemoveStudentsFromClassData {
+  studentIds: string[]
+}
+
+// Adicionar alunos a uma turma
+export const addStudentsToClass = async (classId: string, studentIds: string[]) => {
+  try {
+    console.log('Adding students to class with ID:', classId)
+    console.log('Student IDs:', studentIds)
+    
+    // Validação básica
+    if (!classId || !studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      throw new Error('ID da turma e lista de IDs de estudantes são obrigatórios')
+    }
+    
+    const requestData = {
+      studentIds
+    }
+    
+    console.log('Request data:', requestData)
+    console.log('Request URL:', `/superadmin/classes/${classId}/students`)
+    
+    const response = await api.post(`/superadmin/classes/${classId}/students`, requestData, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    console.log('Response data:', response.data)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao adicionar alunos à turma:', error)
+    if (error.response) {
+      console.error('Response data:', error.response.data)
+      console.error('Response status:', error.response.status)
+      console.error('Response headers:', error.response.headers)
+    }
+    throw error
+  }
+}
+
+// Remover alunos de uma turma
+export const removeStudentsFromClass = async (classId: string, studentIds: string[]) => {
+  try {
+    console.log('Removing students from class with ID:', classId)
+    console.log('Student IDs:', studentIds)
+    
+    // Validação básica
+    if (!classId || !studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      throw new Error('ID da turma e lista de IDs de estudantes são obrigatórios')
+    }
+    
+    // Dados que serão enviados no corpo da requisição
+    const requestData = {
+      studentIds
+    }
+    
+    console.log('Request data:', requestData)
+    console.log('Request URL:', `/superadmin/classes/${classId}/students`)
+    
+    // Usar o método DELETE conforme implementado no backend
+    const response = await api.delete(`/superadmin/classes/${classId}/students`, {
+      data: requestData,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    console.log('Response data:', response.data)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao remover alunos da turma:', error)
+    if (error.response) {
+      console.error('Response data:', error.response.data)
+      console.error('Response status:', error.response.status)
+      console.error('Response headers:', error.response.headers)
+    }
+    throw error
+  }
+}
+
 // ============ LESSONS CRUD ============
 
 export interface CreateLessonData {
@@ -989,6 +1076,23 @@ export const deleteLessonAttendance = async (id: string) => {
   }
 }
 
+// Buscar presenças de aula por turma
+export const getLessonAttendanceByClass = async (classId: string) => {
+  try {
+    console.log('Calling getLessonAttendanceByClass with classId:', classId)
+    
+    const response = await api.get(`/superadmin/class/${classId}/lesson-attendance`)
+    
+    console.log('getLessonAttendanceByClass response:', response)
+    console.log('getLessonAttendanceByClass response.data:', response.data)
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar presenças de aula por turma:', error)
+    throw error
+  }
+}
+
 export const getEmpresaStudents = async (empresaId: string, page: number = 1, limit: number = 10, search?: string) => {
   try {
     const response = await api.get(`/superadmin/empresas/${empresaId}/students`, {
@@ -1001,6 +1105,23 @@ export const getEmpresaStudents = async (empresaId: string, page: number = 1, li
     return response.data
   } catch (error) {
     console.error('Erro ao buscar estudantes da empresa:', error)
+    throw error
+  }
+}
+
+// Marcar todos os alunos de uma turma como ausentes em uma aula
+export const markAllStudentsAbsent = async (classId: string, lessonId: string) => {
+  try {
+    console.log('Marking all students as absent for lesson:', lessonId, 'in class:', classId)
+    
+    const response = await api.post(`/superadmin/classes/${classId}/lessons/${lessonId}/mark-all-absent`)
+    
+    console.log('markAllStudentsAbsent response:', response)
+    console.log('markAllStudentsAbsent response.data:', response.data)
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao marcar todos os alunos como ausentes:', error)
     throw error
   }
 }

@@ -208,16 +208,7 @@ export function TurmaLessons({
               <RefreshCw className="h-4 w-4" />
               Atualizar
             </Button>
-            {onScheduleNew && (
-              <Button
-                size="sm"
-                onClick={onScheduleNew}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Agendar Aula
-              </Button>
-            )}
+            
           </div>
         </div>
       </CardHeader>

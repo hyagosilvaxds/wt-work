@@ -18,14 +18,19 @@ import {
   Edit,
   Trash2,
   Eye,
-  Loader2
+  Loader2,
+  UserPlus,
+  UserMinus,
+  ClipboardList
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { getClasses } from "@/lib/api/superadmin"
+import { getClasses, getStudents, addStudentsToClass, removeStudentsFromClass, getLessonAttendanceByClass, createLessonAttendance, patchLessonAttendance, deleteLessonAttendance } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
 import { ClassCreateModal } from "@/components/class-create-modal"
 import { ClassDetailsModal } from "@/components/class-details-modal"
+import { ClassStudentsModal } from "@/components/class-students-modal"
+import { ClassAttendanceModal } from "@/components/class-attendance-modal"
 import { LessonScheduleModal } from "@/components/lesson-schedule-modal"
 import { LessonEditModal } from "@/components/lesson-edit-modal"
 
@@ -89,6 +94,8 @@ export default function TurmasPage() {
   const [detailsTurma, setDetailsTurma] = useState<TurmaData | null>(null)
   const [schedulingTurma, setSchedulingTurma] = useState<TurmaData | null>(null)
   const [editingLesson, setEditingLesson] = useState<any>(null)
+  const [managingStudentsTurma, setManagingStudentsTurma] = useState<TurmaData | null>(null)
+  const [attendanceTurma, setAttendanceTurma] = useState<TurmaData | null>(null)
 
   // Carregar dados das turmas
   const loadTurmas = async (resetPage = false) => {
@@ -142,6 +149,46 @@ export default function TurmasPage() {
     setEditingTurma(null)
   }
 
+  // Função para atualizar a lista após gerenciamento de alunos
+  const handleStudentsSuccess = async () => {
+    try {
+      // Recarregar a lista de turmas
+      await loadTurmas()
+      
+      // Se há uma turma sendo gerenciada, buscar os dados atualizados
+      if (managingStudentsTurma) {
+        try {
+          // Buscar os dados atualizados da turma específica
+          const updatedClasses = await getClasses(currentPage, limit, searchTerm.trim() || undefined)
+          const updatedTurma = updatedClasses.classes?.find((t: TurmaData) => t.id === managingStudentsTurma.id)
+          
+          if (updatedTurma) {
+            setManagingStudentsTurma(updatedTurma)
+          } else {
+            console.warn('Turma não encontrada após atualização:', managingStudentsTurma.id)
+          }
+        } catch (error) {
+          console.error('Erro ao buscar dados atualizados da turma:', error)
+        }
+      }
+      
+      // Não fechar o modal para permitir adicionar/remover mais alunos
+    } catch (error) {
+      console.error('Erro ao atualizar lista de turmas:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar lista de turmas",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Função para atualizar a lista após gerenciamento de chamada
+  const handleAttendanceSuccess = () => {
+    loadTurmas()
+    // Não fechar o modal para permitir marcar mais presenças
+  }
+
   // Função para abrir modal de edição
   const handleEdit = (turma: TurmaData) => {
     setEditingTurma(turma)
@@ -163,6 +210,16 @@ export default function TurmasPage() {
     setSchedulingTurma(turma)
   }
 
+  // Função para abrir modal de gerenciamento de alunos
+  const handleManageStudents = (turma: TurmaData) => {
+    setManagingStudentsTurma(turma)
+  }
+
+  // Função para abrir modal de chamada
+  const handleManageAttendance = (turma: TurmaData) => {
+    setAttendanceTurma(turma)
+  }
+
   // Função para fechar modais
   const handleCloseModal = () => {
     setCreateModalOpen(false)
@@ -170,6 +227,13 @@ export default function TurmasPage() {
     setDetailsTurma(null)
     setSchedulingTurma(null)
     setEditingLesson(null)
+    setManagingStudentsTurma(null)
+    setAttendanceTurma(null)
+  }
+
+  // Função para fechar apenas o modal de gerenciamento de alunos
+  const handleCloseStudentsModal = () => {
+    setManagingStudentsTurma(null)
   }
 
   // Função para editar aula
@@ -382,6 +446,21 @@ export default function TurmasPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="gap-2"
+                          onClick={() => handleManageStudents(turma)}
+                        >
+                          <Users className="h-4 w-4" />
+                          Gerenciar Alunos
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleManageAttendance(turma)}
+                          disabled={!turma.lessons.some(lesson => lesson.status === "REALIZADA")}
+                        >
+                          <ClipboardList className="h-4 w-4" />
+                          Chamada
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="gap-2"
                           onClick={() => handleScheduleLesson(turma)}
                         >
                           <Calendar className="h-4 w-4" />
@@ -394,10 +473,7 @@ export default function TurmasPage() {
                           <Edit className="h-4 w-4" />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-red-600">
-                          <Trash2 className="h-4 w-4" />
-                          Excluir
-                        </DropdownMenuItem>
+                        
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -500,23 +576,28 @@ export default function TurmasPage() {
                       <Eye className="h-4 w-4" />
                       Detalhes
                     </Button>
+                    
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="gap-2"
-                      onClick={() => handleScheduleLesson(turma)}
+                      onClick={() => handleManageStudents(turma)}
                     >
-                      <Calendar className="h-4 w-4" />
-                      Agendar Aula
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-2">
                       <Users className="h-4 w-4" />
-                      Alunos ({turma.students.length})
+                      Gerenciar Alunos
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-2" onClick={() => handleViewLessons(turma)}>
-                      <Calendar className="h-4 w-4" />
-                      Aulas ({turma.lessons.length})
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => handleManageAttendance(turma)}
+                      disabled={!turma.lessons.some(lesson => lesson.status === "REALIZADA")}
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      Chamada
                     </Button>
+                    
                     {turma.status === "EM ABERTO" && (
                       <Button 
                         variant="outline" 
@@ -619,6 +700,7 @@ export default function TurmasPage() {
         turma={detailsTurma}
         onEdit={handleEdit}
         onScheduleLesson={handleScheduleLesson}
+        onSuccess={handleSuccess}
       />
 
       {/* Modal de Agendamento de Aula */}
@@ -643,6 +725,22 @@ export default function TurmasPage() {
             title: detailsTurma?.training.title || ""
           }
         } : undefined}
+      />
+
+      {/* Modal de Gerenciamento de Alunos */}
+      <ClassStudentsModal
+        isOpen={!!managingStudentsTurma}
+        onClose={handleCloseModal}
+        onSuccess={handleStudentsSuccess}
+        turma={managingStudentsTurma}
+      />
+
+      {/* Modal de Chamada */}
+      <ClassAttendanceModal
+        isOpen={!!attendanceTurma}
+        onClose={handleCloseModal}
+        onSuccess={handleAttendanceSuccess}
+        turma={attendanceTurma}
       />
     </>
   )

@@ -7,6 +7,12 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useToast } from "@/hooks/use-toast"
+import { getStudents, addStudentsToClass, removeStudentsFromClass } from "@/lib/api/superadmin"
 import {
   Users,
   Calendar,
@@ -25,7 +31,11 @@ import {
   CalendarDays,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  UserPlus,
+  UserMinus,
+  Search,
+  Loader2
 } from "lucide-react"
 import { TurmaLessons } from "@/components/turma-lessons"
 import { LessonEditModal } from "@/components/lesson-edit-modal"
@@ -99,20 +109,141 @@ interface ClassDetailsModalProps {
   turma: TurmaData | null
   onEdit?: (turma: TurmaData) => void
   onScheduleLesson?: (turma: TurmaData) => void
+  onSuccess?: () => void
 }
 
-export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLesson }: ClassDetailsModalProps) {
+export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLesson, onSuccess }: ClassDetailsModalProps) {
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("overview")
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [editingLesson, setEditingLesson] = useState<any>(null)
   const [deletingLesson, setDeletingLesson] = useState<any>(null)
+  
+  // Estados para gerenciar alunos
+  const [allStudents, setAllStudents] = useState<any[]>([])
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([])
+  const [studentsToRemove, setStudentsToRemove] = useState<string[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [comboboxOpen, setComboboxOpen] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [studentsLoading, setStudentsLoading] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
       setActiveTab("overview")
       setRefreshTrigger(prev => prev + 1)
+      setSelectedStudents([])
+      setStudentsToRemove([])
+      setSearchTerm("")
+      setComboboxOpen(false)
+      if (activeTab === "students") {
+        loadAllStudents()
+      }
     }
   }, [isOpen])
+
+  // Carregar quando a aba de alunos for ativada
+  useEffect(() => {
+    if (activeTab === "students" && isOpen) {
+      loadAllStudents()
+    }
+  }, [activeTab, isOpen])
+
+  const loadAllStudents = async () => {
+    setStudentsLoading(true)
+    try {
+      const response = await getStudents(1, 1000) // Carregar uma quantidade grande
+      setAllStudents(response.students || [])
+    } catch (error) {
+      console.error('Erro ao carregar estudantes:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar estudantes",
+        variant: "destructive"
+      })
+    } finally {
+      setStudentsLoading(false)
+    }
+  }
+
+  const handleAddStudents = async () => {
+    if (!turma || selectedStudents.length === 0) return
+
+    setActionLoading(true)
+    try {
+      await addStudentsToClass(turma.id, selectedStudents)
+      toast({
+        title: "Sucesso",
+        description: `${selectedStudents.length} aluno(s) adicionado(s) à turma`,
+      })
+      setSelectedStudents([])
+      setComboboxOpen(false)
+      if (onSuccess) {
+        onSuccess()
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar alunos:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao adicionar alunos à turma",
+        variant: "destructive"
+      })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleRemoveStudents = async () => {
+    if (!turma || studentsToRemove.length === 0) return
+
+    setActionLoading(true)
+    try {
+      await removeStudentsFromClass(turma.id, studentsToRemove)
+      toast({
+        title: "Sucesso",
+        description: `${studentsToRemove.length} aluno(s) removido(s) da turma`,
+      })
+      setStudentsToRemove([])
+      if (onSuccess) {
+        onSuccess()
+      }
+    } catch (error) {
+      console.error('Erro ao remover alunos:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao remover alunos da turma",
+        variant: "destructive"
+      })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const toggleStudentSelection = (studentId: string) => {
+    setSelectedStudents(prev => 
+      prev.includes(studentId) 
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    )
+  }
+
+  const toggleStudentRemoval = (studentId: string) => {
+    setStudentsToRemove(prev => 
+      prev.includes(studentId) 
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    )
+  }
+
+  // Filtrar estudantes que não estão na turma
+  const availableStudents = allStudents.filter(student => 
+    !turma?.students.some(classStudent => classStudent.id === student.id) &&
+    student.isActive &&
+    (searchTerm === "" || 
+     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     student.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     student.cpf.includes(searchTerm))
+  )
 
   const handleEditLesson = (lesson: any) => {
     setEditingLesson(lesson)
@@ -267,10 +398,11 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="lessons">Aulas</TabsTrigger>
-              <TabsTrigger value="reports">Relatórios</TabsTrigger>
+              <TabsTrigger value="students">Alunos</TabsTrigger>
+              <TabsTrigger value="attendance">Chamada</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -527,89 +659,249 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
               />
             </TabsContent>
 
-            <TabsContent value="reports" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Alunos
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-blue-600">
-                      {turma.students.length}
-                    </div>
-                    <p className="text-sm text-gray-500">Total de alunos</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CalendarDays className="h-5 w-5" />
-                      Aulas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-green-600">
-                      {turma.lessons.length}
-                    </div>
-                    <p className="text-sm text-gray-500">Total de aulas</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5" />
-                      Frequência
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-purple-600">
-                      {calculateAttendanceRate().toFixed(1)}%
-                    </div>
-                    <p className="text-sm text-gray-500">Taxa de presença</p>
-                  </CardContent>
-                </Card>
-              </div>
-
+            <TabsContent value="students" className="space-y-6">
+              {/* Alunos Atuais da Turma */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Resumo do Progresso</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Alunos Matriculados ({turma.students.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {turma.students.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Nenhum aluno matriculado nesta turma</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {turma.students.map((student: any) => (
+                        <div 
+                          key={student.id} 
+                          className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 ${
+                            studentsToRemove.includes(student.id) 
+                              ? 'bg-red-50 border-red-200' 
+                              : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium">{student.name}</h4>
+                              <div className="flex items-center gap-4 text-sm text-gray-500">
+                                {student.email && (
+                                  <span className="flex items-center gap-1">
+                                    <Mail className="h-4 w-4" />
+                                    {student.email}
+                                  </span>
+                                )}
+                                {student.cpf && (
+                                  <span className="flex items-center gap-1">
+                                    <IdCard className="h-4 w-4" />
+                                    {student.cpf}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={student.isActive ? "default" : "secondary"}>
+                              {student.isActive ? "Ativo" : "Inativo"}
+                            </Badge>
+                            <Button
+                              variant={studentsToRemove.includes(student.id) ? "destructive" : "outline"}
+                              size="sm"
+                              onClick={() => toggleStudentRemoval(student.id)}
+                              disabled={actionLoading}
+                            >
+                              {studentsToRemove.includes(student.id) ? (
+                                <>
+                                  <X className="h-4 w-4 mr-1" />
+                                  Cancelar
+                                </>
+                              ) : (
+                                <>
+                                  <UserMinus className="h-4 w-4 mr-1" />
+                                  Remover
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {studentsToRemove.length > 0 && (
+                        <div className="flex justify-end pt-4 border-t">
+                          <Button
+                            variant="destructive"
+                            onClick={handleRemoveStudents}
+                            disabled={actionLoading}
+                          >
+                            {actionLoading ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <UserMinus className="h-4 w-4 mr-2" />
+                            )}
+                            Remover {studentsToRemove.length} Aluno(s)
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Adicionar Novos Alunos */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserPlus className="h-5 w-5" />
+                    Adicionar Alunos
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Aulas Concluídas</label>
-                        <p className="text-lg font-semibold">
-                          {turma.lessons.filter(l => l.status === "CONCLUIDA").length} / {turma.lessons.length}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Aulas Agendadas</label>
-                        <p className="text-lg font-semibold">
-                          {turma.lessons.filter(l => l.status === "AGENDADA").length}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <Separator />
-                    
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Status da Turma</label>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge className={getStatusColor(turma.status)} variant="outline">
-                          {turma.status}
-                        </Badge>
-                        <span className="text-sm text-gray-500">
-                          {turma.status === "EM ABERTO" && "Aguardando início"}
-                          {turma.status === "ATIVA" && "Em andamento"}
-                          {turma.status === "FINALIZADA" && "Concluída"}
-                          {turma.status === "CANCELADA" && "Cancelada"}
-                        </span>
+                      <Label htmlFor="student-search">Selecionar Alunos</Label>
+                      <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={comboboxOpen}
+                            className="w-full justify-between"
+                            disabled={studentsLoading}
+                          >
+                            {selectedStudents.length === 0 
+                              ? "Selecionar alunos..." 
+                              : `${selectedStudents.length} aluno(s) selecionado(s)`
+                            }
+                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput 
+                              placeholder="Buscar alunos..." 
+                              value={searchTerm}
+                              onValueChange={setSearchTerm}
+                            />
+                            <CommandList>
+                              <CommandEmpty>
+                                {studentsLoading ? "Carregando..." : "Nenhum aluno encontrado"}
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {availableStudents.map((student) => (
+                                  <CommandItem
+                                    key={student.id}
+                                    value={student.id}
+                                    onSelect={() => toggleStudentSelection(student.id)}
+                                  >
+                                    <div className="flex items-center space-x-2 w-full">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedStudents.includes(student.id)}
+                                        onChange={() => {}}
+                                        className="rounded"
+                                      />
+                                      <div className="flex-1">
+                                        <p className="font-medium">{student.name}</p>
+                                        <p className="text-sm text-gray-600">
+                                          {student.email} • CPF: {student.cpf}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Alunos Selecionados */}
+                    {selectedStudents.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Alunos Selecionados ({selectedStudents.length})</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedStudents.map((studentId) => {
+                            const student = allStudents.find(s => s.id === studentId)
+                            return (
+                              <Badge key={studentId} variant="secondary">
+                                {student?.name}
+                                <button
+                                  onClick={() => toggleStudentSelection(studentId)}
+                                  className="ml-2 hover:text-destructive"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedStudents.length > 0 && (
+                      <Button
+                        onClick={handleAddStudents}
+                        disabled={actionLoading}
+                        className="w-full"
+                      >
+                        {actionLoading ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <UserPlus className="h-4 w-4 mr-2" />
+                        )}
+                        Adicionar {selectedStudents.length} Aluno(s)
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="attendance" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5" />
+                    Controle de Presença
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <CalendarDays className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Funcionalidade em Desenvolvimento
+                    </h3>
+                    <p className="text-gray-500 mb-6">
+                      O controle de presença será implementado em breve.
+                    </p>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-4 bg-blue-50 rounded-lg">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {turma.students.length}
+                          </div>
+                          <p className="text-sm text-gray-600">Alunos Total</p>
+                        </div>
+                        <div className="p-4 bg-green-50 rounded-lg">
+                          <div className="text-2xl font-bold text-green-600">
+                            {turma.lessons.length}
+                          </div>
+                          <p className="text-sm text-gray-600">Aulas Total</p>
+                        </div>
+                        <div className="p-4 bg-purple-50 rounded-lg">
+                          <div className="text-2xl font-bold text-purple-600">
+                            {calculateAttendanceRate().toFixed(1)}%
+                          </div>
+                          <p className="text-sm text-gray-600">Taxa de Presença</p>
+                        </div>
                       </div>
                     </div>
                   </div>

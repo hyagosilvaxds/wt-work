@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { createClass, patchClass, type CreateClassData, type UpdateClassData, getTrainings, getLightInstructors, getClients } from "@/lib/api/superadmin"
+import { createClass, patchClass, type CreateClassData, type UpdateClassData, getTrainings, getInstructors, getClients } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
 
 interface Class {
@@ -80,7 +81,7 @@ export function ClassCreateModal({
       
       const [trainingsRes, instructorsRes, clientsRes] = await Promise.all([
         getTrainings(1, 100),
-        getLightInstructors(),
+        getInstructors(1, 100),
         getClients(1, 100)
       ])
       
@@ -99,8 +100,15 @@ export function ClassCreateModal({
         trainingsData = trainingsRes
       }
       
-      // Para instrutores: já vem como array direto
-      const instructorsData = Array.isArray(instructorsRes) ? instructorsRes : (instructorsRes?.data || [])
+      // Para instrutores: pode vir como { instructors: [...] } ou { data: [...] }
+      let instructorsData = []
+      if (instructorsRes?.instructors) {
+        instructorsData = instructorsRes.instructors
+      } else if (instructorsRes?.data) {
+        instructorsData = instructorsRes.data
+      } else if (Array.isArray(instructorsRes)) {
+        instructorsData = instructorsRes
+      }
       
       // Para clientes: pode vir como { clients: [...] } ou { data: [...] }
       let clientsData = []
@@ -145,6 +153,73 @@ export function ClassCreateModal({
       })
     } finally {
       setLoadingData(false)
+    }
+  }
+
+  // Funções de pesquisa para os comboboxes
+  const searchTrainings = async (query: string) => {
+    try {
+      const response = await getTrainings(1, 50, query)
+      let trainingsData = []
+      if (response?.trainings) {
+        trainingsData = response.trainings
+      } else if (response?.data) {
+        trainingsData = response.data
+      } else if (Array.isArray(response)) {
+        trainingsData = response
+      }
+      
+      return trainingsData.map((training: any) => ({
+        value: training.id,
+        label: training.title
+      }))
+    } catch (error) {
+      console.error('Erro ao pesquisar treinamentos:', error)
+      return []
+    }
+  }
+
+  const searchInstructors = async (query: string) => {
+    try {
+      const response = await getInstructors(1, 50, query)
+      let instructorsData = []
+      if (response?.instructors) {
+        instructorsData = response.instructors
+      } else if (response?.data) {
+        instructorsData = response.data
+      } else if (Array.isArray(response)) {
+        instructorsData = response
+      }
+      
+      return instructorsData.map((instructor: any) => ({
+        value: instructor.id,
+        label: instructor.name
+      }))
+    } catch (error) {
+      console.error('Erro ao pesquisar instrutores:', error)
+      return []
+    }
+  }
+
+  const searchClients = async (query: string) => {
+    try {
+      const response = await getClients(1, 50, query)
+      let clientsData = []
+      if (response?.clients) {
+        clientsData = response.clients
+      } else if (response?.data) {
+        clientsData = response.data
+      } else if (Array.isArray(response)) {
+        clientsData = response
+      }
+      
+      return clientsData.map((client: any) => ({
+        value: client.id,
+        label: client.name
+      }))
+    } catch (error) {
+      console.error('Erro ao pesquisar clientes:', error)
+      return []
     }
   }
 
@@ -357,67 +432,39 @@ export function ClassCreateModal({
             {/* Treinamento */}
             <div className="space-y-2">
               <Label htmlFor="trainingId">Treinamento *</Label>
-              <Select
+              <Combobox
+                options={trainings.map(training => ({
+                  value: training.id,
+                  label: training.title
+                }))}
                 value={formData.trainingId}
-                onValueChange={(value) => {
-                  if (value !== "no-trainings") {
-                    setFormData(prev => ({ ...prev, trainingId: value }))
-                  }
-                }}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, trainingId: value }))}
+                placeholder={trainings.length === 0 ? "Nenhum treinamento disponível" : "Selecione o treinamento"}
+                searchPlaceholder="Pesquisar treinamentos..."
+                emptyMessage="Nenhum treinamento encontrado."
                 disabled={trainings.length === 0}
-              >
-                <SelectTrigger className={trainings.length === 0 ? "text-gray-400" : ""}>
-                  <SelectValue placeholder={
-                    trainings.length === 0 ? "Nenhum treinamento disponível" : "Selecione o treinamento"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {trainings.length === 0 ? (
-                    <SelectItem value="no-trainings" disabled>
-                      {loadingData ? "Carregando treinamentos..." : "Nenhum treinamento encontrado. Crie um treinamento primeiro."}
-                    </SelectItem>
-                  ) : (
-                    trainings.map((training) => (
-                      <SelectItem key={training.id} value={training.id}>
-                        {training.title}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+                loading={loadingData}
+                onSearch={searchTrainings}
+              />
             </div>
 
             {/* Instrutor */}
             <div className="space-y-2">
               <Label htmlFor="instructorId">Instrutor *</Label>
-              <Select
+              <Combobox
+                options={instructors.map(instructor => ({
+                  value: instructor.id,
+                  label: instructor.name
+                }))}
                 value={formData.instructorId}
-                onValueChange={(value) => {
-                  if (value !== "no-instructors") {
-                    setFormData(prev => ({ ...prev, instructorId: value }))
-                  }
-                }}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, instructorId: value }))}
+                placeholder={instructors.length === 0 ? "Nenhum instrutor disponível" : "Selecione o instrutor"}
+                searchPlaceholder="Pesquisar instrutores..."
+                emptyMessage="Nenhum instrutor encontrado."
                 disabled={instructors.length === 0}
-              >
-                <SelectTrigger className={instructors.length === 0 ? "text-gray-400" : ""}>
-                  <SelectValue placeholder={
-                    instructors.length === 0 ? "Nenhum instrutor disponível" : "Selecione o instrutor"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {instructors.length === 0 ? (
-                    <SelectItem value="no-instructors" disabled>
-                      {loadingData ? "Carregando instrutores..." : "Nenhum instrutor encontrado. Cadastre um instrutor primeiro."}
-                    </SelectItem>
-                  ) : (
-                    instructors.map((instructor) => (
-                      <SelectItem key={instructor.id} value={instructor.id}>
-                        {instructor.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+                loading={loadingData}
+                onSearch={searchInstructors}
+              />
             </div>
           </div>
 
@@ -425,31 +472,19 @@ export function ClassCreateModal({
             {/* Cliente */}
             <div className="space-y-2">
               <Label htmlFor="clientId">Cliente</Label>
-              <Select
+              <Combobox
+                options={clients.map(client => ({
+                  value: client.id,
+                  label: client.name
+                }))}
                 value={formData.clientId}
-                onValueChange={(value) => {
-                  if (value !== "no-clients") {
-                    setFormData(prev => ({ ...prev, clientId: value }))
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o cliente (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.length === 0 ? (
-                    <SelectItem value="no-clients" disabled>
-                      {loadingData ? "Carregando clientes..." : "Nenhum cliente encontrado. Cadastre um cliente primeiro."}
-                    </SelectItem>
-                  ) : (
-                    clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+                onValueChange={(value) => setFormData(prev => ({ ...prev, clientId: value }))}
+                placeholder="Selecione o cliente (opcional)"
+                searchPlaceholder="Pesquisar clientes..."
+                emptyMessage="Nenhum cliente encontrado."
+                loading={loadingData}
+                onSearch={searchClients}
+              />
             </div>
           </div>
 
