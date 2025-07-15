@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ClassCreateModal } from "@/components/class-create-modal"
 import { ClassDetailsModal } from "@/components/class-details-modal"
 import { LessonScheduleModal } from "@/components/lesson-schedule-modal"
+import { LessonEditModal } from "@/components/lesson-edit-modal"
 
 interface TurmaData {
   id: string
@@ -87,6 +88,7 @@ export default function TurmasPage() {
   const [editingTurma, setEditingTurma] = useState<TurmaData | null>(null)
   const [detailsTurma, setDetailsTurma] = useState<TurmaData | null>(null)
   const [schedulingTurma, setSchedulingTurma] = useState<TurmaData | null>(null)
+  const [editingLesson, setEditingLesson] = useState<any>(null)
 
   // Carregar dados das turmas
   const loadTurmas = async (resetPage = false) => {
@@ -150,6 +152,12 @@ export default function TurmasPage() {
     setDetailsTurma(turma)
   }
 
+  // Função para abrir modal de detalhes na aba de aulas
+  const handleViewLessons = (turma: TurmaData) => {
+    setDetailsTurma(turma)
+    // Aqui poderíamos definir qual aba abrir no modal, mas isso requer modificar o ClassDetailsModal
+  }
+
   // Função para abrir modal de agendamento
   const handleScheduleLesson = (turma: TurmaData) => {
     setSchedulingTurma(turma)
@@ -161,6 +169,18 @@ export default function TurmasPage() {
     setEditingTurma(null)
     setDetailsTurma(null)
     setSchedulingTurma(null)
+    setEditingLesson(null)
+  }
+
+  // Função para editar aula
+  const handleEditLesson = (lesson: any) => {
+    setEditingLesson(lesson)
+  }
+
+  // Função para sucesso na edição de aula
+  const handleLessonEditSuccess = () => {
+    loadTurmas()
+    setEditingLesson(null)
   }
 
   const getStatusColor = (status: string) => {
@@ -493,7 +513,7 @@ export default function TurmasPage() {
                       <Users className="h-4 w-4" />
                       Alunos ({turma.students.length})
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-2">
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => handleViewLessons(turma)}>
                       <Calendar className="h-4 w-4" />
                       Aulas ({turma.lessons.length})
                     </Button>
@@ -607,6 +627,22 @@ export default function TurmasPage() {
         onClose={handleCloseModal}
         onSuccess={handleSuccess}
         turma={schedulingTurma}
+      />
+
+      {/* Modal de Edição de Aula */}
+      <LessonEditModal
+        isOpen={!!editingLesson}
+        onClose={() => setEditingLesson(null)}
+        onSuccess={handleLessonEditSuccess}
+        lesson={editingLesson}
+        turma={editingLesson ? {
+          id: editingLesson.classId,
+          startDate: detailsTurma?.startDate || "",
+          endDate: detailsTurma?.endDate || "",
+          training: {
+            title: detailsTurma?.training.title || ""
+          }
+        } : undefined}
       />
     </>
   )

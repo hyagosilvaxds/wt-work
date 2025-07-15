@@ -296,25 +296,23 @@ export function InstructorsPage() {
                     )}
 
                     <div className="flex gap-2 pt-3">
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <Eye className="mr-1 h-3 w-3" />
-                        Ver Perfil
-                      </Button>
                       <Button 
-                        size="sm" 
-                        className="flex-1 bg-blue-500 hover:bg-blue-600"
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 flex items-center justify-center gap-1 border border-black text-black bg-transparent hover:bg-gray-100 hover:text-black transition-colors"
                         onClick={() => handleEdit(instructor.id)}
                       >
-                        <Edit className="mr-1 h-3 w-3" />
-                        Editar
+                        <Edit className="h-4 w-4" />
+                        <span>Editar</span>
                       </Button>
                       <Button 
-                        size="sm" 
-                        variant="destructive"
-                        className="px-2"
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 flex items-center justify-center gap-1 border border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
                         onClick={() => handleDelete(instructor.id, instructor.name)}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" />
+                        <span>Excluir</span>
                       </Button>
                     </div>
                   </div>

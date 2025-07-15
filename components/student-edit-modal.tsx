@@ -8,8 +8,16 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { patchStudent, UpdateStudentData } from "@/lib/api/superadmin"
+import { patchStudent, UpdateStudentData, getClients } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
+
+interface Client {
+  id: string
+  name: string
+  corporateName?: string
+  email?: string
+  responsibleName?: string
+}
 
 interface Student {
   id: string
@@ -45,6 +53,8 @@ interface StudentEditModalProps {
 export function StudentEditModal({ open, onOpenChange, onSuccess, student }: StudentEditModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [clients, setClients] = useState<Client[]>([])
+  const [loadingClients, setLoadingClients] = useState(false)
   const [formData, setFormData] = useState<UpdateStudentData>({
     name: "",
     cpf: "",
@@ -68,6 +78,30 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
     isActive: true
   })
 
+  // Carregar clientes quando o modal abrir
+  useEffect(() => {
+    if (open) {
+      loadClients()
+    }
+  }, [open])
+
+  const loadClients = async () => {
+    setLoadingClients(true)
+    try {
+      const response = await getClients(1, 100) // Carregar todos os clientes
+      setClients(response.clients || [])
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar lista de empresas",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingClients(false)
+    }
+  }
+
   useEffect(() => {
     if (student && open) {
       setFormData({
@@ -75,7 +109,7 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
         cpf: student.cpf || "",
         rg: student.rg || "",
         gender: student.gender || "",
-        birthDate: student.birthDate || "",
+        birthDate: student.birthDate ? new Date(student.birthDate).toISOString().split('T')[0] : "",
         education: student.education || "",
         zipCode: student.zipCode || "",
         address: student.address || "",
@@ -118,9 +152,49 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
       return
     }
 
+    // Validar email se preenchido
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast({
+        title: "Erro",
+        description: "Email inválido",
+        variant: "destructive"
+      })
+      return
+    }
+
     setLoading(true)
     try {
-      await patchStudent(student.id, formData)
+      // Preparar dados para envio - criando objeto limpo
+      const submitData: Partial<UpdateStudentData> = {
+        name: formData.name,
+        cpf: formData.cpf,
+        isActive: formData.isActive
+      }
+
+      // Adicionar campos opcionais apenas se tiverem valor válido
+      if (formData.rg?.trim()) submitData.rg = formData.rg.trim()
+      if (formData.gender?.trim()) submitData.gender = formData.gender.trim()
+      if (formData.birthDate?.trim()) submitData.birthDate = new Date(formData.birthDate).toISOString()
+      if (formData.education?.trim()) submitData.education = formData.education.trim()
+      if (formData.zipCode?.trim()) submitData.zipCode = formData.zipCode.trim()
+      if (formData.address?.trim()) submitData.address = formData.address.trim()
+      if (formData.addressNumber?.trim()) submitData.addressNumber = formData.addressNumber.trim()
+      if (formData.neighborhood?.trim()) submitData.neighborhood = formData.neighborhood.trim()
+      if (formData.city?.trim()) submitData.city = formData.city.trim()
+      if (formData.state?.trim()) submitData.state = formData.state.trim()
+      if (formData.landlineAreaCode?.trim()) submitData.landlineAreaCode = formData.landlineAreaCode.trim()
+      if (formData.landlineNumber?.trim()) submitData.landlineNumber = formData.landlineNumber.trim()
+      if (formData.mobileAreaCode?.trim()) submitData.mobileAreaCode = formData.mobileAreaCode.trim()
+      if (formData.mobileNumber?.trim()) submitData.mobileNumber = formData.mobileNumber.trim()
+      if (formData.email?.trim()) submitData.email = formData.email.trim()
+      if (formData.observations?.trim()) submitData.observations = formData.observations.trim()
+      
+      // Tratar clientId: adicionar se tiver valor
+      if (formData.clientId && formData.clientId.trim()) {
+        submitData.clientId = formData.clientId.trim()
+      }
+
+      await patchStudent(student.id, submitData)
       toast({
         title: "Sucesso",
         description: "Estudante atualizado com sucesso!"
@@ -182,6 +256,42 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
                 placeholder="000.000.000-00"
                 required
               />
+            </div>
+
+            <div>
+              <Label htmlFor="clientId">Empresa</Label>
+              <div className="flex gap-2">
+                <Select value={formData.clientId} onValueChange={(value) => handleInputChange('clientId', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingClients ? "Carregando..." : "Selecione uma empresa"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loadingClients ? (
+                      <SelectItem value="loading" disabled>Carregando...</SelectItem>
+                    ) : (
+                      <>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.corporateName || client.name}
+                            {client.responsibleName && ` - ${client.responsibleName}`}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+                {formData.clientId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleInputChange('clientId', '')}
+                    className="px-3"
+                  >
+                    Limpar
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div>

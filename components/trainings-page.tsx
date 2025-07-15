@@ -29,6 +29,7 @@ export function TrainingsPage() {
   const [trainings, setTrainings] = useState<Training[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalItems, setTotalItems] = useState(0)
@@ -98,12 +99,31 @@ export function TrainingsPage() {
     }
   }
 
-  // Buscar treinamentos
+  // Buscar treinamentos (com debounce)
   const handleSearch = (value: string) => {
     setSearchTerm(value)
     setCurrentPage(1)
-    loadTrainings(1, value)
+    // Não chama loadTrainings diretamente aqui
   }
+
+  // Debounce para busca
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500)
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [searchTerm])
+
+  // Chama a busca quando debouncedSearchTerm muda
+  useEffect(() => {
+    if (debouncedSearchTerm !== "") {
+      loadTrainings(1, debouncedSearchTerm)
+    } else {
+      loadTrainings(1, "")
+    }
+  }, [debouncedSearchTerm])
 
   // Carregar dados iniciais
   useEffect(() => {

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import {
   CalendarIcon,
   Clock,
@@ -214,16 +215,6 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
     return hours * 60 + minutes
   }
 
-  const formatDateForInput = (date: Date) => {
-    // Usar getFullYear() ao invés de getUTCFullYear() para evitar problemas de timezone
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const formatted = `${year}-${month}-${day}`
-    console.log('formatDateForInput - Input date:', date, 'Formatted:', formatted)
-    return formatted
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -394,20 +385,12 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
                       <Input
                         id="date"
                         type="date"
-                        value={formData.date ? formatDateForInput(formData.date) : ''}
+                        value={formData.date ? format(formData.date, "yyyy-MM-dd") : ''}
                         onChange={(e) => {
                           const dateValue = e.target.value
                           if (dateValue) {
-                            // Criar data sem problemas de timezone usando Date.UTC
-                            const [year, month, day] = dateValue.split('-').map(Number)
-                            
-                            // Verificar se a data é válida
-                            if (year && month && day && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-                              // Usar Date.UTC para evitar problemas de timezone
-                              const date = new Date(Date.UTC(year, month - 1, day))
-                              console.log('Date created:', date, 'Year:', year, 'Month:', month, 'Day:', day)
-                              handleInputChange('date', date)
-                            }
+                            const date = new Date(dateValue + 'T12:00:00')
+                            handleInputChange('date', date)
                           } else {
                             handleInputChange('date', undefined)
                           }
@@ -416,33 +399,18 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
                         min={turma ? (() => {
                           const today = new Date()
                           const turmaStart = new Date(turma.startDate)
-                          // Normalizar para meio-dia
-                          today.setHours(12, 0, 0, 0)
-                          turmaStart.setHours(12, 0, 0, 0)
                           const minDate = today > turmaStart ? today : turmaStart
-                          const minFormatted = formatDateForInput(minDate)
-                          console.log('Min date for input:', minFormatted)
-                          return minFormatted
-                        })() : formatDateForInput(new Date())}
-                        max={turma ? (() => {
-                          const turmaEnd = new Date(turma.endDate)
-                          turmaEnd.setHours(12, 0, 0, 0)
-                          const maxFormatted = formatDateForInput(turmaEnd)
-                          console.log('Max date for input:', maxFormatted)
-                          return maxFormatted
-                        })() : undefined}
-                        placeholder="dd/mm/aaaa"
+                          return format(minDate, "yyyy-MM-dd")
+                        })() : format(new Date(), "yyyy-MM-dd")}
+                        max={turma ? format(new Date(turma.endDate), "yyyy-MM-dd") : undefined}
                         required
                       />
                     </div>
                     {turma && (
                       <p className="text-xs text-gray-500">
-                        Período da turma: {format(new Date(turma.startDate), 'dd/MM/yyyy')} - {format(new Date(turma.endDate), 'dd/MM/yyyy')}
+                        Período da turma: {format(new Date(turma.startDate), 'dd/MM/yyyy', { locale: ptBR })} - {format(new Date(turma.endDate), 'dd/MM/yyyy', { locale: ptBR })}
                       </p>
                     )}
-                    <p className="text-xs text-gray-400">
-                      Formato: dd/mm/aaaa (ex: 16/07/2025)
-                    </p>
                   </div>
 
                   <div className="space-y-2">

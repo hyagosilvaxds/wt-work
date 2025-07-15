@@ -58,6 +58,7 @@ interface TurmaLessonsProps {
   turmaId: string
   onScheduleNew?: () => void
   onEditLesson?: (lesson: LessonData) => void
+  onDeleteLesson?: (lesson: LessonData) => void
   onViewDetails?: (lesson: LessonData) => void
   refreshTrigger?: number
 }
@@ -65,7 +66,8 @@ interface TurmaLessonsProps {
 export function TurmaLessons({ 
   turmaId, 
   onScheduleNew, 
-  onEditLesson, 
+  onEditLesson,
+  onDeleteLesson,
   onViewDetails,
   refreshTrigger 
 }: TurmaLessonsProps) {
@@ -319,6 +321,16 @@ export function TurmaLessons({
                         className="h-8 w-8 p-0"
                       >
                         <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onDeleteLesson && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDeleteLesson(lesson)}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
                   </div>

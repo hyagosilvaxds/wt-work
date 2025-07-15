@@ -121,14 +121,6 @@ export function StudentsPage() {
     return `(${areaCode}) ${number}`
   }
 
-  const filteredStudents = students.filter(
-    (student) =>
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.email && student.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      student.cpf.includes(searchTerm) ||
-      (student.client && student.client.name.toLowerCase().includes(searchTerm.toLowerCase())),
-  )
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -190,7 +182,7 @@ export function StudentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStudents.map((student) => (
+                {students.map((student) => (
                   <TableRow key={student.id}>
                     <TableCell className="font-medium">{student.name}</TableCell>
                     <TableCell>{student.cpf}</TableCell>

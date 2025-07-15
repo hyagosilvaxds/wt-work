@@ -865,15 +865,20 @@ export const getLessonById = async (id: string) => {
 // Atualizar aula (PATCH)
 export const patchLesson = async (id: string, updateData: Partial<UpdateLessonData>) => {
   try {
-    console.log('Updating lesson with ID:', id)
-    console.log('Update data:', updateData)
+    // Validar se o ID é válido
+    if (!id || id.trim() === '') {
+      throw new Error('ID da aula é obrigatório')
+    }
+    
+    // Validar se há dados para atualizar
+    if (!updateData || Object.keys(updateData).length === 0) {
+      throw new Error('Dados de atualização são obrigatórios')
+    }
     
     const response = await api.patch(`/superadmin/lessons/${id}`, updateData)
     return response.data
   } catch (error: any) {
     console.error('Erro ao atualizar aula:', error)
-    console.error('Error response:', error.response?.data)
-    console.error('Error status:', error.response?.status)
     throw error
   }
 }
@@ -980,6 +985,22 @@ export const deleteLessonAttendance = async (id: string) => {
     return response.data
   } catch (error) {
     console.error('Erro ao deletar presença de aula:', error)
+    throw error
+  }
+}
+
+export const getEmpresaStudents = async (empresaId: string, page: number = 1, limit: number = 10, search?: string) => {
+  try {
+    const response = await api.get(`/superadmin/empresas/${empresaId}/students`, {
+      params: {
+        page,
+        limit,
+        search
+      }
+    })
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar estudantes da empresa:', error)
     throw error
   }
 }

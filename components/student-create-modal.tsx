@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,8 +8,16 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { createStudent, CreateStudentData } from "@/lib/api/superadmin"
+import { createStudent, CreateStudentData, getClients } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
+
+interface Client {
+  id: string
+  name: string
+  corporateName?: string
+  email?: string
+  responsibleName?: string
+}
 
 interface StudentCreateModalProps {
   open: boolean
@@ -20,6 +28,8 @@ interface StudentCreateModalProps {
 export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCreateModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [clients, setClients] = useState<Client[]>([])
+  const [loadingClients, setLoadingClients] = useState(false)
   const [formData, setFormData] = useState<CreateStudentData>({
     name: "",
     cpf: "",
@@ -43,6 +53,30 @@ export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCre
     isActive: true
   })
 
+  // Carregar clientes quando o modal abrir
+  useEffect(() => {
+    if (open) {
+      loadClients()
+    }
+  }, [open])
+
+  const loadClients = async () => {
+    setLoadingClients(true)
+    try {
+      const response = await getClients(1, 100) // Carregar todos os clientes
+      setClients(response.clients || [])
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar lista de empresas",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingClients(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -64,9 +98,49 @@ export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCre
       return
     }
 
+    // Validar email se preenchido
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast({
+        title: "Erro",
+        description: "Email inválido",
+        variant: "destructive"
+      })
+      return
+    }
+
     setLoading(true)
     try {
-      await createStudent(formData)
+      // Preparar dados para envio - criando objeto limpo
+      const submitData: Partial<CreateStudentData> = {
+        name: formData.name,
+        cpf: formData.cpf,
+        isActive: formData.isActive
+      }
+
+      // Adicionar campos opcionais apenas se tiverem valor válido
+      if (formData.rg?.trim()) submitData.rg = formData.rg.trim()
+      if (formData.gender?.trim()) submitData.gender = formData.gender.trim()
+      if (formData.birthDate?.trim()) submitData.birthDate = new Date(formData.birthDate).toISOString()
+      if (formData.education?.trim()) submitData.education = formData.education.trim()
+      if (formData.zipCode?.trim()) submitData.zipCode = formData.zipCode.trim()
+      if (formData.address?.trim()) submitData.address = formData.address.trim()
+      if (formData.addressNumber?.trim()) submitData.addressNumber = formData.addressNumber.trim()
+      if (formData.neighborhood?.trim()) submitData.neighborhood = formData.neighborhood.trim()
+      if (formData.city?.trim()) submitData.city = formData.city.trim()
+      if (formData.state?.trim()) submitData.state = formData.state.trim()
+      if (formData.landlineAreaCode?.trim()) submitData.landlineAreaCode = formData.landlineAreaCode.trim()
+      if (formData.landlineNumber?.trim()) submitData.landlineNumber = formData.landlineNumber.trim()
+      if (formData.mobileAreaCode?.trim()) submitData.mobileAreaCode = formData.mobileAreaCode.trim()
+      if (formData.mobileNumber?.trim()) submitData.mobileNumber = formData.mobileNumber.trim()
+      if (formData.email?.trim()) submitData.email = formData.email.trim()
+      if (formData.observations?.trim()) submitData.observations = formData.observations.trim()
+      
+      // Tratar clientId: adicionar se tiver valor
+      if (formData.clientId && formData.clientId.trim()) {
+        submitData.clientId = formData.clientId.trim()
+      }
+
+      await createStudent(submitData as CreateStudentData)
       toast({
         title: "Sucesso",
         description: "Estudante criado com sucesso!"
@@ -150,6 +224,42 @@ export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCre
                 placeholder="000.000.000-00"
                 required
               />
+            </div>
+
+            <div>
+              <Label htmlFor="clientId">Empresa</Label>
+              <div className="flex gap-2">
+                <Select value={formData.clientId} onValueChange={(value) => handleInputChange('clientId', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingClients ? "Carregando..." : "Selecione uma empresa"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loadingClients ? (
+                      <SelectItem value="loading" disabled>Carregando...</SelectItem>
+                    ) : (
+                      <>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.corporateName || client.name}
+                            {client.responsibleName && ` - ${client.responsibleName}`}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+                {formData.clientId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleInputChange('clientId', '')}
+                    className="px-3"
+                  >
+                    Limpar
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div>
