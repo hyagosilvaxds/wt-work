@@ -6,7 +6,7 @@ import { Header } from "@/components/header"
 import AdaptiveDashboard from "@/components/adaptive-dashboard"
 import { StudentsPage } from "@/components/students-page"
 import { TrainingsPage } from "@/components/trainings-page"
-import ClassesPage from "@/components/classes-page-simple"
+import TurmasPage from "@/components/turmas-page"
 import { InstructorsPage } from "@/components/instructors-page"
 import { ClientsPage } from "@/components/clients-page"
 import { GroupsPage } from "@/components/groups-page"
@@ -29,7 +29,7 @@ export default function Home() {
       case "trainings":
         return <TrainingsPage />
       case "classes":
-        return <ClassesPage />
+        return <TurmasPage />
       case "instructors":
         return <InstructorsPage />
       case "clients":

@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { createClass, patchClass, type CreateClassData, getTrainings, getLightInstructors, getClients } from "@/lib/api/superadmin"
+import { createClass, patchClass, type CreateClassData, type UpdateClassData, getTrainings, getLightInstructors, getClients, testAuth, testPatchClass } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
 
 interface Class {
@@ -44,7 +44,7 @@ export function ClassCreateModal({
   onSuccess, 
   classItem 
 }: ClassCreateModalProps) {
-  const [formData, setFormData] = useState<CreateClassData>({
+  const [formData, setFormData] = useState<CreateClassData & UpdateClassData>({
     trainingId: "",
     instructorId: "",
     startDate: "",
@@ -151,7 +151,8 @@ export function ClassCreateModal({
   // Preencher formulário quando estiver editando
   useEffect(() => {
     if (classItem && isOpen) {
-      setFormData({
+      console.log('Preenchendo formulário com dados da turma:', classItem)
+      const formattedData = {
         trainingId: classItem.trainingId,
         instructorId: classItem.instructorId,
         startDate: formatDateTimeLocal(classItem.startDate),
@@ -162,7 +163,9 @@ export function ClassCreateModal({
         location: classItem.location || "",
         clientId: classItem.clientId || "",
         observations: classItem.observations || "",
-      })
+      }
+      console.log('Dados formatados para o formulário:', formattedData)
+      setFormData(formattedData)
     } else if (!classItem && isOpen) {
       // Resetar formulário para criação
       setFormData({
@@ -189,6 +192,8 @@ export function ClassCreateModal({
       const formatToISO = (dateString: string | Date) => {
         if (!dateString) return dateString
         
+        console.log('Formatando data:', dateString, 'Tipo:', typeof dateString)
+        
         // Se é uma string no formato datetime-local (YYYY-MM-DDTHH:mm)
         if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)) {
           // Criar uma data interpretando como horário local
@@ -198,12 +203,20 @@ export function ClassCreateModal({
           
           // Criar data no timezone local
           const localDate = new Date(year, month - 1, day, hour, minute, 0, 0)
-          return localDate.toISOString()
+          const isoString = localDate.toISOString()
+          console.log('Data convertida para ISO:', isoString)
+          return isoString
         }
         
         // Para outros casos (edição), converte mantendo o horário
         const date = new Date(dateString)
-        return date.toISOString()
+        if (isNaN(date.getTime())) {
+          console.error('Data inválida:', dateString)
+          return dateString
+        }
+        const isoString = date.toISOString()
+        console.log('Data convertida para ISO:', isoString)
+        return isoString
       }
 
       const formattedData = {
@@ -211,15 +224,48 @@ export function ClassCreateModal({
         startDate: formatToISO(formData.startDate),
         endDate: formatToISO(formData.endDate),
       }
+      
+      console.log('Dados finais formatados:', formattedData)
 
       if (isEditing && classItem) {
-        await patchClass(classItem.id, formattedData)
+        console.log('Editando turma com ID:', classItem.id)
+        console.log('Dados formatados para edição:', formattedData)
+        
+        // Testar autenticação primeiro
+        console.log('Testando autenticação...')
+        const authOk = await testAuth()
+        console.log('Resultado do teste de autenticação:', authOk)
+        
+        if (!authOk) {
+          throw new Error('Falha na autenticação')
+        }
+        
+        // Fazer teste específico do patch
+        console.log('Fazendo teste específico do patch...')
+        try {
+          await testPatchClass(classItem.id)
+          console.log('Teste específico passou, fazendo patch real...')
+        } catch (testError) {
+          console.error('Erro no teste específico:', testError)
+        }
+        
+        console.log('Enviando PATCH para API...')
+        const result = await patchClass(classItem.id, formattedData)
+        
+        console.log('Resultado da atualização:', result)
+        
         toast({
           title: "Sucesso",
           description: "Turma atualizada com sucesso!",
         })
       } else {
-        await createClass(formattedData)
+        console.log('Criando nova turma')
+        console.log('Dados formatados para criação:', formattedData)
+        
+        const result = await createClass(formattedData)
+        
+        console.log('Resultado da criação:', result)
+        
         toast({
           title: "Sucesso",
           description: "Turma criada com sucesso!",
@@ -229,10 +275,29 @@ export function ClassCreateModal({
       onSuccess()
       onClose()
     } catch (error: any) {
-      console.error('Erro ao salvar aula:', error)
+      console.error('Erro ao salvar turma:', error)
+      console.error('Erro details:', error.response?.data)
+      console.error('Erro status:', error.response?.status)
+      
+      let errorMessage = "Erro ao salvar turma"
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.response?.status === 400) {
+        errorMessage = "Dados inválidos. Verifique os campos obrigatórios."
+      } else if (error.response?.status === 401) {
+        errorMessage = "Sessão expirada. Faça login novamente."
+      } else if (error.response?.status === 403) {
+        errorMessage = "Você não tem permissão para realizar esta ação."
+      } else if (error.response?.status === 404) {
+        errorMessage = "Turma não encontrada."
+      } else if (error.response?.status === 500) {
+        errorMessage = "Erro interno do servidor. Tente novamente."
+      }
+      
       toast({
         title: "Erro",
-        description: error.response?.data?.message || "Erro ao salvar turma",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {

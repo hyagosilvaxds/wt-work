@@ -19,16 +19,45 @@ api.interceptors.request.use((config) => {
     }
     config.headers["Authorization"] = `Bearer ${token}`;
   }
+  
+  // Log para debug
+  console.log('API Request:', {
+    method: config.method?.toUpperCase(),
+    url: config.url,
+    fullUrl: (config.baseURL || '') + (config.url || ''),
+    data: config.data,
+    headers: config.headers
+  });
+  
   return config;
 });
 
 // Interceptor de resposta para lidar com erros 401 e 403
 api.interceptors.response.use(
   (response) => {
+    // Log para debug
+    console.log('API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.config.url,
+      method: response.config.method?.toUpperCase(),
+      data: response.data
+    });
+    
     // Retorna a resposta normalmente se não houver erro
     return response;
   },
   (error) => {
+    // Log do erro para debug
+    console.log('API Error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url,
+      method: error.config?.method?.toUpperCase(),
+      data: error.response?.data,
+      message: error.message
+    });
+    
     // Verifica se o erro é 401 ou 403
     if (error.response?.status === 401 || error.response?.status === 403) {
       if (typeof window !== "undefined") {

@@ -1,5 +1,18 @@
 import api from './client'
 
+// Função de teste para verificar se o token está funcionando
+export const testAuth = async () => {
+  try {
+    console.log('Testando autenticação...')
+    const response = await api.get('/superadmin/users?page=1&limit=1')
+    console.log('Teste de autenticação bem-sucedido:', response.status)
+    return true
+  } catch (error: any) {
+    console.error('Erro no teste de autenticação:', error)
+    return false
+  }
+}
+
 export const getUsers = async (page = 1, limit = 10) => {
   try {
     const response = await api.get('/superadmin/users', {
@@ -670,7 +683,6 @@ export const deleteTraining = async (id: string) => {
 export interface CreateClassData {
   trainingId: string
   instructorId: string
-  roomId?: string
   startDate: Date | string
   endDate: Date | string
   type?: string
@@ -685,7 +697,6 @@ export interface UpdateClassData {
   id?: string
   trainingId?: string
   instructorId?: string
-  roomId?: string
   startDate?: Date | string
   endDate?: Date | string
   type?: string
@@ -751,14 +762,30 @@ export const getClassById = async (id: string) => {
 export const patchClass = async (id: string, updateData: Partial<UpdateClassData>) => {
   try {
     console.log('Updating class with ID:', id)
-    console.log('Update data:', updateData)
+    console.log('Update data:', JSON.stringify(updateData, null, 2))
     
+    // Validar se o ID é válido
+    if (!id || id.trim() === '') {
+      throw new Error('ID da classe é obrigatório')
+    }
+    
+    // Validar se há dados para atualizar
+    if (!updateData || Object.keys(updateData).length === 0) {
+      throw new Error('Dados de atualização são obrigatórios')
+    }
+    
+    // Fazer a requisição PATCH
     const response = await api.patch(`/superadmin/classes/${id}`, updateData)
+    
+    console.log('Patch response status:', response.status)
+    console.log('Patch response data:', response.data)
+    
     return response.data
   } catch (error: any) {
     console.error('Erro ao atualizar classe:', error)
     console.error('Error response:', error.response?.data)
     console.error('Error status:', error.response?.status)
+    console.error('Error headers:', error.response?.headers)
     throw error
   }
 }
@@ -972,6 +999,32 @@ export const deleteLessonAttendance = async (id: string) => {
     return response.data
   } catch (error) {
     console.error('Erro ao deletar presença de aula:', error)
+    throw error
+  }
+}
+
+// Função de teste específica para patch class
+export const testPatchClass = async (id: string) => {
+  try {
+    console.log('Testando patchClass com ID:', id)
+    
+    // Primeiro, vamos buscar a classe para ver se existe
+    const classData = await getClassById(id)
+    console.log('Classe encontrada:', classData)
+    
+    // Fazer um patch simples apenas com observações
+    const testData = {
+      observations: `Teste de atualização - ${new Date().toISOString()}`
+    }
+    
+    console.log('Dados de teste:', testData)
+    
+    const result = await patchClass(id, testData)
+    console.log('Resultado do teste:', result)
+    
+    return result
+  } catch (error: any) {
+    console.error('Erro no teste de patchClass:', error)
     throw error
   }
 }
