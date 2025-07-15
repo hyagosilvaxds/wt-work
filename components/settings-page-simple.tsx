@@ -31,7 +31,7 @@ import {
   AlertCircle,
   Loader2
 } from "lucide-react"
-import { getUsers, getRoles, createUser, CreateUserData, deleteUser, getPermissions, updateRole, UpdateRoleData, deleteRole, createInstructor, CreateInstructorData, createRole, CreateRoleData, getLightInstructors, editUser, linkUserToInstructor, LinkUserToInstructorDto } from "@/lib/api/superadmin"
+import { getUsers, getRoles, createUser, CreateUserData, deleteUser, getPermissions, updateRole, UpdateRoleData, deleteRole, createInstructor, CreateInstructorData, createRole, CreateRoleData, getLightInstructors, editUser, linkUserToInstructor, LinkUserToInstructorDto, getClients, linkUserToClient, LinkUserToClientDto } from "@/lib/api/superadmin"
 
 interface User {
   id: string
@@ -73,6 +73,15 @@ interface LightInstructor {
   } | null
 }
 
+interface LightClient {
+  id: string
+  name: string
+  email: string | null
+  user?: {
+    isActive: boolean
+  } | null
+}
+
 export function SettingsPage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("users")
@@ -91,6 +100,8 @@ export function SettingsPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [availableInstructors, setAvailableInstructors] = useState<LightInstructor[]>([])
   const [loadingInstructors, setLoadingInstructors] = useState(false)
+  const [availableClients, setAvailableClients] = useState<LightClient[]>([])
+  const [loadingClients, setLoadingClients] = useState(false)
   
   // State for pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -396,6 +407,8 @@ export function SettingsPage() {
 
   const [isInstructorMode, setIsInstructorMode] = useState(false)
   const [selectedInstructorId, setSelectedInstructorId] = useState<string>("")
+  const [isClientMode, setIsClientMode] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<string>("")
 
   const [roleForm, setRoleForm] = useState({
     name: "",
@@ -478,12 +491,48 @@ export function SettingsPage() {
     }
   }
 
+  // Load available clients for client mode
+  const loadAvailableClients = async () => {
+    try {
+      setLoadingClients(true)
+      const response = await getClients(1, 100) // Get first 100 clients
+      
+      console.log('Response from getClients:', response)
+      
+      // Filter clients that don't have a user associated (user === null)
+      // These are the ones available for connection
+      const availableClients = response.clients?.filter((client: LightClient) => 
+        client.user === null
+      ) || []
+      
+      console.log('Available clients for connection:', availableClients)
+      
+      setAvailableClients(availableClients)
+    } catch (error) {
+      console.error('Error loading available clients:', error)
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar clientes disponíveis",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingClients(false)
+    }
+  }
+
   // Load instructors when instructor mode is activated
   useEffect(() => {
     if (isInstructorMode) {
       loadAvailableInstructors()
     }
   }, [isInstructorMode])
+
+  // Load clients when client mode is activated
+  useEffect(() => {
+    if (isClientMode) {
+      loadAvailableClients()
+    }
+  }, [isClientMode])
 
   const handleAddUser = async () => {
     const validationErrors = validateUserForm()
@@ -500,14 +549,16 @@ export function SettingsPage() {
     try {
       setLoading(true)
       
-      // Verificar se é instrutor
+      // Verificar se é instrutor ou cliente
       const selectedRole = roles.find(role => role.id === userForm.roleId)
       const isInstructor = selectedRole?.name === "INSTRUCTOR" || selectedRole?.name === "INSTRUTOR"
+      const isClient = selectedRole?.name === "CLIENT" || selectedRole?.name === "CLIENTE"
       
       console.log('All available roles:', roles)
       console.log('Selected role ID:', userForm.roleId)
       console.log('Selected role:', selectedRole)
       console.log('Is instructor:', isInstructor)
+      console.log('Is client:', isClient)
       
       if (isInstructor) {
         // Para modo instrutor, conectar com instrutor existente
@@ -556,6 +607,53 @@ export function SettingsPage() {
         toast({
           title: "Sucesso",
           description: `Instrutor ${selectedInstructor.name} conectado com sucesso`,
+        })
+      } else if (isClient) {
+        // Para modo cliente, conectar com cliente existente
+        const selectedClient = availableClients.find(client => client.id === selectedClientId)
+        
+        console.log('Selected client ID:', selectedClientId)
+        console.log('Available clients:', availableClients)
+        console.log('Selected client:', selectedClient)
+        
+        if (!selectedClient) {
+          toast({
+            title: "Erro",
+            description: "Cliente selecionado não encontrado",
+            variant: "destructive"
+          })
+          return
+        }
+        
+        // Preparar dados para conectar usuário ao cliente
+        const linkData: Omit<LinkUserToClientDto, 'clientId'> = {
+          name: userForm.name,
+          email: userForm.email,
+          password: userForm.password,
+          bio: userForm.bio || undefined,
+          isActive: userForm.isActive ?? true
+        }
+        
+        console.log('Client link data being sent:', linkData)
+        console.log('User form data:', userForm)
+        console.log('Selected client ID:', selectedClientId)
+        
+        // Validação adicional antes de enviar
+        if (!selectedClientId) {
+          toast({
+            title: "Erro",
+            description: "ID do cliente não encontrado",
+            variant: "destructive"
+          })
+          return
+        }
+        
+        // Chamar API para conectar usuário ao cliente
+        await linkUserToClient(selectedClientId, linkData)
+        
+        toast({
+          title: "Sucesso",
+          description: `Cliente ${selectedClient.name} conectado com sucesso`,
         })
       } else {
         // Usar função padrão para outros tipos de usuário
@@ -945,6 +1043,9 @@ export function SettingsPage() {
     setIsInstructorMode(false)
     setSelectedInstructorId("")
     setAvailableInstructors([])
+    setIsClientMode(false)
+    setSelectedClientId("")
+    setAvailableClients([])
   }
 
   // Function to validate user form
@@ -973,6 +1074,28 @@ export function SettingsPage() {
       console.log('Selected instructor ID:', selectedInstructorId)
       console.log('User form:', userForm)
       console.log('Available instructors:', availableInstructors)
+    } else if (isClientMode) {
+      // Validation for client connection mode
+      if (!selectedClientId) {
+        errors.push("Selecione um cliente para conectar")
+      }
+      // Validate user form fields for client mode too
+      if (!userForm.name.trim()) errors.push("Nome é obrigatório")
+      if (!userForm.email.trim()) errors.push("Email é obrigatório")
+      if (!userForm.password.trim()) errors.push("Senha é obrigatória")
+      if (userForm.password.length > 0 && userForm.password.length < 6) errors.push("Senha deve ter pelo menos 6 caracteres")
+      
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (userForm.email && !emailRegex.test(userForm.email)) {
+        errors.push("Email deve ter um formato válido")
+      }
+      
+      // Log dos dados para debug
+      console.log('Validating client mode:')
+      console.log('Selected client ID:', selectedClientId)
+      console.log('User form:', userForm)
+      console.log('Available clients:', availableClients)
     } else {
       // Standard validation for regular users
       const currentForm = userForm
@@ -994,24 +1117,31 @@ export function SettingsPage() {
     return errors
   }
 
-  // Function to handle role selection and update instructor mode
+  // Function to handle role selection and update instructor/client mode
   const handleRoleChange = (roleId: string) => {
     console.log('Role changed to:', roleId)
     setUserForm(prev => ({ ...prev, roleId }))
     
-    // Find the selected role to check if it's an instructor
+    // Find the selected role to check if it's an instructor or client
     const selectedRole = roles.find(role => role.id === roleId)
     const isInstructor = selectedRole?.name === "INSTRUCTOR" || selectedRole?.name === "INSTRUTOR"
+    const isClient = selectedRole?.name === "CLIENT" || selectedRole?.name === "CLIENTE"
     
     console.log('Selected role:', selectedRole)
     console.log('Is instructor:', isInstructor)
+    console.log('Is client:', isClient)
     
     setIsInstructorMode(isInstructor)
+    setIsClientMode(isClient)
     
-    // Reset instructor selection when switching modes
+    // Reset instructor/client selection when switching modes
     if (!isInstructor) {
       setSelectedInstructorId("")
       setAvailableInstructors([])
+    }
+    if (!isClient) {
+      setSelectedClientId("")
+      setAvailableClients([])
     }
   }
 
@@ -1440,6 +1570,57 @@ export function SettingsPage() {
                 </div>
               </div>
             )}
+
+            {/* Modo Cliente - Seleção Simplificada */}
+            {isClientMode && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Conectar com Cliente</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="clientSelect">Selecione um cliente para conectar *</Label>
+                  <Select 
+                    value={selectedClientId} 
+                    onValueChange={(value) => {
+                      console.log('Client selected:', value)
+                      console.log('Available clients:', availableClients)
+                      setSelectedClientId(value)
+                    }}
+                    disabled={loadingClients}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={loadingClients ? "Carregando clientes..." : "Selecione um cliente"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loadingClients ? (
+                        <SelectItem value="loading" disabled>
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Carregando...</span>
+                          </div>
+                        </SelectItem>
+                      ) : availableClients.length === 0 ? (
+                        <SelectItem value="empty" disabled>
+                          Nenhum cliente encontrado
+                        </SelectItem>
+                      ) : (
+                        availableClients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{client.name}</span>
+                              <span className="text-sm text-gray-500">
+                                {client.email || 'Email não informado'}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-gray-500">
+                    Apenas clientes sem usuário associado estão disponíveis para conexão.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
@@ -1456,10 +1637,10 @@ export function SettingsPage() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isInstructorMode ? 'Conectando...' : 'Criando...'}
+                  {isInstructorMode ? 'Conectando...' : isClientMode ? 'Conectando...' : 'Criando...'}
                 </>
               ) : (
-                isInstructorMode ? 'Conectar Instrutor' : 'Criar Usuário'
+                isInstructorMode ? 'Conectar Instrutor' : isClientMode ? 'Conectar Cliente' : 'Criar Usuário'
               )}
             </Button>
           </DialogFooter>

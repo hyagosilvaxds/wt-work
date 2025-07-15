@@ -38,12 +38,12 @@ interface SidebarProps {
 const getMenuItems = () => {
   return [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, badge: null },
-    { id: "students", label: "Alunos", icon: Users, badge: "1.2k" },
+    { id: "students", label: "Alunos", icon: Users, badge: null },
     { id: "instructors", label: "Instrutores", icon: UserCheck, badge: null },
-    { id: "trainings", label: "Treinamentos", icon: BookOpen, badge: "45" },
-    { id: "classes", label: "Turmas", icon: UsersRound, badge: "23" },
-    { id: "clients", label: "Clientes", icon: Building2, badge: "89" },
-    { id: "certificates", label: "Certificados", icon: Award, badge: "892" },
+    { id: "trainings", label: "Treinamentos", icon: BookOpen, badge: null },
+    { id: "classes", label: "Turmas", icon: UsersRound, badge: null },
+    { id: "clients", label: "Clientes", icon: Building2, badge: null },
+    { id: "certificates", label: "Certificados", icon: Award, badge: null },
     { id: "financial", label: "Financeiro", icon: DollarSign, badge: null },
     { id: "reports", label: "Relatórios", icon: BarChart3, badge: null },
     { id: "settings", label: "Configurações", icon: Settings, badge: null },

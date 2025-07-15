@@ -1,0 +1,362 @@
+"use client"
+
+import { useState } from "react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { createStudent, CreateStudentData } from "@/lib/api/superadmin"
+import { useToast } from "@/hooks/use-toast"
+
+interface StudentCreateModalProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSuccess: () => void
+}
+
+export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCreateModalProps) {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState<CreateStudentData>({
+    name: "",
+    cpf: "",
+    rg: "",
+    gender: "",
+    birthDate: "",
+    education: "",
+    zipCode: "",
+    address: "",
+    addressNumber: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+    landlineAreaCode: "",
+    landlineNumber: "",
+    mobileAreaCode: "",
+    mobileNumber: "",
+    email: "",
+    observations: "",
+    clientId: "",
+    isActive: true
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.name || !formData.cpf) {
+      toast({
+        title: "Erro",
+        description: "Nome e CPF são obrigatórios",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (formData.cpf.length < 11) {
+      toast({
+        title: "Erro",
+        description: "CPF deve ter pelo menos 11 caracteres",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setLoading(true)
+    try {
+      await createStudent(formData)
+      toast({
+        title: "Sucesso",
+        description: "Estudante criado com sucesso!"
+      })
+      
+      // Reset form
+      setFormData({
+        name: "",
+        cpf: "",
+        rg: "",
+        gender: "",
+        birthDate: "",
+        education: "",
+        zipCode: "",
+        address: "",
+        addressNumber: "",
+        neighborhood: "",
+        city: "",
+        state: "",
+        landlineAreaCode: "",
+        landlineNumber: "",
+        mobileAreaCode: "",
+        mobileNumber: "",
+        email: "",
+        observations: "",
+        clientId: "",
+        isActive: true
+      })
+      
+      onOpenChange(false)
+      onSuccess()
+    } catch (error: any) {
+      console.error('Erro ao criar estudante:', error)
+      toast({
+        title: "Erro",
+        description: error.response?.data?.message || "Erro ao criar estudante",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleInputChange = (field: keyof CreateStudentData, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Criar Novo Estudante</DialogTitle>
+          <DialogDescription>
+            Preencha os dados do novo estudante
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Informações Básicas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="name">Nome *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                placeholder="Nome completo"
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="cpf">CPF *</Label>
+              <Input
+                id="cpf"
+                value={formData.cpf}
+                onChange={(e) => handleInputChange('cpf', e.target.value)}
+                placeholder="000.000.000-00"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="rg">RG</Label>
+              <Input
+                id="rg"
+                value={formData.rg}
+                onChange={(e) => handleInputChange('rg', e.target.value)}
+                placeholder="00.000.000-0"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="gender">Gênero</Label>
+              <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o gênero" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="M">Masculino</SelectItem>
+                  <SelectItem value="F">Feminino</SelectItem>
+                  <SelectItem value="O">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="birthDate">Data de Nascimento</Label>
+              <Input
+                id="birthDate"
+                type="date"
+                value={formData.birthDate}
+                onChange={(e) => handleInputChange('birthDate', e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="education">Escolaridade</Label>
+              <Input
+                id="education"
+                value={formData.education}
+                onChange={(e) => handleInputChange('education', e.target.value)}
+                placeholder="Ex: Ensino Superior Completo"
+              />
+            </div>
+          </div>
+
+          {/* Endereço */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Endereço</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="zipCode">CEP</Label>
+                <Input
+                  id="zipCode"
+                  value={formData.zipCode}
+                  onChange={(e) => handleInputChange('zipCode', e.target.value)}
+                  placeholder="00000-000"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="address">Endereço</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
+                  placeholder="Rua, Avenida..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="addressNumber">Número</Label>
+                <Input
+                  id="addressNumber"
+                  value={formData.addressNumber}
+                  onChange={(e) => handleInputChange('addressNumber', e.target.value)}
+                  placeholder="123"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="neighborhood">Bairro</Label>
+                <Input
+                  id="neighborhood"
+                  value={formData.neighborhood}
+                  onChange={(e) => handleInputChange('neighborhood', e.target.value)}
+                  placeholder="Nome do bairro"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="city">Cidade</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => handleInputChange('city', e.target.value)}
+                  placeholder="Nome da cidade"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="state">Estado</Label>
+                <Input
+                  id="state"
+                  value={formData.state}
+                  onChange={(e) => handleInputChange('state', e.target.value)}
+                  placeholder="SP"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Contatos */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Contatos</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="landlineAreaCode">DDD Fixo</Label>
+                  <Input
+                    id="landlineAreaCode"
+                    value={formData.landlineAreaCode}
+                    onChange={(e) => handleInputChange('landlineAreaCode', e.target.value)}
+                    placeholder="11"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="landlineNumber">Telefone Fixo</Label>
+                  <Input
+                    id="landlineNumber"
+                    value={formData.landlineNumber}
+                    onChange={(e) => handleInputChange('landlineNumber', e.target.value)}
+                    placeholder="1234-5678"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="mobileAreaCode">DDD Celular</Label>
+                  <Input
+                    id="mobileAreaCode"
+                    value={formData.mobileAreaCode}
+                    onChange={(e) => handleInputChange('mobileAreaCode', e.target.value)}
+                    placeholder="11"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="mobileNumber">Celular</Label>
+                  <Input
+                    id="mobileNumber"
+                    value={formData.mobileNumber}
+                    onChange={(e) => handleInputChange('mobileNumber', e.target.value)}
+                    placeholder="99999-9999"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Informações Adicionais */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Informações Adicionais</h3>
+            
+            <div>
+              <Label htmlFor="observations">Observações</Label>
+              <Textarea
+                id="observations"
+                value={formData.observations}
+                onChange={(e) => handleInputChange('observations', e.target.value)}
+                placeholder="Observações sobre o estudante..."
+                rows={3}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="isActive"
+                checked={formData.isActive}
+                onCheckedChange={(checked) => handleInputChange('isActive', checked)}
+              />
+              <Label htmlFor="isActive">Estudante Ativo</Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Criando..." : "Criar Estudante"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

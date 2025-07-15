@@ -32,14 +32,14 @@ interface SidebarProps {
 
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, badge: null },
-  { id: "students", label: "Alunos", icon: Users, badge: "1.2k" },
-  { id: "trainings", label: "Treinamentos", icon: BookOpen, badge: "45" },
+  { id: "students", label: "Alunos", icon: Users, badge: null },
+  { id: "trainings", label: "Treinamentos", icon: BookOpen, badge: null },
   
   { id: "instructors", label: "Instrutores", icon: UserCheck, badge: null },
-  { id: "clients", label: "Clientes", icon: Building2, badge: "89" },
-  { id: "groups", label: "Turmas", icon: UsersRound, badge: "23" },
-  
-  { id: "certificates", label: "Certificados", icon: Award, badge: "892" },
+  { id: "clients", label: "Clientes", icon: Building2, badge: null },
+  { id: "groups", label: "Turmas", icon: UsersRound, badge: null },
+
+  { id: "certificates", label: "Certificados", icon: Award, badge: null },
   { id: "financial", label: "Financeiro", icon: DollarSign, badge: null },
   { id: "reports", label: "Relatórios", icon: BarChart3, badge: null },
   { id: "settings", label: "Configurações", icon: Settings, badge: null },
