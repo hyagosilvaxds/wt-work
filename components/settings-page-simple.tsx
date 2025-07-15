@@ -31,7 +31,7 @@ import {
   AlertCircle,
   Loader2
 } from "lucide-react"
-import { getUsers, getRoles, createUser, CreateUserData, deleteUser, getPermissions, updateRole, UpdateRoleData, deleteRole, createInstructor, CreateInstructorData, createRole, CreateRoleData, getLightInstructors } from "@/lib/api/superadmin"
+import { getUsers, getRoles, createUser, CreateUserData, deleteUser, getPermissions, updateRole, UpdateRoleData, deleteRole, createInstructor, CreateInstructorData, createRole, CreateRoleData, getLightInstructors, editUser, linkUserToInstructor, LinkUserToInstructorDto } from "@/lib/api/superadmin"
 
 interface User {
   id: string
@@ -67,10 +67,10 @@ interface Permission {
 interface LightInstructor {
   id: string
   name: string
-  email: string
-  user: {
+  email: string | null
+  user?: {
     isActive: boolean
-  }
+  } | null
 }
 
 export function SettingsPage() {
@@ -161,10 +161,14 @@ export function SettingsPage() {
       setLoadingRoles(true)
       const data = await getRoles()
       
+      console.log('Raw roles data from API:', data)
+      
       // Check if data is an array (direct response) or object with roles property
       if (Array.isArray(data)) {
+        console.log('Roles loaded (array format):', data)
         setRoles(data)
       } else if (data && data.roles) {
+        console.log('Roles loaded (object format):', data.roles)
         setRoles(data.roles)
       } else {
         console.log('Formato de resposta inesperado:', data)
@@ -451,12 +455,17 @@ export function SettingsPage() {
       setLoadingInstructors(true)
       const response = await getLightInstructors()
       
-      // Filter only inactive instructors (user.isActive === false)
-      const inactiveInstructors = response.filter((instructor: LightInstructor) => 
-        instructor.user.isActive === false
+      console.log('Response from getLightInstructors:', response)
+      
+      // Filter instructors that don't have a user associated (user === null)
+      // These are the ones available for connection
+      const availableInstructors = response.filter((instructor: LightInstructor) => 
+        instructor.user === null
       )
       
-      setAvailableInstructors(inactiveInstructors)
+      console.log('Available instructors for connection:', availableInstructors)
+      
+      setAvailableInstructors(availableInstructors)
     } catch (error) {
       console.error('Error loading available instructors:', error)
       toast({
@@ -495,9 +504,18 @@ export function SettingsPage() {
       const selectedRole = roles.find(role => role.id === userForm.roleId)
       const isInstructor = selectedRole?.name === "INSTRUCTOR" || selectedRole?.name === "INSTRUTOR"
       
+      console.log('All available roles:', roles)
+      console.log('Selected role ID:', userForm.roleId)
+      console.log('Selected role:', selectedRole)
+      console.log('Is instructor:', isInstructor)
+      
       if (isInstructor) {
         // Para modo instrutor, conectar com instrutor existente
         const selectedInstructor = availableInstructors.find(inst => inst.id === selectedInstructorId)
+        
+        console.log('Selected instructor ID:', selectedInstructorId)
+        console.log('Available instructors:', availableInstructors)
+        console.log('Selected instructor:', selectedInstructor)
         
         if (!selectedInstructor) {
           toast({
@@ -508,8 +526,33 @@ export function SettingsPage() {
           return
         }
         
-        // TODO: Implementar API para ativar/conectar instrutor existente
-        // Por enquanto, vamos simular a ativação
+        // Preparar dados para conectar usuário ao instrutor
+        const linkData: LinkUserToInstructorDto = {
+          instructorId: selectedInstructorId,
+          name: userForm.name,
+          email: userForm.email,
+          password: userForm.password,
+          bio: userForm.bio || undefined,
+          isActive: userForm.isActive ?? true
+        }
+        
+        console.log('Link data being sent:', linkData)
+        console.log('User form data:', userForm)
+        console.log('Selected instructor ID:', selectedInstructorId)
+        
+        // Validação adicional antes de enviar
+        if (!linkData.instructorId) {
+          toast({
+            title: "Erro",
+            description: "ID do instrutor não encontrado",
+            variant: "destructive"
+          })
+          return
+        }
+        
+        // Chamar API para conectar usuário ao instrutor
+        await linkUserToInstructor(linkData)
+        
         toast({
           title: "Sucesso",
           description: `Instrutor ${selectedInstructor.name} conectado com sucesso`,
@@ -531,11 +574,25 @@ export function SettingsPage() {
       resetAllModalStates()
       setIsAddUserDialogOpen(false)
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating user:', error)
+      
+      // Log detalhado do erro
+      if (error.response) {
+        console.error('Error response:', error.response.data)
+        console.error('Error status:', error.response.status)
+        console.error('Error headers:', error.response.headers)
+      } else if (error.request) {
+        console.error('Error request:', error.request)
+      } else {
+        console.error('Error message:', error.message)
+      }
+      
+      const errorMessage = error.response?.data?.message || error.message || "Falha ao criar usuário"
+      
       toast({
         title: "Erro",
-        description: "Falha ao criar usuário",
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
@@ -543,16 +600,46 @@ export function SettingsPage() {
     }
   }
 
-  const handleEditUser = () => {
-    if (selectedUser && userForm.name && userForm.email && userForm.roleId) {
-      const updatedUsers = users.map(user =>
-        user.id === selectedUser.id
-          ? { ...user, name: userForm.name, email: userForm.email, role: { id: userForm.roleId, name: userForm.roleId } }
-          : user
-      )
-      setUsers(updatedUsers)
+  const handleEditUser = async () => {
+    if (!selectedUser) return;
+    if (!userForm.name || !userForm.email || !userForm.roleId) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos obrigatórios",
+        variant: "destructive"
+      })
+      return;
+    }
+    try {
+      setLoading(true)
+      // Monta o objeto de atualização, removendo campos vazios
+      const updateData: any = {
+        name: userForm.name,
+        email: userForm.email,
+        roleId: userForm.roleId,
+        isActive: userForm.isActive,
+        bio: userForm.bio
+      }
+      if (userForm.password && userForm.password.length >= 6) {
+        updateData.password = userForm.password
+      }
+      await editUser(selectedUser.id, updateData)
+      toast({
+        title: "Sucesso",
+        description: "Usuário atualizado com sucesso",
+      })
+      await loadUsers()
       resetAllModalStates()
       setIsEditUserDialogOpen(false)
+    } catch (error) {
+      console.error('Error updating user:', error)
+      toast({
+        title: "Erro",
+        description: "Falha ao atualizar usuário",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -865,10 +952,27 @@ export function SettingsPage() {
     const errors: string[] = []
     
     if (isInstructorMode) {
-      // Simplified validation for instructor connection mode
+      // Validation for instructor connection mode
       if (!selectedInstructorId) {
         errors.push("Selecione um instrutor para conectar")
       }
+      // Validate user form fields for instructor mode too
+      if (!userForm.name.trim()) errors.push("Nome é obrigatório")
+      if (!userForm.email.trim()) errors.push("Email é obrigatório")
+      if (!userForm.password.trim()) errors.push("Senha é obrigatória")
+      if (userForm.password.length > 0 && userForm.password.length < 6) errors.push("Senha deve ter pelo menos 6 caracteres")
+      
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (userForm.email && !emailRegex.test(userForm.email)) {
+        errors.push("Email deve ter um formato válido")
+      }
+      
+      // Log dos dados para debug
+      console.log('Validating instructor mode:')
+      console.log('Selected instructor ID:', selectedInstructorId)
+      console.log('User form:', userForm)
+      console.log('Available instructors:', availableInstructors)
     } else {
       // Standard validation for regular users
       const currentForm = userForm
@@ -886,16 +990,21 @@ export function SettingsPage() {
       }
     }
     
+    console.log('Validation errors:', errors)
     return errors
   }
 
   // Function to handle role selection and update instructor mode
   const handleRoleChange = (roleId: string) => {
+    console.log('Role changed to:', roleId)
     setUserForm(prev => ({ ...prev, roleId }))
     
     // Find the selected role to check if it's an instructor
     const selectedRole = roles.find(role => role.id === roleId)
     const isInstructor = selectedRole?.name === "INSTRUCTOR" || selectedRole?.name === "INSTRUTOR"
+    
+    console.log('Selected role:', selectedRole)
+    console.log('Is instructor:', isInstructor)
     
     setIsInstructorMode(isInstructor)
     
@@ -1289,7 +1398,11 @@ export function SettingsPage() {
                   <Label htmlFor="instructorSelect">Selecione um instrutor para conectar *</Label>
                   <Select 
                     value={selectedInstructorId} 
-                    onValueChange={setSelectedInstructorId}
+                    onValueChange={(value) => {
+                      console.log('Instructor selected:', value)
+                      console.log('Available instructors:', availableInstructors)
+                      setSelectedInstructorId(value)
+                    }}
                     disabled={loadingInstructors}
                   >
                     <SelectTrigger>
@@ -1312,7 +1425,9 @@ export function SettingsPage() {
                           <SelectItem key={instructor.id} value={instructor.id}>
                             <div className="flex flex-col">
                               <span className="font-medium">{instructor.name}</span>
-                              <span className="text-sm text-gray-500">{instructor.email}</span>
+                              <span className="text-sm text-gray-500">
+                                {instructor.email || 'Email não informado'}
+                              </span>
                             </div>
                           </SelectItem>
                         ))
@@ -1320,7 +1435,7 @@ export function SettingsPage() {
                     </SelectContent>
                   </Select>
                   <p className="text-sm text-gray-500">
-                    Apenas instrutores sem conexão estão disponíveis.
+                    Apenas instrutores sem usuário associado estão disponíveis para conexão.
                   </p>
                 </div>
               </div>
