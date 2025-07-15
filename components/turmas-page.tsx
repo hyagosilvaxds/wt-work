@@ -25,6 +25,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { getClasses } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
 import { ClassCreateModal } from "@/components/class-create-modal"
+import { ClassDetailsModal } from "@/components/class-details-modal"
+import { LessonScheduleModal } from "@/components/lesson-schedule-modal"
 
 interface TurmaData {
   id: string
@@ -83,6 +85,8 @@ export default function TurmasPage() {
   // Estados para modais
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [editingTurma, setEditingTurma] = useState<TurmaData | null>(null)
+  const [detailsTurma, setDetailsTurma] = useState<TurmaData | null>(null)
+  const [schedulingTurma, setSchedulingTurma] = useState<TurmaData | null>(null)
 
   // Carregar dados das turmas
   const loadTurmas = async (resetPage = false) => {
@@ -141,10 +145,22 @@ export default function TurmasPage() {
     setEditingTurma(turma)
   }
 
+  // Função para abrir modal de detalhes
+  const handleViewDetails = (turma: TurmaData) => {
+    setDetailsTurma(turma)
+  }
+
+  // Função para abrir modal de agendamento
+  const handleScheduleLesson = (turma: TurmaData) => {
+    setSchedulingTurma(turma)
+  }
+
   // Função para fechar modais
   const handleCloseModal = () => {
     setCreateModalOpen(false)
     setEditingTurma(null)
+    setDetailsTurma(null)
+    setSchedulingTurma(null)
   }
 
   const getStatusColor = (status: string) => {
@@ -337,9 +353,19 @@ export default function TurmasPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleViewDetails(turma)}
+                        >
                           <Eye className="h-4 w-4" />
                           Visualizar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleScheduleLesson(turma)}
+                        >
+                          <Calendar className="h-4 w-4" />
+                          Agendar Aula
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="gap-2" 
@@ -445,9 +471,23 @@ export default function TurmasPage() {
 
                   {/* Ações */}
                   <div className="mt-6 pt-6 border-t flex gap-2 flex-wrap">
-                    <Button variant="outline" size="sm" className="gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => handleViewDetails(turma)}
+                    >
                       <Eye className="h-4 w-4" />
                       Detalhes
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => handleScheduleLesson(turma)}
+                    >
+                      <Calendar className="h-4 w-4" />
+                      Agendar Aula
                     </Button>
                     <Button variant="outline" size="sm" className="gap-2">
                       <Users className="h-4 w-4" />
@@ -550,6 +590,23 @@ export default function TurmasPage() {
           clientId: editingTurma.clientId || "",
           observations: editingTurma.observations || "",
         } : null}
+      />
+
+      {/* Modal de Detalhes */}
+      <ClassDetailsModal
+        isOpen={!!detailsTurma}
+        onClose={handleCloseModal}
+        turma={detailsTurma}
+        onEdit={handleEdit}
+        onScheduleLesson={handleScheduleLesson}
+      />
+
+      {/* Modal de Agendamento de Aula */}
+      <LessonScheduleModal
+        isOpen={!!schedulingTurma}
+        onClose={handleCloseModal}
+        onSuccess={handleSuccess}
+        turma={schedulingTurma}
       />
     </>
   )
