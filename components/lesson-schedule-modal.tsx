@@ -101,6 +101,13 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
   // Reset form quando modal abre/fecha
   useEffect(() => {
     if (isOpen && turma) {
+      // Debug: verificar datas da turma
+      console.log('Turma startDate:', turma.startDate)
+      console.log('Turma endDate:', turma.endDate)
+      console.log('Turma startDate parsed:', new Date(turma.startDate))
+      console.log('Turma endDate parsed:', new Date(turma.endDate))
+      console.log('Current date:', new Date())
+      
       setFormData({
         title: `Aula - ${turma.training.title}`,
         description: turma.training.description || "",
@@ -167,11 +174,23 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
       const turmaEnd = new Date(turma.endDate)
       const today = new Date()
       
-      // Resetar horas para comparação apenas de datas
-      lessonDate.setHours(0, 0, 0, 0)
-      turmaStart.setHours(0, 0, 0, 0)
-      turmaEnd.setHours(0, 0, 0, 0)
-      today.setHours(0, 0, 0, 0)
+      // Normalizar todas as datas para o mesmo horário (meio-dia) para evitar problemas de timezone
+      lessonDate.setHours(12, 0, 0, 0)
+      turmaStart.setHours(12, 0, 0, 0)
+      turmaEnd.setHours(12, 0, 0, 0)
+      today.setHours(12, 0, 0, 0)
+      
+      // Debug: mostrar as datas sendo comparadas
+      console.log('Validação de datas:')
+      console.log('Data da aula:', format(lessonDate, 'dd/MM/yyyy'))
+      console.log('Hoje:', format(today, 'dd/MM/yyyy'))
+      console.log('Início da turma:', format(turmaStart, 'dd/MM/yyyy'))
+      console.log('Fim da turma:', format(turmaEnd, 'dd/MM/yyyy'))
+      
+      // Verificar se as datas da turma são válidas
+      if (turmaStart >= turmaEnd) {
+        errors.push(`Erro: Data de início da turma (${format(turmaStart, 'dd/MM/yyyy')}) deve ser anterior à data de fim (${format(turmaEnd, 'dd/MM/yyyy')})`)
+      }
       
       // Verificar se a data não é no passado
       if (lessonDate < today) {
@@ -196,10 +215,13 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
   }
 
   const formatDateForInput = (date: Date) => {
+    // Usar getFullYear() ao invés de getUTCFullYear() para evitar problemas de timezone
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
+    const formatted = `${year}-${month}-${day}`
+    console.log('formatDateForInput - Input date:', date, 'Formatted:', formatted)
+    return formatted
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -376,12 +398,14 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
                         onChange={(e) => {
                           const dateValue = e.target.value
                           if (dateValue) {
-                            // Criar data sem problemas de timezone
+                            // Criar data sem problemas de timezone usando Date.UTC
                             const [year, month, day] = dateValue.split('-').map(Number)
                             
                             // Verificar se a data é válida
                             if (year && month && day && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-                              const date = new Date(year, month - 1, day)
+                              // Usar Date.UTC para evitar problemas de timezone
+                              const date = new Date(Date.UTC(year, month - 1, day))
+                              console.log('Date created:', date, 'Year:', year, 'Month:', month, 'Day:', day)
                               handleInputChange('date', date)
                             }
                           } else {
@@ -389,8 +413,24 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
                           }
                         }}
                         className="pl-10"
-                        min={turma ? formatDateForInput(new Date(Math.max(new Date().getTime(), new Date(turma.startDate).getTime()))) : formatDateForInput(new Date())}
-                        max={turma ? formatDateForInput(new Date(turma.endDate)) : undefined}
+                        min={turma ? (() => {
+                          const today = new Date()
+                          const turmaStart = new Date(turma.startDate)
+                          // Normalizar para meio-dia
+                          today.setHours(12, 0, 0, 0)
+                          turmaStart.setHours(12, 0, 0, 0)
+                          const minDate = today > turmaStart ? today : turmaStart
+                          const minFormatted = formatDateForInput(minDate)
+                          console.log('Min date for input:', minFormatted)
+                          return minFormatted
+                        })() : formatDateForInput(new Date())}
+                        max={turma ? (() => {
+                          const turmaEnd = new Date(turma.endDate)
+                          turmaEnd.setHours(12, 0, 0, 0)
+                          const maxFormatted = formatDateForInput(turmaEnd)
+                          console.log('Max date for input:', maxFormatted)
+                          return maxFormatted
+                        })() : undefined}
                         placeholder="dd/mm/aaaa"
                         required
                       />
