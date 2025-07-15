@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { createClass, patchClass, type CreateClassData, type UpdateClassData, getTrainings, getLightInstructors, getClients, testAuth, testPatchClass } from "@/lib/api/superadmin"
+import { createClass, patchClass, type CreateClassData, type UpdateClassData, getTrainings, getLightInstructors, getClients } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
 
 interface Class {
@@ -151,7 +151,6 @@ export function ClassCreateModal({
   // Preencher formulário quando estiver editando
   useEffect(() => {
     if (classItem && isOpen) {
-      console.log('Preenchendo formulário com dados da turma:', classItem)
       const formattedData = {
         trainingId: classItem.trainingId,
         instructorId: classItem.instructorId,
@@ -164,7 +163,6 @@ export function ClassCreateModal({
         clientId: classItem.clientId || "",
         observations: classItem.observations || "",
       }
-      console.log('Dados formatados para o formulário:', formattedData)
       setFormData(formattedData)
     } else if (!classItem && isOpen) {
       // Resetar formulário para criação
@@ -192,8 +190,6 @@ export function ClassCreateModal({
       const formatToISO = (dateString: string | Date) => {
         if (!dateString) return dateString
         
-        console.log('Formatando data:', dateString, 'Tipo:', typeof dateString)
-        
         // Se é uma string no formato datetime-local (YYYY-MM-DDTHH:mm)
         if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)) {
           // Criar uma data interpretando como horário local
@@ -203,20 +199,15 @@ export function ClassCreateModal({
           
           // Criar data no timezone local
           const localDate = new Date(year, month - 1, day, hour, minute, 0, 0)
-          const isoString = localDate.toISOString()
-          console.log('Data convertida para ISO:', isoString)
-          return isoString
+          return localDate.toISOString()
         }
         
         // Para outros casos (edição), converte mantendo o horário
         const date = new Date(dateString)
         if (isNaN(date.getTime())) {
-          console.error('Data inválida:', dateString)
           return dateString
         }
-        const isoString = date.toISOString()
-        console.log('Data convertida para ISO:', isoString)
-        return isoString
+        return date.toISOString()
       }
 
       const formattedData = {
@@ -224,47 +215,16 @@ export function ClassCreateModal({
         startDate: formatToISO(formData.startDate),
         endDate: formatToISO(formData.endDate),
       }
-      
-      console.log('Dados finais formatados:', formattedData)
 
       if (isEditing && classItem) {
-        console.log('Editando turma com ID:', classItem.id)
-        console.log('Dados formatados para edição:', formattedData)
-        
-        // Testar autenticação primeiro
-        console.log('Testando autenticação...')
-        const authOk = await testAuth()
-        console.log('Resultado do teste de autenticação:', authOk)
-        
-        if (!authOk) {
-          throw new Error('Falha na autenticação')
-        }
-        
-        // Fazer teste específico do patch
-        console.log('Fazendo teste específico do patch...')
-        try {
-          await testPatchClass(classItem.id)
-          console.log('Teste específico passou, fazendo patch real...')
-        } catch (testError) {
-          console.error('Erro no teste específico:', testError)
-        }
-        
-        console.log('Enviando PATCH para API...')
         const result = await patchClass(classItem.id, formattedData)
-        
-        console.log('Resultado da atualização:', result)
         
         toast({
           title: "Sucesso",
           description: "Turma atualizada com sucesso!",
         })
       } else {
-        console.log('Criando nova turma')
-        console.log('Dados formatados para criação:', formattedData)
-        
         const result = await createClass(formattedData)
-        
-        console.log('Resultado da criação:', result)
         
         toast({
           title: "Sucesso",

@@ -72,27 +72,39 @@ interface TurmaData {
 export default function TurmasPage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [turmas, setTurmas] = useState<TurmaData[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)
   const [totalTurmas, setTotalTurmas] = useState(0)
-  const limit = 10
+  const [limit] = useState(10)
 
   // Estados para modais
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [editingTurma, setEditingTurma] = useState<TurmaData | null>(null)
 
   // Carregar dados das turmas
-  const loadTurmas = async () => {
-    setLoading(true)
+  const loadTurmas = async (resetPage = false) => {
+    if (resetPage) {
+      setSearchLoading(true)
+    } else {
+      setLoading(true)
+    }
+    
     try {
-      const response = await getClasses(currentPage, limit, searchTerm || undefined)
+      const currentPageToUse = resetPage ? 1 : currentPage
+      const response = await getClasses(currentPageToUse, limit, searchTerm.trim() || undefined)
       
       // A API retorna: { classes: [...], pagination: { page, limit, total, totalPages } }
       setTurmas(response.classes || [])
       setTotalPages(response.pagination?.totalPages || 0)
       setTotalTurmas(response.pagination?.total || 0)
+      
+      // Se resetPage for true, atualizar a página atual
+      if (resetPage) {
+        setCurrentPage(1)
+      }
     } catch (error: any) {
       console.error('Erro ao carregar turmas:', error)
       toast({
@@ -102,18 +114,18 @@ export default function TurmasPage() {
       })
     } finally {
       setLoading(false)
+      setSearchLoading(false)
     }
   }
 
   useEffect(() => {
     loadTurmas()
-  }, [currentPage])
+  }, [currentPage, limit])
 
   // Busca com debounce
   useEffect(() => {
     const timer = setTimeout(() => {
-      setCurrentPage(1)
-      loadTurmas()
+      loadTurmas(true) // Reset page when searching
     }, 500)
     return () => clearTimeout(timer)
   }, [searchTerm])
@@ -126,8 +138,6 @@ export default function TurmasPage() {
 
   // Função para abrir modal de edição
   const handleEdit = (turma: TurmaData) => {
-    console.log('Abrindo modal de edição para turma:', turma.id)
-    console.log('Dados da turma:', turma)
     setEditingTurma(turma)
   }
 
@@ -207,11 +217,24 @@ export default function TurmasPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Turmas</h1>
           <p className="text-gray-600">
-            Gerencie as turmas de treinamento 
-            {totalTurmas > 0 && (
-              <span className="ml-2 text-sm font-medium">
-                ({totalTurmas} turma{totalTurmas !== 1 ? 's' : ''})
-              </span>
+            {searchTerm ? (
+              <>
+                Resultados para "{searchTerm}"
+                {totalTurmas > 0 && (
+                  <span className="ml-2 text-sm font-medium">
+                    ({totalTurmas} turma{totalTurmas !== 1 ? 's' : ''} encontrada{totalTurmas !== 1 ? 's' : ''})
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                Gerencie as turmas de treinamento 
+                {totalTurmas > 0 && (
+                  <span className="ml-2 text-sm font-medium">
+                    ({totalTurmas} turma{totalTurmas !== 1 ? 's' : ''})
+                  </span>
+                )}
+              </>
             )}
           </p>
         </div>
@@ -219,18 +242,30 @@ export default function TurmasPage() {
         {/* Ações e Filtros */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            {searchLoading ? (
+              <Loader2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            )}
             <Input
               placeholder="Buscar turmas, cursos ou instrutores..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
+              disabled={searchLoading}
             />
+            {searchTerm && !searchLoading && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
+                onClick={() => setSearchTerm("")}
+              >
+                ×
+              </Button>
+            )}
           </div>
-          <Button variant="outline" className="gap-2">
-            <Filter className="h-4 w-4" />
-            Filtros
-          </Button>
+          
           <Button className="gap-2" onClick={() => setCreateModalOpen(true)}>
             <Plus className="h-4 w-4" />
             Nova Turma
@@ -238,7 +273,12 @@ export default function TurmasPage() {
         </div>
 
         {/* Cards das Turmas */}
-        {turmas.length === 0 ? (
+        {searchLoading && !loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <span className="ml-2 text-gray-600">Buscando turmas...</span>
+          </div>
+        ) : turmas.length === 0 ? (
           <Card>
             <CardContent className="p-12">
               <div className="text-center">
@@ -437,38 +477,57 @@ export default function TurmasPage() {
 
         {/* Paginação */}
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-            >
-              Anterior
-            </Button>
-            
-            <div className="flex gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const page = i + 1
-                return (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </Button>
-                )
-              })}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+            <div className="text-sm text-gray-600">
+              Mostrando {((currentPage - 1) * limit) + 1} - {Math.min(currentPage * limit, totalTurmas)} de {totalTurmas} turma{totalTurmas !== 1 ? 's' : ''}
             </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </Button>
+              
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let page: number
+                  if (totalPages <= 5) {
+                    page = i + 1
+                  } else {
+                    const start = Math.max(1, currentPage - 2)
+                    const end = Math.min(totalPages, start + 4)
+                    const adjustedStart = Math.max(1, end - 4)
+                    page = adjustedStart + i
+                  }
+                  
+                  if (page > totalPages) return null
+                  
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </Button>
+                  )
+                })}
+              </div>
 
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Próxima
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Próxima
+              </Button>
+            </div>
           </div>
         )}
       </div>
