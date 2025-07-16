@@ -1136,3 +1136,21 @@ export const getClientClasses = async () => {
         throw error;
     }
 };
+
+// Função para buscar o clientId de um usuário
+export const getUserClientId = async (userId: string) => {
+    try {
+        console.log('Fetching clientId for user:', userId);
+        
+        const response = await api.get(`/superadmin/users/${userId}/client-id`);
+        
+        console.log('getUserClientId response:', response);
+        console.log('getUserClientId response.data:', response.data);
+        
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar clientId do usuário:', error);
+        throw error;
+    }
+};
+

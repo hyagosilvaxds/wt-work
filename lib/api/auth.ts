@@ -336,3 +336,15 @@ export const getClientClasses = async () => {
     }
 };
 
+// Função para buscar dados do dashboard do cliente
+export const getClientDashboard = async (clientId: string) => {
+    try {
+        const response = await api.get(`/superadmin/clients/${clientId}/dashboard`);
+        console.log('Dados do dashboard do cliente:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar dados do dashboard do cliente:', error);
+        throw error;
+    }
+};
+

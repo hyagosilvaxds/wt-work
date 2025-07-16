@@ -3,10 +3,11 @@
 import { useAuth } from "@/hooks/use-auth"
 import { SuperAdminDashboard } from "@/components/super-admin-dashboard"
 import { InstructorDashboard } from "@/components/instructor-dashboard"
+import ClientDashboard from "@/components/client-dashboard"
 import LoadingPage from "@/components/loading-page"
 
 export default function AdaptiveDashboard() {
-  const { user, isLoading } = useAuth()
+  const { user, isLoading, isClient } = useAuth()
 
   if (isLoading) {
     return <LoadingPage />
@@ -21,6 +22,11 @@ export default function AdaptiveDashboard() {
     </div>
   }
 
-  // Por enquanto, todos os usuários autenticados veem o dashboard de admin
+  // Renderizar dashboard baseado no tipo de usuário
+  if (isClient) {
+    return <ClientDashboard />
+  }
+
+  // Por enquanto, outros usuários veem o dashboard de admin
   return <SuperAdminDashboard />
 }
