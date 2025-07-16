@@ -349,24 +349,19 @@ export function CertificateExamplePage() {
                     id="certificate-preview"
                     className="bg-white font-serif relative overflow-hidden shadow-2xl"
                     style={{
-                      width: '297mm',
-                      height: '210mm',
-                      background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
+                      width: '1123px',
+                      height: '794px',
+                      backgroundImage: 'url("/fundo-certificado.png")',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat',
                       border: '8px solid #78BA00',
                       padding: '60px'
                     }}
                   >
-                    {/* Background Pattern */}
-                    <div className="absolute inset-0 opacity-5">
-                      <div className="absolute top-10 left-10 w-32 h-32 border-4 border-primary-300 rounded-full"></div>
-                      <div className="absolute top-20 right-20 w-24 h-24 border-4 border-primary-300 rounded-full"></div>
-                      <div className="absolute bottom-10 left-20 w-28 h-28 border-4 border-primary-300 rounded-full"></div>
-                      <div className="absolute bottom-20 right-10 w-20 h-20 border-4 border-primary-300 rounded-full"></div>
-                    </div>
-
                     <div className="relative z-10 h-full flex flex-col">
                       {/* Header */}
-                      <div className="text-center mb-8">
+                      <div className="text-center mb-8 mt-24">
                         <h1 className="text-6xl font-bold text-gray-800 mb-2">
                           CERTIFICADO
                         </h1>
@@ -419,27 +414,21 @@ export function CertificateExamplePage() {
                       </div>
 
                       {/* Footer */}
-                      <div className="mt-auto">
-                        <div className="flex justify-between items-end">
+                      <div className="mt-auto pt-4">
+                        <div className="flex justify-between items-end mb-4">
                           <div className="text-center flex-1">
-                            <div className="border-t-2 border-gray-400 pt-2 mx-8">
+                            <div className="border-t-2 border-gray-400 pt-2 mx-8 mt-8">
                               <p className="text-lg font-semibold text-gray-700">{getCurrentCertificateData().instructorName}</p>
                               <p className="text-sm text-gray-600">Instrutor Responsável</p>
                             </div>
                           </div>
                           
                           <div className="text-center flex-1">
-                            <div className="border-t-2 border-gray-400 pt-2 mx-8">
+                            <div className="border-t-2 border-gray-400 pt-2 mx-8 mt-8">
                               <p className="text-lg font-semibold text-gray-700">WT Work Treinamentos</p>
                               <p className="text-sm text-gray-600">Direção</p>
                             </div>
                           </div>
-                        </div>
-
-                        <div className="mt-8 text-center text-sm text-gray-500">
-                          <p>Emitido em: {getCurrentCertificateData().issueDate}</p>
-                          <p>Código de Validação: {getCurrentCertificateData().validationCode}</p>
-                          <p className="mt-2">Este certificado pode ser validado em nosso sistema</p>
                         </div>
                       </div>
                     </div>

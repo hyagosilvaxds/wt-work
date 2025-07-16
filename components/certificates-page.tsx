@@ -129,6 +129,28 @@ export function CertificatesPage() {
     }
   }
 
+  // Função para calcular se a turma está próxima do vencimento
+  const calculateExpirationStatus = (classItem: any) => {
+    const today = new Date()
+    const endDate = new Date(classItem.endDate)
+    const validityDays = classItem.training?.validityDays || 365 // fallback para 365 dias
+    
+    // Calcular a data de vencimento da validade (fim da turma + dias de validade)
+    const expirationDate = new Date(endDate)
+    expirationDate.setDate(expirationDate.getDate() + validityDays)
+    
+    // Calcular a diferença em dias
+    const diffTime = expirationDate.getTime() - today.getTime()
+    const daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    return {
+      daysUntilExpiration,
+      isExpired: daysUntilExpiration <= 0,
+      isExpiringSoon: daysUntilExpiration > 0 && daysUntilExpiration <= 30, // Considerar "próximo do vencimento" se restam 30 dias ou menos
+      expirationDate
+    }
+  }
+
   const handleGenerateCertificate = (student: any, classData: any) => {
     setSelectedStudent(student)
     setSelectedClass(classData)
@@ -262,6 +284,23 @@ export function CertificatesPage() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <Badge className="bg-green-100 text-green-800">Concluída</Badge>
+                  {(() => {
+                    const expirationStatus = calculateExpirationStatus(classItem)
+                    if (expirationStatus.isExpired) {
+                      return (
+                        <Badge className="bg-red-100 text-red-800">
+                          Certificado Expirado
+                        </Badge>
+                      )
+                    } else if (expirationStatus.isExpiringSoon) {
+                      return (
+                        <Badge className="bg-yellow-100 text-yellow-800">
+                          Expira em {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}
+                        </Badge>
+                      )
+                    }
+                    return null
+                  })()}
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     {expandedGroups.includes(classItem.id) ? (
                       <ChevronUp className="h-4 w-4" />
@@ -302,6 +341,22 @@ export function CertificatesPage() {
                         <p className="text-sm text-gray-600">{classItem.training?.durationHours || 0}h</p>
                       </div>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <Award className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">Validade do Certificado</p>
+                        {(() => {
+                          const expirationStatus = calculateExpirationStatus(classItem)
+                          if (expirationStatus.isExpired) {
+                            return <p className="text-sm text-red-600 font-medium">Expirado</p>
+                          } else if (expirationStatus.isExpiringSoon) {
+                            return <p className="text-sm text-yellow-600 font-medium">Expira em {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}</p>
+                          } else {
+                            return <p className="text-sm text-green-600 font-medium">Válido por {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}</p>
+                          }
+                        })()}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Lista de alunos */}
@@ -320,6 +375,28 @@ export function CertificatesPage() {
                                   <Award className="h-5 w-5 text-primary-500" />
                                   <h3 className="font-medium text-gray-900">{student.name}</h3>
                                 </div>
+                                {(() => {
+                                  const expirationStatus = calculateExpirationStatus(classItem)
+                                  if (expirationStatus.isExpired) {
+                                    return (
+                                      <Badge className="bg-red-100 text-red-800 text-xs">
+                                        Expirado
+                                      </Badge>
+                                    )
+                                  } else if (expirationStatus.isExpiringSoon) {
+                                    return (
+                                      <Badge className="bg-yellow-100 text-yellow-800 text-xs">
+                                        {expirationStatus.daysUntilExpiration}d
+                                      </Badge>
+                                    )
+                                  } else {
+                                    return (
+                                      <Badge className="bg-green-100 text-green-800 text-xs">
+                                        Válido
+                                      </Badge>
+                                    )
+                                  }
+                                })()}
                               </div>
 
                               <div className="space-y-2 text-sm">

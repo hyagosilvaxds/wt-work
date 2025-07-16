@@ -80,6 +80,28 @@ export function ClientClassesPage() {
     )
   }
 
+  // Função para calcular se a turma está próxima do vencimento
+  const calculateExpirationStatus = (turma: any) => {
+    const today = new Date()
+    const endDate = new Date(turma.endDate)
+    const validityDays = turma.training?.validityDays || turma.validityDays || 365 // fallback para 365 dias
+    
+    // Calcular a data de vencimento da validade (fim da turma + dias de validade)
+    const expirationDate = new Date(endDate)
+    expirationDate.setDate(expirationDate.getDate() + validityDays)
+    
+    // Calcular a diferença em dias
+    const diffTime = expirationDate.getTime() - today.getTime()
+    const daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    return {
+      daysUntilExpiration,
+      isExpired: daysUntilExpiration <= 0,
+      isExpiringSoon: daysUntilExpiration > 0 && daysUntilExpiration <= 30, // Considerar "próximo do vencimento" se restam 30 dias ou menos
+      expirationDate
+    }
+  }
+
   return (
     <div className="space-y-6">
       
@@ -187,12 +209,31 @@ export function ClientClassesPage() {
                       {turma.description || 'Sem descrição'}
                     </CardDescription>
                   </div>
-                  <Badge variant={
-                    turma.status === 'ATIVO' || turma.status === 'EM_ANDAMENTO' ? 'default' : 
-                    turma.status === 'CONCLUIDO' ? 'secondary' : 'outline'
-                  }>
-                    {turma.status || 'N/A'}
-                  </Badge>
+                  <div className="flex flex-col gap-2">
+                    <Badge variant={
+                      turma.status === 'ATIVO' || turma.status === 'EM_ANDAMENTO' ? 'default' : 
+                      turma.status === 'CONCLUIDO' ? 'secondary' : 'outline'
+                    }>
+                      {turma.status || 'N/A'}
+                    </Badge>
+                    {(() => {
+                      const expirationStatus = calculateExpirationStatus(turma)
+                      if (expirationStatus.isExpired) {
+                        return (
+                          <Badge className="bg-red-100 text-red-800">
+                            Expirado
+                          </Badge>
+                        )
+                      } else if (expirationStatus.isExpiringSoon) {
+                        return (
+                          <Badge className="bg-yellow-100 text-yellow-800">
+                            Vence em {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}
+                          </Badge>
+                        )
+                      }
+                      return null
+                    })()}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

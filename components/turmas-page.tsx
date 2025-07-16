@@ -344,6 +344,39 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     return diffDays
   }
 
+  // Função para calcular se a turma está próxima do vencimento
+  const calculateExpirationStatus = (turma: TurmaData) => {
+    const today = new Date()
+    const endDate = new Date(turma.endDate)
+    const validityDays = turma.training.validityDays
+    
+    // Calcular a data de vencimento da validade (fim da turma + dias de validade)
+    const expirationDate = new Date(endDate)
+    expirationDate.setDate(expirationDate.getDate() + validityDays)
+    
+    // Calcular a diferença em dias
+    const diffTime = expirationDate.getTime() - today.getTime()
+    const daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    return {
+      daysUntilExpiration,
+      isExpired: daysUntilExpiration <= 0,
+      isExpiringSoon: daysUntilExpiration > 0 && daysUntilExpiration <= 30, // Considerar "próximo do vencimento" se restam 30 dias ou menos
+      expirationDate
+    }
+  }
+
+  // Função para obter a cor do badge de validade
+  const getValidityBadgeColor = (expirationStatus: any) => {
+    if (expirationStatus.isExpired) {
+      return "bg-red-100 text-red-800"
+    } else if (expirationStatus.isExpiringSoon) {
+      return "bg-yellow-100 text-yellow-800"
+    } else {
+      return "bg-green-100 text-green-800"
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -484,6 +517,23 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                         <Badge className={getTypeColor(turma.type)} variant="outline">
                           {turma.type}
                         </Badge>
+                        {(() => {
+                          const expirationStatus = calculateExpirationStatus(turma)
+                          if (expirationStatus.isExpired) {
+                            return (
+                              <Badge className="bg-red-100 text-red-800">
+                                Expirado
+                              </Badge>
+                            )
+                          } else if (expirationStatus.isExpiringSoon) {
+                            return (
+                              <Badge className="bg-yellow-100 text-yellow-800">
+                                Vence em {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}
+                              </Badge>
+                            )
+                          }
+                          return null
+                        })()}
                       </div>
                       <p className="text-gray-600 font-medium">
                         {turma.training.description}

@@ -21,24 +21,19 @@ export const CertificateTemplate = ({ data }: { data: CertificateData }) => {
       id="certificate-template"
       className="bg-white p-16 font-serif relative overflow-hidden"
       style={{
-        width: '297mm',
-        height: '210mm',
-        background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
+        width: '1123px',
+        height: '794px',
+        backgroundImage: 'url("/fundo-certificado.png")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
         border: '8px solid #78BA00',
         boxShadow: '0 0 30px rgba(0,0,0,0.1)'
       }}
     >
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute top-10 left-10 w-32 h-32 border-4 border-primary-300 rounded-full"></div>
-        <div className="absolute top-20 right-20 w-24 h-24 border-4 border-primary-300 rounded-full"></div>
-        <div className="absolute bottom-10 left-20 w-28 h-28 border-4 border-primary-300 rounded-full"></div>
-        <div className="absolute bottom-20 right-10 w-20 h-20 border-4 border-primary-300 rounded-full"></div>
-      </div>
-
       <div className="relative z-10 h-full flex flex-col">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 mt-24">
           <h1 className="text-6xl font-bold text-gray-800 mb-2">
             CERTIFICADO
           </h1>
@@ -54,64 +49,61 @@ export const CertificateTemplate = ({ data }: { data: CertificateData }) => {
             Certificamos que
           </p>
           
-          <div className="mb-12">
-            <p className="text-5xl font-bold text-primary-700 mb-4 border-b-2 border-primary-200 pb-2 inline-block">
-              {data.studentName}
-            </p>
-          </div>
-
+          <h2 className="text-4xl font-bold text-gray-800 mb-8 px-8">
+            {data.studentName}
+          </h2>
+          
           <p className="text-2xl text-gray-700 mb-8 leading-relaxed">
             concluiu com êxito o curso de
           </p>
-
-          <div className="mb-12">
-            <p className="text-4xl font-bold text-gray-800 mb-4">
-              {data.trainingName}
+          
+          <h3 className="text-3xl font-bold text-primary-600 mb-8 px-4">
+            {data.trainingName}
+          </h3>
+          
+          <div className="text-lg text-gray-600 mb-8 space-y-2">
+            <p>
+              <strong>Carga horária:</strong> {data.workload}
             </p>
-            <div className="flex justify-center items-center gap-8 text-lg text-gray-600">
-              <span>Carga horária: <strong>{data.workload}</strong></span>
-              {data.company && <span>•</span>}
-              {data.company && <span>Empresa: <strong>{data.company}</strong></span>}
-            </div>
-          </div>
-
-          <div className="flex justify-center items-center gap-4 text-lg text-gray-600 mb-8">
-            {data.startDate && data.endDate && (
-              <span>
-                Período: <strong>{data.startDate} a {data.endDate}</strong>
-              </span>
+            {data.company && (
+              <p>
+                <strong>Empresa:</strong> {data.company}
+              </p>
             )}
-            {data.location && (
-              <>
-                <span>•</span>
-                <span>Local: <strong>{data.location}</strong></span>
-              </>
+            {data.startDate && data.endDate && (
+              <p>
+                <strong>Período:</strong> {data.startDate} a {data.endDate}
+                {data.location && (
+                  <span> • <strong>Local:</strong> {data.location}</span>
+                )}
+              </p>
+            )}
+            {data.location && !data.startDate && !data.endDate && (
+              <p>
+                <strong>Local:</strong> {data.location}
+              </p>
             )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-auto">
-          <div className="flex justify-between items-end">
-            <div className="text-center flex-1">
-              <div className="border-t-2 border-gray-400 pt-2 mx-8">
-                <p className="text-lg font-semibold text-gray-700">{data.instructorName}</p>
+        <div className="mt-auto pt-8">
+          <div className="flex justify-between items-end mb-8">
+            <div className="flex-1 text-center mx-8">
+              <div className="border-t-2 border-gray-400 pt-2 mt-8">
+                <p className="text-lg font-semibold text-gray-700 mb-1">
+                  {data.instructorName}
+                </p>
                 <p className="text-sm text-gray-600">Instrutor Responsável</p>
               </div>
             </div>
             
-            <div className="text-center flex-1">
-              <div className="border-t-2 border-gray-400 pt-2 mx-8">
+            <div className="flex-1 text-center mx-8">
+              <div className="border-t-2 border-gray-400 pt-2 mt-8">
                 <p className="text-lg font-semibold text-gray-700">WT Work Treinamentos</p>
                 <p className="text-sm text-gray-600">Direção</p>
               </div>
             </div>
-          </div>
-
-          <div className="mt-8 text-center text-sm text-gray-500">
-            <p>Emitido em: {data.issueDate}</p>
-            <p>Código de Validação: {data.validationCode}</p>
-            <p className="mt-2">Este certificado pode ser validado em nosso sistema</p>
           </div>
         </div>
       </div>
@@ -121,52 +113,183 @@ export const CertificateTemplate = ({ data }: { data: CertificateData }) => {
 
 export const generateCertificatePDF = async (data: CertificateData): Promise<void> => {
   try {
-    // Criar elemento temporário em tamanho real para captura
-    const container = document.createElement('div')
-    container.id = 'certificate-temp'
-    container.style.position = 'fixed'
-    container.style.top = '-9999px'
-    container.style.left = '-9999px'
-    container.style.width = '297mm'
-    container.style.height = '210mm'
-    container.style.background = 'white'
-    container.style.zIndex = '-1000'
+    // Verificar se já existe um elemento do template na página
+    let templateElement = document.getElementById('certificate-template')
+    let shouldCleanup = false
     
-    // Usar o HTML estático para garantir que seja renderizado corretamente
-    container.innerHTML = generateCertificateHTML(data)
-    document.body.appendChild(container)
+    if (!templateElement) {
+      // Criar elemento temporário usando HTML com estilos inline para garantir renderização
+      const container = document.createElement('div')
+      container.innerHTML = `
+        <div id="certificate-template" style="
+          width: 1123px;
+          height: 794px;
+          background-image: url('/fundo-certificado.png');
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          border: 8px solid #78BA00;
+          box-shadow: 0 0 30px rgba(0,0,0,0.1);
+          background-color: white;
+          padding: 64px;
+          font-family: serif;
+          position: relative;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        ">
+          <div style="position: relative; z-index: 10; height: 100%; display: flex; flex-direction: column;">
+            <!-- Header -->
+            <div style="text-align: center; margin-bottom: 32px; margin-top: 96px;">
+              <h1 style="font-size: 72px; font-weight: bold; color: #1f2937; margin-bottom: 8px; margin: 0; line-height: 1;">
+                CERTIFICADO
+              </h1>
+              <div style="width: 128px; height: 4px; background-color: #78BA00; margin: 16px auto;"></div>
+              <p style="font-size: 20px; color: #4b5563; margin: 0;">
+                DE CONCLUSÃO DE CURSO
+              </p>
+            </div>
+            
+            <!-- Content -->
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; padding: 0 32px;">
+              <p style="font-size: 24px; color: #374151; margin-bottom: 32px; line-height: 1.5;">
+                Certificamos que
+              </p>
+              
+              <h2 style="font-size: 48px; font-weight: bold; color: #1f2937; margin-bottom: 32px; padding: 0 32px;">
+                ${data.studentName}
+              </h2>
+              
+              <p style="font-size: 24px; color: #374151; margin-bottom: 32px; line-height: 1.5;">
+                concluiu com êxito o curso de
+              </p>
+              
+              <h3 style="font-size: 36px; font-weight: bold; color: #78BA00; margin-bottom: 32px; padding: 0 16px;">
+                ${data.trainingName}
+              </h3>
+              
+              <div style="font-size: 18px; color: #4b5563; margin-bottom: 32px;">
+                <p style="margin: 8px 0;">
+                  <strong>Carga horária:</strong> ${data.workload}
+                </p>
+                ${data.company ? `
+                  <p style="margin: 8px 0;">
+                    <strong>Empresa:</strong> ${data.company}
+                  </p>
+                ` : ''}
+                ${data.startDate && data.endDate ? `
+                  <p style="margin: 8px 0;">
+                    <strong>Período:</strong> ${data.startDate} a ${data.endDate}
+                    ${data.location ? ` • <strong>Local:</strong> ${data.location}` : ''}
+                  </p>
+                ` : data.location ? `
+                  <p style="margin: 8px 0;">
+                    <strong>Local:</strong> ${data.location}
+                  </p>
+                ` : ''}
+              </div>
+            </div>
 
-    try {
-      // Aguardar um pouco para o elemento ser renderizado
-      await new Promise(resolve => setTimeout(resolve, 200))
+            <!-- Footer -->
+            <div style="margin-top: auto; padding-top: 32px;">
+              <div style="display: flex; justify-content: space-between; align-items: end; margin-bottom: 32px;">
+                <div style="flex: 1; text-align: center; margin: 0 32px;">
+                  <div style="border-top: 2px solid #9ca3af; padding-top: 8px; margin-top: 32px;">
+                    <p style="font-size: 18px; font-weight: 600; color: #374151; margin-bottom: 4px; margin-top: 0;">
+                      ${data.instructorName}
+                    </p>
+                    <p style="font-size: 14px; color: #4b5563; margin: 0;">
+                      Instrutor Responsável
+                    </p>
+                  </div>
+                </div>
+                
+                <div style="flex: 1; text-align: center; margin: 0 32px;">
+                  <div style="border-top: 2px solid #9ca3af; padding-top: 8px; margin-top: 32px;">
+                    <p style="font-size: 18px; font-weight: 600; color: #374151; margin-bottom: 4px; margin-top: 0;">
+                      WT Work Treinamentos
+                    </p>
+                    <p style="font-size: 14px; color: #4b5563; margin: 0;">
+                      Direção
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `
       
-      // Capturar o elemento como imagem em alta resolução
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        width: container.offsetWidth,
-        height: container.offsetHeight,
-        windowWidth: container.offsetWidth,
-        windowHeight: container.offsetHeight
-      })
+      container.style.position = 'fixed'
+      container.style.top = '-9999px'
+      container.style.left = '-9999px'
+      container.style.zIndex = '-1000'
+      
+      document.body.appendChild(container)
+      templateElement = container.querySelector('#certificate-template')
+      shouldCleanup = true
+    }
 
-      // Criar PDF em formato landscape
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      })
+    if (!templateElement) {
+      throw new Error('Não foi possível encontrar o template do certificado')
+    }
 
-      // Adicionar a imagem ao PDF ocupando toda a página
-      const imgData = canvas.toDataURL('image/png', 1.0)
-      pdf.addImage(imgData, 'PNG', 0, 0, 297, 210)
+    // Aguardar um pouco para o elemento ser renderizado
+    await new Promise(resolve => setTimeout(resolve, 1000))
 
-      // Fazer download do PDF
-      pdf.save(`certificado-${data.studentName.replace(/\s+/g, '-').toLowerCase()}.pdf`)
-    } finally {
-      // Limpar o container temporário
-      document.body.removeChild(container)
+    // Capturar o elemento como imagem em alta resolução
+    const canvas = await html2canvas(templateElement, {
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      width: templateElement.offsetWidth,
+      height: templateElement.offsetHeight,
+      windowWidth: templateElement.offsetWidth,
+      windowHeight: templateElement.offsetHeight
+    })
+
+    // Criar PDF em formato landscape A4
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    // Obter dimensões do canvas
+    const canvasWidth = canvas.width
+    const canvasHeight = canvas.height
+    
+    // Dimensões do PDF A4 landscape (297mm x 210mm)
+    const pdfWidth = 297
+    const pdfHeight = 210
+
+    // Calcular escala para manter proporção
+    const scaleX = pdfWidth / canvasWidth
+    const scaleY = pdfHeight / canvasHeight
+    const scale = Math.min(scaleX, scaleY)
+
+    // Calcular dimensões finais
+    const finalWidth = canvasWidth * scale
+    const finalHeight = canvasHeight * scale
+
+    // Calcular posição para centralizar
+    const x = (pdfWidth - finalWidth) / 2
+    const y = (pdfHeight - finalHeight) / 2
+
+    // Adicionar a imagem ao PDF
+    const imgData = canvas.toDataURL('image/png', 1.0)
+    pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight)
+
+    // Fazer download do PDF
+    pdf.save(`certificado-${data.studentName.replace(/\s+/g, '-').toLowerCase()}.pdf`)
+
+    // Limpar o container temporário se foi criado
+    if (shouldCleanup) {
+      const container = templateElement.parentElement
+      if (container && container.parentElement) {
+        container.parentElement.removeChild(container)
+      }
     }
   } catch (error) {
     console.error('Erro ao gerar PDF:', error)
@@ -174,306 +297,74 @@ export const generateCertificatePDF = async (data: CertificateData): Promise<voi
   }
 }
 
-export const generateCertificateHTML = (data: CertificateData): string => {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Certificado - ${data.studentName}</title>
-        <style>
-            @page {
-                size: A4 landscape;
-                margin: 0;
-            }
-            
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            
-            body {
-                font-family: 'Times New Roman', serif;
-                margin: 0;
-                padding: 0;
-                width: 297mm;
-                height: 210mm;
-                background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-                position: relative;
-                overflow: hidden;
-            }
-            
-            .certificate {
-                width: 100%;
-                height: 100%;
-                position: relative;
-                border: 8px solid #78BA00;
-                box-sizing: border-box;
-                padding: 60px;
-                display: flex;
-                flex-direction: column;
-                background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-            }
-            
-            .bg-pattern {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                opacity: 0.05;
-                pointer-events: none;
-                z-index: 1;
-            }
-            
-            .bg-circle {
-                position: absolute;
-                border: 4px solid #78BA00;
-                border-radius: 50%;
-            }
-            
-            .bg-circle:nth-child(1) {
-                top: 40px;
-                left: 40px;
-                width: 120px;
-                height: 120px;
-            }
-            
-            .bg-circle:nth-child(2) {
-                top: 80px;
-                right: 80px;
-                width: 90px;
-                height: 90px;
-            }
-            
-            .bg-circle:nth-child(3) {
-                bottom: 40px;
-                left: 80px;
-                width: 100px;
-                height: 100px;
-            }
-            
-            .bg-circle:nth-child(4) {
-                bottom: 80px;
-                right: 40px;
-                width: 80px;
-                height: 80px;
-            }
-            
-            .content {
-                position: relative;
-                z-index: 2;
-                height: 100%;
-                display: flex;
-                flex-direction: column;
-            }
-            
-            .header {
-                text-align: center;
-                margin-bottom: 30px;
-            }
-            
-            .header h1 {
-                font-size: 48px;
-                font-weight: bold;
-                color: #333;
-                margin-bottom: 10px;
-                letter-spacing: 2px;
-            }
-            
-            .header .line {
-                width: 120px;
-                height: 4px;
-                background: #78BA00;
-                margin: 0 auto 20px;
-            }
-            
-            .header .subtitle {
-                font-size: 20px;
-                color: #666;
-                letter-spacing: 1px;
-            }
-            
-            .main-content {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                text-align: center;
-                padding: 0 30px;
-            }
-            
-            .certify-text {
-                font-size: 24px;
-                color: #333;
-                margin-bottom: 30px;
-                font-weight: normal;
-            }
-            
-            .student-name {
-                font-size: 42px;
-                font-weight: bold;
-                color: #78BA00;
-                margin: 20px 0;
-                border-bottom: 3px solid #78BA00;
-                padding-bottom: 10px;
-                display: inline-block;
-                min-width: 400px;
-            }
-            
-            .completion-text {
-                font-size: 24px;
-                color: #333;
-                margin: 30px 0;
-                font-weight: normal;
-            }
-            
-            .training-name {
-                font-size: 32px;
-                font-weight: bold;
-                color: #333;
-                margin: 20px 0;
-                line-height: 1.2;
-            }
-            
-            .details {
-                font-size: 18px;
-                color: #666;
-                margin: 20px 0;
-                line-height: 1.5;
-            }
-            
-            .details strong {
-                color: #333;
-            }
-            
-            .period-location {
-                font-size: 18px;
-                color: #666;
-                margin: 15px 0;
-            }
-            
-            .footer {
-                margin-top: auto;
-                padding-top: 30px;
-            }
-            
-            .signatures {
-                display: flex;
-                justify-content: space-between;
-                align-items: end;
-                margin-bottom: 30px;
-            }
-            
-            .signature {
-                text-align: center;
-                flex: 1;
-                margin: 0 30px;
-            }
-            
-            .signature-line {
-                border-top: 2px solid #666;
-                padding-top: 10px;
-                margin-top: 40px;
-            }
-            
-            .signature-name {
-                font-size: 18px;
-                font-weight: bold;
-                color: #333;
-                margin-bottom: 5px;
-            }
-            
-            .signature-title {
-                font-size: 14px;
-                color: #666;
-            }
-            
-            .validation {
-                text-align: center;
-                font-size: 12px;
-                color: #999;
-                line-height: 1.4;
-            }
-            
-            .validation div {
-                margin: 3px 0;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="certificate">
-            <div class="bg-pattern">
-                <div class="bg-circle"></div>
-                <div class="bg-circle"></div>
-                <div class="bg-circle"></div>
-                <div class="bg-circle"></div>
-            </div>
-            
-            <div class="content">
-                <div class="header">
-                    <h1>CERTIFICADO</h1>
-                    <div class="line"></div>
-                    <div class="subtitle">DE CONCLUSÃO DE CURSO</div>
-                </div>
-                
-                <div class="main-content">
-                    <div class="certify-text">
-                        Certificamos que
-                    </div>
-                    
-                    <div class="student-name">${data.studentName}</div>
-                    
-                    <div class="completion-text">
-                        concluiu com êxito o curso de
-                    </div>
-                    
-                    <div class="training-name">${data.trainingName}</div>
-                    
-                    <div class="details">
-                        <div>Carga horária: <strong>${data.workload}</strong></div>
-                        ${data.company ? `<div>Empresa: <strong>${data.company}</strong></div>` : ''}
-                    </div>
-                    
-                    ${data.startDate && data.endDate ? `
-                        <div class="period-location">
-                            <strong>Período:</strong> ${data.startDate} a ${data.endDate}
-                            ${data.location ? ` • <strong>Local:</strong> ${data.location}` : ''}
-                        </div>
-                    ` : data.location ? `
-                        <div class="period-location">
-                            <strong>Local:</strong> ${data.location}
-                        </div>
-                    ` : ''}
-                </div>
-                
-                <div class="footer">
-                    <div class="signatures">
-                        <div class="signature">
-                            <div class="signature-line">
-                                <div class="signature-name">${data.instructorName}</div>
-                                <div class="signature-title">Instrutor Responsável</div>
-                            </div>
-                        </div>
-                        
-                        <div class="signature">
-                            <div class="signature-line">
-                                <div class="signature-name">WT Work Treinamentos</div>
-                                <div class="signature-title">Direção</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="validation">
-                        <div>Emitido em: ${data.issueDate}</div>
-                        <div>Código de Validação: ${data.validationCode}</div>
-                        <div style="margin-top: 8px;">Este certificado pode ser validado em nosso sistema</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </body>
-    </html>
-  `
+// Função auxiliar para gerar PDF a partir de um elemento existente
+const generatePDFFromElement = async (element: HTMLElement, data: CertificateData): Promise<void> => {
+  // Aguardar um pouco para garantir que tudo esteja renderizado
+  await new Promise(resolve => setTimeout(resolve, 1000))
+
+  // Capturar o elemento como imagem em alta resolução
+  const canvas = await html2canvas(element, {
+    scale: 3,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#ffffff',
+    width: element.offsetWidth,
+    height: element.offsetHeight,
+    windowWidth: element.offsetWidth,
+    windowHeight: element.offsetHeight
+  })
+
+  // Criar PDF em formato landscape A4
+  const pdf = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
+  })
+
+  // Obter dimensões do canvas
+  const canvasWidth = canvas.width
+  const canvasHeight = canvas.height
+  
+  // Dimensões do PDF A4 landscape (297mm x 210mm)
+  const pdfWidth = 297
+  const pdfHeight = 210
+
+  // Calcular escala para manter proporção
+  const scaleX = pdfWidth / canvasWidth
+  const scaleY = pdfHeight / canvasHeight
+  const scale = Math.min(scaleX, scaleY)
+
+  // Calcular dimensões finais
+  const finalWidth = canvasWidth * scale
+  const finalHeight = canvasHeight * scale
+
+  // Calcular posição para centralizar
+  const x = (pdfWidth - finalWidth) / 2
+  const y = (pdfHeight - finalHeight) / 2
+
+  // Adicionar a imagem ao PDF
+  const imgData = canvas.toDataURL('image/png', 1.0)
+  pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight)
+
+  // Fazer download do PDF
+  pdf.save(`certificado-${data.studentName.replace(/\s+/g, '-').toLowerCase()}.pdf`)
+}
+
+// Função alternativa que usa o template React diretamente
+export const generateCertificatePDFFromTemplate = async (data: CertificateData): Promise<void> => {
+  try {
+    // Procurar por um elemento do template que já existe na página
+    const existingTemplate = document.getElementById('certificate-template')
+    
+    if (existingTemplate) {
+      // Usar o template existente (do preview)
+      await generatePDFFromElement(existingTemplate, data)
+    } else {
+      // Usar a versão com HTML inline se não houver template existente
+      await generateCertificatePDF(data)
+    }
+  } catch (error) {
+    console.error('Erro ao gerar PDF:', error)
+    throw error
+  }
 }

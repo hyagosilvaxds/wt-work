@@ -35,6 +35,7 @@ interface Class {
     title: string
     description?: string
     durationHours: number
+    validityDays?: number // Novo campo para dias de validade
   }
   instructor?: {
     id: string
@@ -98,13 +99,35 @@ export function ClassesPage() {
   }, [searchTerm])
 
   const handleEdit = (classItem: Class) => {
-    setSelectedClass(classItem)
-    setIsCreateModalOpen(true)
+    console.log('Editar aula:', classItem)
+    // TODO: Implementar edição
   }
 
   const handleDelete = (classItem: Class) => {
     setSelectedClass(classItem)
     setIsDeleteModalOpen(true)
+  }
+
+  // Função para calcular se a turma está próxima do vencimento
+  const calculateExpirationStatus = (classItem: Class) => {
+    const today = new Date()
+    const endDate = new Date(classItem.endDate)
+    const validityDays = classItem.training?.validityDays || 365 // fallback para 365 dias se não houver campo
+    
+    // Calcular a data de vencimento da validade (fim da turma + dias de validade)
+    const expirationDate = new Date(endDate)
+    expirationDate.setDate(expirationDate.getDate() + validityDays)
+    
+    // Calcular a diferença em dias
+    const diffTime = expirationDate.getTime() - today.getTime()
+    const daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    return {
+      daysUntilExpiration,
+      isExpired: daysUntilExpiration <= 0,
+      isExpiringSoon: daysUntilExpiration > 0 && daysUntilExpiration <= 30, // Considerar "próximo do vencimento" se restam 30 dias ou menos
+      expirationDate
+    }
   }
 
   const handleModalClose = () => {
@@ -212,6 +235,23 @@ export function ClassesPage() {
                   >
                     {classItem.status || "Não informado"}
                   </Badge>
+                  {(() => {
+                    const expirationStatus = calculateExpirationStatus(classItem)
+                    if (expirationStatus.isExpired) {
+                      return (
+                        <Badge className="bg-red-100 text-red-800">
+                          Expirado
+                        </Badge>
+                      )
+                    } else if (expirationStatus.isExpiringSoon) {
+                      return (
+                        <Badge className="bg-yellow-100 text-yellow-800">
+                          Vence em {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}
+                        </Badge>
+                      )
+                    }
+                    return null
+                  })()}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="h-8 w-8 p-0">
@@ -262,6 +302,20 @@ export function ClassesPage() {
                     <strong>Observações:</strong> {classItem.observations}
                   </div>
                 )}
+                {/* Exibir status de vencimento */}
+                <div className="text-sm text-gray-600">
+                  <strong>Status de Vencimento:</strong> 
+                  {(() => {
+                    const { isExpired, isExpiringSoon, daysUntilExpiration } = calculateExpirationStatus(classItem)
+                    if (isExpired) {
+                      return <span className="text-red-500">Vencido</span>
+                    } else if (isExpiringSoon) {
+                      return <span className="text-orange-500">Vence em {daysUntilExpiration} dias</span>
+                    } else {
+                      return <span className="text-green-500">Válido</span>
+                    }
+                  })()}
+                </div>
               </div>
             </CardContent>
           </Card>
