@@ -27,6 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { getClasses, getStudents, addStudentsToClass, removeStudentsFromClass, getLessonAttendanceByClass, createLessonAttendance, patchLessonAttendance, deleteLessonAttendance } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 import { ClassCreateModal } from "@/components/class-create-modal"
 import { ClassDetailsModal } from "@/components/class-details-modal"
 import { ClassStudentsModal } from "@/components/class-students-modal"
@@ -77,8 +78,13 @@ interface TurmaData {
   lessons: any[]
 }
 
-export default function TurmasPage() {
+interface TurmasPageProps {
+  isClientView?: boolean
+}
+
+export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
   const { toast } = useToast()
+  const { isClient, getClientClasses, user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -107,7 +113,37 @@ export default function TurmasPage() {
     
     try {
       const currentPageToUse = resetPage ? 1 : currentPage
-      const response = await getClasses(currentPageToUse, limit, searchTerm.trim() || undefined)
+      
+      let response
+      // Se for visualização de cliente (isClientView) ou se o usuário é cliente (isClient)
+      if (isClientView || isClient) {
+        // Para usuários do tipo CLIENTE, usar getClientClasses
+        const clientClasses = await getClientClasses()
+        let classes = clientClasses.classes || clientClasses || []
+        
+        // Aplicar filtro de busca localmente para usuários CLIENTE
+        if (searchTerm.trim()) {
+          classes = classes.filter((turma: TurmaData) =>
+            turma.training?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            turma.instructor?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            turma.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            turma.location?.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+        }
+        
+        response = {
+          classes: classes,
+          pagination: {
+            page: 1,
+            limit: classes.length,
+            total: classes.length,
+            totalPages: 1
+          }
+        }
+      } else {
+        // Para outros tipos de usuário, usar getClasses normal
+        response = await getClasses(currentPageToUse, limit, searchTerm.trim() || undefined)
+      }
       
       // A API retorna: { classes: [...], pagination: { page, limit, total, totalPages } }
       setTurmas(response.classes || [])
@@ -132,16 +168,30 @@ export default function TurmasPage() {
   }
 
   useEffect(() => {
-    loadTurmas()
-  }, [currentPage, limit])
+    // Para usuários CLIENTE ou visualização de cliente, não há paginação, então só carregar na primeira vez
+    if (isClientView || isClient) {
+      if (currentPage === 1) {
+        loadTurmas()
+      }
+    } else {
+      // Para outros usuários, carregar conforme a paginação
+      loadTurmas()
+    }
+  }, [currentPage, limit, isClient, isClientView])
 
   // Busca com debounce
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadTurmas(true) // Reset page when searching
+      if (isClientView || isClient) {
+        // Para usuários CLIENTE, sempre carregar todas as turmas (não há busca/paginação)
+        loadTurmas(true)
+      } else {
+        // Para outros usuários, usar busca normal
+        loadTurmas(true) // Reset page when searching
+      }
     }, 500)
     return () => clearTimeout(timer)
-  }, [searchTerm])
+  }, [searchTerm, isClientView])
 
   // Função para atualizar a lista após criação/edição
   const handleSuccess = () => {
@@ -159,7 +209,14 @@ export default function TurmasPage() {
       if (managingStudentsTurma) {
         try {
           // Buscar os dados atualizados da turma específica
-          const updatedClasses = await getClasses(currentPage, limit, searchTerm.trim() || undefined)
+          let updatedClasses
+          if (isClient) {
+            const response = await getClientClasses()
+            updatedClasses = { classes: response.classes || response || [] }
+          } else {
+            updatedClasses = await getClasses(currentPage, limit, searchTerm.trim() || undefined)
+          }
+          
           const updatedTurma = updatedClasses.classes?.find((t: TurmaData) => t.id === managingStudentsTurma.id)
           
           if (updatedTurma) {
@@ -315,7 +372,9 @@ export default function TurmasPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Turmas</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {isClientView ? "Minhas Turmas" : "Turmas"}
+          </h1>
           <p className="text-gray-600">
             {searchTerm ? (
               <>
@@ -328,7 +387,7 @@ export default function TurmasPage() {
               </>
             ) : (
               <>
-                Gerencie as turmas de treinamento 
+                {isClientView ? "Visualize suas turmas de treinamento" : "Gerencie as turmas de treinamento"}
                 {totalTurmas > 0 && (
                   <span className="ml-2 text-sm font-medium">
                     ({totalTurmas} turma{totalTurmas !== 1 ? 's' : ''})
@@ -348,7 +407,7 @@ export default function TurmasPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             )}
             <Input
-              placeholder="Buscar turmas, cursos ou instrutores..."
+              placeholder={isClientView ? "Buscar minhas turmas..." : "Buscar turmas, cursos ou instrutores..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -366,10 +425,13 @@ export default function TurmasPage() {
             )}
           </div>
           
-          <Button className="gap-2" onClick={() => setCreateModalOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Nova Turma
-          </Button>
+          {/* Botão Nova Turma - Apenas para usuários não-CLIENTE e não em visualização de cliente */}
+          {!isClientView && (
+            <Button className="gap-2" onClick={() => setCreateModalOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Nova Turma
+            </Button>
+          )}
         </div>
 
         {/* Cards das Turmas */}
@@ -391,10 +453,12 @@ export default function TurmasPage() {
                 <p className="text-gray-600 mb-4">
                   {searchTerm
                     ? "Tente ajustar os filtros de busca."
+                    : isClientView
+                    ? "Você não possui turmas no momento."
                     : "Comece criando uma nova turma de treinamento."
                   }
                 </p>
-                {!searchTerm && (
+                {!searchTerm && !isClientView && (
                   <Button className="gap-2" onClick={() => setCreateModalOpen(true)}>
                     <Plus className="h-4 w-4" />
                     Criar Primeira Turma
@@ -444,35 +508,51 @@ export default function TurmasPage() {
                           <Eye className="h-4 w-4" />
                           Visualizar
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="gap-2"
-                          onClick={() => handleManageStudents(turma)}
-                        >
-                          <Users className="h-4 w-4" />
-                          Gerenciar Alunos
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="gap-2"
-                          onClick={() => handleManageAttendance(turma)}
-                          disabled={!turma.lessons.some(lesson => lesson.status === "REALIZADA")}
-                        >
-                          <ClipboardList className="h-4 w-4" />
-                          Chamada
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="gap-2"
-                          onClick={() => handleScheduleLesson(turma)}
-                        >
-                          <Calendar className="h-4 w-4" />
-                          Agendar Aula
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="gap-2" 
-                          onClick={() => handleEdit(turma)}
-                        >
-                          <Edit className="h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
+                        
+                        {/* Gerenciar Alunos - Apenas para não-CLIENTE */}
+                        {!isClientView && (
+                          <DropdownMenuItem 
+                            className="gap-2"
+                            onClick={() => handleManageStudents(turma)}
+                          >
+                            <Users className="h-4 w-4" />
+                            Gerenciar Alunos
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {/* Chamada - Não disponível para CLIENTE */}
+                        {!isClientView && (
+                          <DropdownMenuItem 
+                            className="gap-2"
+                            onClick={() => handleManageAttendance(turma)}
+                            disabled={!turma.lessons.some(lesson => lesson.status === "REALIZADA")}
+                          >
+                            <ClipboardList className="h-4 w-4" />
+                            Chamada
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {/* Agendar Aula - Apenas para não-CLIENTE */}
+                        {!isClientView && (
+                          <DropdownMenuItem 
+                            className="gap-2"
+                            onClick={() => handleScheduleLesson(turma)}
+                          >
+                            <Calendar className="h-4 w-4" />
+                            Agendar Aula
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {/* Editar - Apenas para não-CLIENTE */}
+                        {!isClientView && (
+                          <DropdownMenuItem 
+                            className="gap-2" 
+                            onClick={() => handleEdit(turma)}
+                          >
+                            <Edit className="h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                        )}
                         
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -577,28 +657,32 @@ export default function TurmasPage() {
                       Detalhes
                     </Button>
                     
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => handleManageStudents(turma)}
-                    >
-                      <Users className="h-4 w-4" />
-                      Gerenciar Alunos
-                    </Button>
+                    {!isClientView && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2"
+                        onClick={() => handleManageStudents(turma)}
+                      >
+                        <Users className="h-4 w-4" />
+                        Gerenciar Alunos
+                      </Button>
+                    )}
                     
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-2"
-                      onClick={() => handleManageAttendance(turma)}
-                      disabled={!turma.lessons.some(lesson => lesson.status === "REALIZADA")}
-                    >
-                      <ClipboardList className="h-4 w-4" />
-                      Chamada
-                    </Button>
+                    {!isClientView && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2"
+                        onClick={() => handleManageAttendance(turma)}
+                        disabled={!turma.lessons.some(lesson => lesson.status === "REALIZADA")}
+                      >
+                        <ClipboardList className="h-4 w-4" />
+                        Chamada
+                      </Button>
+                    )}
                     
-                    {turma.status === "EM ABERTO" && (
+                    {!isClientView && turma.status === "EM ABERTO" && (
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -616,8 +700,8 @@ export default function TurmasPage() {
           </div>
         )}
 
-        {/* Paginação */}
-        {totalPages > 1 && (
+        {/* Paginação - Não exibir para usuários CLIENTE */}
+        {!isClientView && totalPages > 1 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
             <div className="text-sm text-gray-600">
               Mostrando {((currentPage - 1) * limit) + 1} - {Math.min(currentPage * limit, totalTurmas)} de {totalTurmas} turma{totalTurmas !== 1 ? 's' : ''}
@@ -673,75 +757,85 @@ export default function TurmasPage() {
         )}
       </div>
 
-      {/* Modal de Criação/Edição */}
-      <ClassCreateModal
-        isOpen={createModalOpen || !!editingTurma}
-        onClose={handleCloseModal}
-        onSuccess={handleSuccess}
-        classItem={editingTurma ? {
-          id: editingTurma.id,
-          trainingId: editingTurma.trainingId,
-          instructorId: editingTurma.instructorId,
-          startDate: editingTurma.startDate,
-          endDate: editingTurma.endDate,
-          type: editingTurma.type || "",
-          recycling: editingTurma.recycling || "",
-          status: editingTurma.status || "EM ABERTO",
-          location: editingTurma.location || "",
-          clientId: editingTurma.clientId || "",
-          observations: editingTurma.observations || "",
-        } : null}
-      />
+      {/* Modal de Criação/Edição - Apenas para usuários não-CLIENTE */}
+      {!isClientView && (
+        <ClassCreateModal
+          isOpen={createModalOpen || !!editingTurma}
+          onClose={handleCloseModal}
+          onSuccess={handleSuccess}
+          classItem={editingTurma ? {
+            id: editingTurma.id,
+            trainingId: editingTurma.trainingId,
+            instructorId: editingTurma.instructorId,
+            startDate: editingTurma.startDate,
+            endDate: editingTurma.endDate,
+            type: editingTurma.type || "",
+            recycling: editingTurma.recycling || "",
+            status: editingTurma.status || "EM ABERTO",
+            location: editingTurma.location || "",
+            clientId: editingTurma.clientId || "",
+            observations: editingTurma.observations || "",
+          } : null}
+        />
+      )}
 
       {/* Modal de Detalhes */}
       <ClassDetailsModal
         isOpen={!!detailsTurma}
         onClose={handleCloseModal}
         turma={detailsTurma}
-        onEdit={handleEdit}
-        onScheduleLesson={handleScheduleLesson}
+        onEdit={!isClientView ? handleEdit : undefined}
+        onScheduleLesson={!isClientView ? handleScheduleLesson : undefined}
         onSuccess={handleSuccess}
       />
 
-      {/* Modal de Agendamento de Aula */}
-      <LessonScheduleModal
-        isOpen={!!schedulingTurma}
-        onClose={handleCloseModal}
-        onSuccess={handleSuccess}
-        turma={schedulingTurma}
-      />
+      {/* Modal de Agendamento de Aula - Apenas para usuários não-CLIENTE */}
+      {!isClientView && (
+        <LessonScheduleModal
+          isOpen={!!schedulingTurma}
+          onClose={handleCloseModal}
+          onSuccess={handleSuccess}
+          turma={schedulingTurma}
+        />
+      )}
 
-      {/* Modal de Edição de Aula */}
-      <LessonEditModal
-        isOpen={!!editingLesson}
-        onClose={() => setEditingLesson(null)}
-        onSuccess={handleLessonEditSuccess}
-        lesson={editingLesson}
-        turma={editingLesson ? {
-          id: editingLesson.classId,
-          startDate: detailsTurma?.startDate || "",
-          endDate: detailsTurma?.endDate || "",
-          training: {
-            title: detailsTurma?.training.title || ""
-          }
-        } : undefined}
-      />
+      {/* Modal de Edição de Aula - Apenas para usuários não-CLIENTE */}
+      {!isClientView && (
+        <LessonEditModal
+          isOpen={!!editingLesson}
+          onClose={() => setEditingLesson(null)}
+          onSuccess={handleLessonEditSuccess}
+          lesson={editingLesson}
+          turma={editingLesson ? {
+            id: editingLesson.classId,
+            startDate: detailsTurma?.startDate || "",
+            endDate: detailsTurma?.endDate || "",
+            training: {
+              title: detailsTurma?.training.title || ""
+            }
+          } : undefined}
+        />
+      )}
 
-      {/* Modal de Gerenciamento de Alunos */}
-      <ClassStudentsModal
-        isOpen={!!managingStudentsTurma}
-        onClose={handleCloseModal}
-        onSuccess={handleStudentsSuccess}
-        turma={managingStudentsTurma}
-      />
+      {/* Modal de Gerenciamento de Alunos - Apenas para usuários não-CLIENTE */}
+      {!isClientView && (
+        <ClassStudentsModal
+          isOpen={!!managingStudentsTurma}
+          onClose={handleCloseModal}
+          onSuccess={handleStudentsSuccess}
+          turma={managingStudentsTurma}
+        />
+      )}
 
-      {/* Modal de Chamada */}
-      <ClassAttendanceModal
-        isOpen={!!attendanceTurma}
-        onClose={handleCloseModal}
-        onSuccess={handleAttendanceSuccess}
-        turma={attendanceTurma}
-      />
+      {/* Modal de Chamada - Não disponível para clientes */}
+      {!isClientView && (
+        <ClassAttendanceModal
+          isOpen={!!attendanceTurma}
+          onClose={handleCloseModal}
+          onSuccess={handleAttendanceSuccess}
+          turma={attendanceTurma}
+        />
+      )}
     </>
   )
 }

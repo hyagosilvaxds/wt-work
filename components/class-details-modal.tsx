@@ -28,8 +28,6 @@ import {
   IdCard,
   Edit,
   X,
-  CalendarDays,
-  CheckCircle,
   XCircle,
   AlertCircle,
   UserPlus,
@@ -334,18 +332,6 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
     return diffDays
   }
 
-  const calculateAttendanceRate = () => {
-    const totalLessons = turma.lessons.length
-    if (totalLessons === 0) return 0
-
-    const totalAttendances = turma.lessons.reduce((acc, lesson) => {
-      return acc + (lesson.attendance?.filter(a => a.present).length || 0)
-    }, 0)
-
-    const totalPossibleAttendances = totalLessons * turma.students.length
-    return totalPossibleAttendances > 0 ? (totalAttendances / totalPossibleAttendances) * 100 : 0
-  }
-
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -398,11 +384,10 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="lessons">Aulas</TabsTrigger>
               <TabsTrigger value="students">Alunos</TabsTrigger>
-              <TabsTrigger value="attendance">Chamada</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -860,50 +845,6 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                         Adicionar {selectedStudents.length} Aluno(s)
                       </Button>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="attendance" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5" />
-                    Controle de Presença
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <CalendarDays className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Funcionalidade em Desenvolvimento
-                    </h3>
-                    <p className="text-gray-500 mb-6">
-                      O controle de presença será implementado em breve.
-                    </p>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="p-4 bg-blue-50 rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {turma.students.length}
-                          </div>
-                          <p className="text-sm text-gray-600">Alunos Total</p>
-                        </div>
-                        <div className="p-4 bg-green-50 rounded-lg">
-                          <div className="text-2xl font-bold text-green-600">
-                            {turma.lessons.length}
-                          </div>
-                          <p className="text-sm text-gray-600">Aulas Total</p>
-                        </div>
-                        <div className="p-4 bg-purple-50 rounded-lg">
-                          <div className="text-2xl font-bold text-purple-600">
-                            {calculateAttendanceRate().toFixed(1)}%
-                          </div>
-                          <p className="text-sm text-gray-600">Taxa de Presença</p>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -1125,3 +1125,14 @@ export const markAllStudentsAbsent = async (classId: string, lessonId: string) =
     throw error
   }
 }
+
+// Função para buscar turmas do cliente (para usuários do tipo CLIENTE)
+export const getClientClasses = async () => {
+    try {
+        const response = await api.get('/superadmin/my-classes');
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar turmas do cliente:', error);
+        throw error;
+    }
+};

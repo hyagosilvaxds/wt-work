@@ -34,27 +34,77 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void
 }
 
-// Menu padrão do sistema
-const getMenuItems = () => {
-  return [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, badge: null },
-    { id: "students", label: "Alunos", icon: Users, badge: null },
-    { id: "instructors", label: "Instrutores", icon: UserCheck, badge: null },
-    { id: "trainings", label: "Treinamentos", icon: BookOpen, badge: null },
-    { id: "classes", label: "Turmas", icon: UsersRound, badge: null },
-    { id: "clients", label: "Clientes", icon: Building2, badge: null },
-    { id: "certificates", label: "Certificados", icon: Award, badge: null },
-    { id: "financial", label: "Financeiro", icon: DollarSign, badge: null },
-    { id: "reports", label: "Relatórios", icon: BarChart3, badge: null },
-    { id: "settings", label: "Configurações", icon: Settings, badge: null },
-  ]
+// Menu baseado em permissões
+const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: boolean) => {
+  const items = []
+  
+  // Dashboard - sempre visível para usuários autenticados
+  if (hasPermission('VIEW_DASHBOARD')) {
+    items.push({ id: "dashboard", label: "Dashboard", icon: LayoutDashboard, badge: null })
+  }
+  
+  // Para clientes, mostrar apenas "Minhas Turmas"
+  if (isClient) {
+    items.push({ id: "my-classes", label: "Minhas Turmas", icon: UsersRound, badge: null })
+    items.push({ id: "certificates", label: "Certificados", icon: Award, badge: null })
+    items.push({ id: "settings", label: "Configurações", icon: Settings, badge: null })
+    return items
+  }
+  
+  // Menu para outros tipos de usuários
+  // Alunos
+  if (hasPermission('VIEW_STUDENTS')) {
+    items.push({ id: "students", label: "Alunos", icon: Users, badge: null })
+  }
+  
+  // Instrutores/Usuários
+  if (hasPermission('VIEW_USERS') || hasPermission('MANAGE_USERS')) {
+    items.push({ id: "instructors", label: "Instrutores", icon: UserCheck, badge: null })
+  }
+  
+  // Treinamentos
+  if (hasPermission('VIEW_TRAININGS') || hasPermission('VIEW_OWN_TRAININGS')) {
+    items.push({ id: "trainings", label: "Treinamentos", icon: BookOpen, badge: null })
+  }
+  
+  // Turmas/Aulas
+  if (hasPermission('VIEW_CLASSES') || hasPermission('VIEW_OWN_CLASSES')) {
+    items.push({ id: "classes", label: "Turmas", icon: UsersRound, badge: null })
+  }
+  
+  // Clientes (se houver permissão específica ou VIEW_USERS)
+  if (hasPermission('VIEW_USERS')) {
+    items.push({ id: "clients", label: "Clientes", icon: Building2, badge: null })
+  }
+  
+  // Certificados
+  if (hasPermission('VIEW_CERTIFICATES') || hasPermission('VIEW_OWN_CERTIFICATES')) {
+    items.push({ id: "certificates", label: "Certificados", icon: Award, badge: null })
+  }
+  
+  // Financeiro
+  if (hasPermission('VIEW_FINANCIAL') || hasPermission('VIEW_ACCOUNTS_RECEIVABLE') || hasPermission('VIEW_ACCOUNTS_PAYABLE') || hasPermission('VIEW_CASH_FLOW')) {
+    items.push({ id: "financial", label: "Financeiro", icon: DollarSign, badge: null })
+  }
+  
+  // Relatórios
+  if (hasPermission('VIEW_REPORTS') || hasPermission('VIEW_FINANCIAL_REPORTS') || hasPermission('VIEW_ANALYTICS')) {
+    items.push({ id: "reports", label: "Relatórios", icon: BarChart3, badge: null })
+  }
+  
+  // Configurações/Roles
+  if (hasPermission('VIEW_ROLES') || hasPermission('MANAGE_USERS') || hasPermission('EDIT_PROFILE')) {
+    items.push({ id: "settings", label: "Configurações", icon: Settings, badge: null })
+  }
+  
+  return items
 }
 
 export function AdaptiveSidebar({ activeTab, setActiveTab }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const { user } = useAuth()
+  const { user, permissions, logout, hasPermission, isClient } = useAuth()
 
-  const menuItems = getMenuItems()
+  const menuItems = getMenuItems(hasPermission, isClient)
 
   // Obter informações do usuário para exibição
   const getUserInfo = () => {
@@ -63,14 +113,16 @@ export function AdaptiveSidebar({ activeTab, setActiveTab }: SidebarProps) {
         name: user.name || 'Usuário',
         email: user.email || 'email@exemplo.com',
         avatar: user.name ? user.name.charAt(0).toUpperCase() : 'U',
-        roleDisplay: 'Usuário'
+        roleDisplay: user.role?.name || user.roleId || 'Usuário',
+        permissionsCount: permissions.length
       }
     }
     return {
       name: 'Visitante',
       email: 'visitante@exemplo.com',
       avatar: 'V',
-      roleDisplay: 'Visitante'
+      roleDisplay: 'Visitante',
+      permissionsCount: 0
     }
   }
 
@@ -170,19 +222,20 @@ export function AdaptiveSidebar({ activeTab, setActiveTab }: SidebarProps) {
                 </p>
                 <p className="text-xs text-gray-500">{userInfo.email}</p>
                 <p className="text-xs text-gray-400 mt-1">{userInfo.roleDisplay}</p>
+                {userInfo.permissionsCount > 0 && (
+                  <p className="text-xs text-blue-500 mt-1">
+                    {userInfo.permissionsCount} permissões
+                  </p>
+                )}
               </div>
               <div className="flex flex-col space-y-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600">
-                  <Bell className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600">
-                  <Settings className="h-4 w-4" />
-                </Button>
+                
               </div>
             </div>
             <Button
               variant="ghost"
               className="w-full mt-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl justify-start"
+              onClick={logout}
             >
               <LogOut className="mr-3 h-4 w-4" />
               Sair

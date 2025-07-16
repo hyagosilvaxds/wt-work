@@ -30,6 +30,17 @@ export async function login({ email, password }: { email: string; password: stri
         const decodedToken = jwtDecode<{ roleId: string; id: string; [key: string]: any }>(accessToken);
         Cookies.set("userId", decodedToken.id, { expires: 7 }); // Armazena o ID do usuário no cookie
 
+        // Buscar permissões do usuário após login bem-sucedido
+        try {
+            const permissionsResponse = await api.get('/auth/permissions');
+            if (permissionsResponse.data && permissionsResponse.data.permissions) {
+                savePermissionsToCookie(permissionsResponse.data.permissions);
+            }
+        } catch (permissionsError) {
+            console.warn('Erro ao buscar permissões do usuário:', permissionsError);
+            // Não bloquear o login se as permissões falharem
+        }
+
         console.log("Usuário logado com sucesso:", response.data);
         console.log("Token decodificado:", decodedToken);
         console.log("Dados do usuário:", user);
@@ -52,6 +63,7 @@ export async function logout() {
         Cookies.remove("jwtToken");
         Cookies.remove("user");
         Cookies.remove("userId");
+        Cookies.remove("PERMISSIONS");
 
         console.log("Usuário deslogado com sucesso");
         return true;
@@ -62,6 +74,7 @@ export async function logout() {
         Cookies.remove("jwtToken");
         Cookies.remove("user");
         Cookies.remove("userId");
+        Cookies.remove("PERMISSIONS");
         
         // Não lançar erro para não impedir o logout local
         return true;
@@ -160,7 +173,6 @@ export const getUserFromToken = () => {
     
     try {
         const decodedToken = jwtDecode<any>(token);
-        console.log('Token decodificado:', decodedToken);
         
         // Tentar construir o objeto de usuário com dados disponíveis
         let userData: any = {};
@@ -187,8 +199,6 @@ export const getUserFromToken = () => {
                     ...userData,
                     ...userDataFromCookie
                 };
-                
-                console.log('Dados do cookie user:', userDataFromCookie);
             } catch (error) {
                 console.warn('Erro ao parsear cookie user:', error);
                 // Se não conseguir parsear, usar como nome
@@ -196,7 +206,6 @@ export const getUserFromToken = () => {
             }
         }
         
-        console.log('Dados finais do usuário:', userData);
         return userData;
     } catch (error) {
         console.error('Erro ao decodificar token:', error);
@@ -205,6 +214,17 @@ export const getUserFromToken = () => {
 };
 
 // Função para obter dados completos do usuário (token + API)
+// Função para buscar dados do role baseado no roleId
+const getRoleByIdFromAPI = async (roleId: string) => {
+    try {
+        const response = await api.get(`/roles/${roleId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar role:', error);
+        return null;
+    }
+};
+
 export const getFullUserData = async () => {
     // Primeiro, tentar obter do token
     const tokenData = getUserFromToken();
@@ -214,13 +234,22 @@ export const getFullUserData = async () => {
     try {
         // Se o token não tem dados suficientes, buscar da API
         if (!tokenData.name || !tokenData.email) {
-            console.log('Dados incompletos no token, buscando da API...');
             const apiData = await getUserData();
             
-            return {
+            const combinedData = {
                 ...tokenData,
                 ...apiData
             };
+            
+            return combinedData;
+        }
+        
+        // Se não temos dados do role mas temos roleId, buscar o role
+        if (!tokenData.role && tokenData.roleId) {
+            const roleData = await getRoleByIdFromAPI(tokenData.roleId);
+            if (roleData) {
+                tokenData.role = roleData;
+            }
         }
         
         return tokenData;
@@ -229,3 +258,81 @@ export const getFullUserData = async () => {
         return tokenData;
     }
 };
+
+// Função para buscar permissões do usuário
+export const getUserPermissions = async () => {
+    try {
+        console.log('Fazendo requisição para /auth/permissions...')
+        const response = await api.get('/auth/permissions');
+        console.log('Resposta de /auth/permissions:', response.data)
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar permissões do usuário:', error);
+        throw error;
+    }
+};
+
+// Função para salvar permissões no cookie
+export const savePermissionsToCookie = (permissions: any[]) => {
+    try {
+        const permissionsString = JSON.stringify(permissions);
+        Cookies.set("PERMISSIONS", permissionsString, { expires: 7 });
+        console.log('Permissões salvas no cookie:', permissions);
+    } catch (error) {
+        console.error('Erro ao salvar permissões no cookie:', error);
+    }
+};
+
+// Função para obter permissões do cookie
+export const getPermissionsFromCookie = () => {
+    try {
+        const permissionsString = Cookies.get("PERMISSIONS");
+        if (!permissionsString) return [];
+        return JSON.parse(permissionsString);
+    } catch (error) {
+        console.error('Erro ao obter permissões do cookie:', error);
+        return [];
+    }
+};
+
+// Função para buscar turmas do cliente (para usuários do tipo CLIENTE)
+export const getClientClasses = async () => {
+    try {
+        // Tentar o endpoint específico para clientes primeiro
+        let response;
+        
+        try {
+            response = await api.get('/superadmin/my-classes');
+        } catch (error: any) {
+            // Se não encontrar o endpoint específico, usar o endpoint geral
+            // e filtrar pelo clientId do usuário
+            const userData = getUserFromToken();
+            
+            response = await api.get('/superadmin/classes', {
+                params: {
+                    page: 1,
+                    limit: 1000
+                }
+            });
+            
+            // Se temos dados do usuário e é um cliente, filtrar as turmas
+            if (userData && response.data && response.data.classes) {
+                const userClientId = userData.clientId || userData.id;
+                const filteredClasses = response.data.classes.filter((turma: any) => {
+                    return turma.clientId === userClientId;
+                });
+                
+                response.data = {
+                    ...response.data,
+                    classes: filteredClasses
+                };
+            }
+        }
+        
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar turmas do cliente:', error);
+        throw error;
+    }
+};
+

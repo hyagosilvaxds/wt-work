@@ -1,7 +1,6 @@
-import { Bell, Search, Calendar, Settings, HelpCircle, MessageSquare, Zap, LogOut } from "lucide-react"
+import { Search, HelpCircle, MessageSquare, Zap, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import LogoutButton from "@/components/logout-button"
 
@@ -23,25 +22,6 @@ export function Header() {
           </div>
 
           <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon" className="relative rounded-xl hover:bg-gray-100">
-              <Calendar className="h-5 w-5 text-gray-600" />
-            </Button>
-
-           
-
-            <Button variant="ghost" size="icon" className="relative rounded-xl hover:bg-gray-100">
-              <Bell className="h-5 w-5 text-gray-600" />
-              <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center bg-red-500 text-xs animate-pulse">
-                5
-              </Badge>
-            </Button>
-
-            
-
-            <Button variant="ghost" size="icon" className="rounded-xl hover:bg-gray-100">
-              <Settings className="h-5 w-5 text-gray-600" />
-            </Button>
-
             <LogoutButton 
               variant="ghost" 
               size="icon" 
@@ -60,9 +40,7 @@ export function Header() {
                 <p className="text-sm font-medium text-gray-900">{user?.name || 'Usuário'}</p>
                 <p className="text-xs text-gray-500">Online</p>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                <Zap className="h-4 w-4 text-primary-600" />
-              </Button>
+              
             </div>
           </div>
         </div>

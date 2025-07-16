@@ -148,17 +148,29 @@ export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma }: Clas
           status
         })
         
+        // Atualizar o estado local imediatamente para evitar recarregar a lista
+        setAttendances(prevAttendances => 
+          prevAttendances.map(att => 
+            att.id === existingAttendance.id 
+              ? { ...att, status } 
+              : att
+          )
+        )
+        
         toast({
           title: "Sucesso",
           description: `Aluno marcado como ${status.toLowerCase()}`,
         })
       } else {
         // Fallback: se não existir, criar nova presença
-        await createLessonAttendance({
+        const newAttendance = await createLessonAttendance({
           lessonId,
           studentId,
           status
         })
+        
+        // Adicionar a nova presença ao estado local
+        setAttendances(prevAttendances => [...prevAttendances, newAttendance])
         
         toast({
           title: "Sucesso",
@@ -166,8 +178,8 @@ export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma }: Clas
         })
       }
       
-      // Recarregar as presenças
-      await loadAttendances()
+      // NÃO recarregar a lista completa para evitar scroll reset
+      // await loadAttendances()
       
     } catch (error) {
       console.error('Erro ao atualizar presença:', error)

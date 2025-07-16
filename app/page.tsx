@@ -30,6 +30,8 @@ export default function Home() {
         return <TrainingsPage />
       case "classes":
         return <TurmasPage />
+      case "my-classes":
+        return <TurmasPage isClientView={true} />
       case "instructors":
         return <InstructorsPage />
       case "clients":

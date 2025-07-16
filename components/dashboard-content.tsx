@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/hooks/use-auth"
+import ClientDashboard from "./client-dashboard"
 import {
   Users,
   BookOpen,
@@ -14,11 +16,19 @@ import {
   DollarSign,
   MapPin,
   BarChart3,
-  Target
+  Target,
+  Shield
 } from "lucide-react"
 
 export default function DashboardContent() {
-  const stats = [
+  const { hasPermission, isClient } = useAuth()
+  
+  // Se for cliente, mostrar dashboard específico
+  if (isClient) {
+    return <ClientDashboard />
+  }
+  
+  const allStats = [
     {
       title: "Total de Alunos",
       value: "1,234",
@@ -27,6 +37,7 @@ export default function DashboardContent() {
       trend: "+12%",
       color: "text-blue-600",
       bgColor: "bg-blue-50",
+      permission: "VIEW_STUDENTS"
     },
     {
       title: "Treinamentos Ativos",
@@ -36,6 +47,7 @@ export default function DashboardContent() {
       trend: "+8",
       color: "text-green-600",
       bgColor: "bg-green-50",
+      permission: "VIEW_TRAININGS"
     },
     {
       title: "Certificados Emitidos",
@@ -45,6 +57,7 @@ export default function DashboardContent() {
       trend: "+18%",
       color: "text-purple-600",
       bgColor: "bg-purple-50",
+      permission: "VIEW_CERTIFICATES"
     },
     {
       title: "Horas de Treinamento",
@@ -54,8 +67,57 @@ export default function DashboardContent() {
       trend: "+25%",
       color: "text-orange-600", 
       bgColor: "bg-orange-50",
+      permission: "VIEW_TRAININGS"
     },
+    {
+      title: "Receita Total",
+      value: "R$ 89,245",
+      description: "+15% este mês",
+      icon: DollarSign,
+      trend: "+15%",
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+      permission: "VIEW_FINANCIAL"
+    },
+    {
+      title: "Contas a Receber",
+      value: "R$ 12,340",
+      description: "5 pendentes",
+      icon: Target,
+      trend: "-5",
+      color: "text-red-600",
+      bgColor: "bg-red-50",
+      permission: "VIEW_ACCOUNTS_RECEIVABLE"
+    },
+    {
+      title: "Turmas Ativas",
+      value: "28",
+      description: "6 novas este mês",
+      icon: MapPin,
+      trend: "+6",
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-50",
+      permission: "VIEW_CLASSES"
+    },
+    {
+      title: "Instrutores Ativos",
+      value: "15",
+      description: "2 novos este mês",
+      icon: Users,
+      trend: "+2",
+      color: "text-teal-600",
+      bgColor: "bg-teal-50",
+      permission: "VIEW_USERS"
+    }
   ]
+
+  // Filtrar estatísticas baseado nas permissões
+  const stats = allStats.filter(stat => 
+    hasPermission(stat.permission) || 
+    (stat.permission === "VIEW_TRAININGS" && hasPermission("VIEW_OWN_TRAININGS")) ||
+    (stat.permission === "VIEW_CERTIFICATES" && hasPermission("VIEW_OWN_CERTIFICATES")) ||
+    (stat.permission === "VIEW_CLASSES" && hasPermission("VIEW_OWN_CLASSES"))
+  )
 
   const chartData = [
     { month: "Jun", value: 28 },
@@ -102,10 +164,32 @@ export default function DashboardContent() {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Visão geral do seu centro de treinamento</p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Evento
-        </Button>
+        <div className="flex gap-2">
+          {hasPermission('CREATE_CLASSES') && (
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Turma
+            </Button>
+          )}
+          {hasPermission('CREATE_TRAININGS') && (
+            <Button variant="outline">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Novo Treinamento
+            </Button>
+          )}
+          {hasPermission('VIEW_REPORTS') && (
+            <Button variant="outline">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Relatórios
+            </Button>
+          )}
+          {hasPermission('VIEW_FINANCIAL') && (
+            <Button variant="outline">
+              <DollarSign className="h-4 w-4 mr-2" />
+              Financeiro
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
