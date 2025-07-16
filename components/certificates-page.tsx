@@ -79,8 +79,11 @@ export function CertificatesPage() {
   const loadInstructorId = async () => {
     try {
       if (!user?.id) return
+      console.log('Buscando instructorId para usuário:', user.id)
       const response = await getUserInstructorId(user.id)
+      console.log('Resposta getUserInstructorId:', response)
       setInstructorId(response.instructorId)
+      console.log('InstructorId definido como:', response.instructorId)
     } catch (error) {
       console.error('Erro ao carregar instructorId:', error)
       toast.error('Erro ao carregar dados do instrutor')
@@ -104,7 +107,8 @@ export function CertificatesPage() {
     const timeoutId = setTimeout(() => {
       if (isClient && clientId) {
         loadFinishedClasses()
-      } else if (isInstructor && instructorId) {
+      } else if (isInstructor) {
+        // Para instrutor, carregar sempre que instructorId estiver disponível
         loadFinishedClasses()
       } else if (!isClient && !isInstructor) {
         loadFinishedClasses()
@@ -112,7 +116,7 @@ export function CertificatesPage() {
     }, 500) // Debounce de 500ms
 
     return () => clearTimeout(timeoutId)
-  }, [searchTerm])
+  }, [searchTerm, instructorId])
 
   const loadFinishedClasses = async () => {
     try {
@@ -127,18 +131,31 @@ export function CertificatesPage() {
         }
         response = await getFinishedClassesByClient(clientId, currentPage, 10, searchTerm)
       } else if (isInstructor) {
-        // Se for instrutor, verificar se tem instructorId antes de fazer a requisição
-        if (!instructorId) {
-          console.log('Aguardando instructorId para carregar turmas...')
-          return
-        }
-        response = await getFinishedClassesByInstructor(instructorId, currentPage, 10, searchTerm)
+        // Se for instrutor, usar endpoint geral e filtrar no frontend
+        response = await getFinishedClasses(currentPage, 10, searchTerm)
       } else {
         // Se for admin/superadmin, usar endpoint geral
         response = await getFinishedClasses(currentPage, 10, searchTerm)
       }
       
-      setFinishedClasses(response.classes || [])
+      let classes = response.classes || []
+      
+      // Filtrar classes do instrutor no frontend
+      if (isInstructor && instructorId) {
+        console.log('Todas as turmas recebidas:', classes.length)
+        console.log('InstructorId para filtrar:', instructorId)
+        console.log('Exemplo de turma:', classes[0])
+        
+        classes = classes.filter((classItem: any) => {
+          const isInstructorClass = classItem.instructor?.id === instructorId || classItem.instructorId === instructorId
+          console.log(`Turma ${classItem.id} - Instrutor: ${classItem.instructor?.id || classItem.instructorId} - É do instrutor: ${isInstructorClass}`)
+          return isInstructorClass
+        })
+        
+        console.log(`Turmas filtradas para instrutor ${instructorId}:`, classes.length)
+      }
+      
+      setFinishedClasses(classes)
       setTotalPages(response.pagination?.totalPages || 1)
     } catch (error) {
       console.error('Erro ao carregar turmas concluídas:', error)
