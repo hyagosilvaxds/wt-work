@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
+import { getSignatureByInstructorId } from './api/superadmin'
 
 export interface CertificateData {
   studentName: string
@@ -13,6 +14,28 @@ export interface CertificateData {
   startDate?: string
   endDate?: string
   instructorSignature?: string
+}
+
+// Função para buscar assinatura do instrutor e incluir nos dados do certificado
+export const enrichCertificateWithSignature = async (
+  data: CertificateData, 
+  instructorId?: string
+): Promise<CertificateData> => {
+  // Se já tem assinatura ou não tem instructorId, retorna os dados como estão
+  if (data.instructorSignature || !instructorId) {
+    return data
+  }
+
+  try {
+    const signature = await getSignatureByInstructorId(instructorId)
+    return {
+      ...data,
+      instructorSignature: signature?.pngPath || undefined
+    }
+  } catch (error) {
+    console.error('Erro ao buscar assinatura do instrutor:', error)
+    return data
+  }
 }
 
 export const CertificateTemplate = ({ data }: { data: CertificateData }) => {
@@ -33,11 +56,11 @@ export const CertificateTemplate = ({ data }: { data: CertificateData }) => {
     >
       <div className="relative z-10 h-full flex flex-col">
         {/* Header */}
-        <div className="text-center mb-8 mt-24">
-          <h1 className="text-6xl font-bold text-gray-800 mb-2">
+        <div className="text-center mb-4 mt-8">
+          <h1 className="text-6xl font-bold text-gray-800 mb-1">
             CERTIFICADO
           </h1>
-          <div className="w-32 h-1 bg-primary-600 mx-auto mb-4"></div>
+          <div className="w-32 h-1 bg-primary-600 mx-auto mt-3 mb-1"></div>
           <p className="text-xl text-gray-600">
             DE CONCLUSÃO DE CURSO
           </p>
@@ -45,23 +68,23 @@ export const CertificateTemplate = ({ data }: { data: CertificateData }) => {
 
         {/* Content */}
         <div className="flex-1 flex flex-col justify-center text-center px-8">
-          <p className="text-2xl text-gray-700 mb-8 leading-relaxed">
+          <p className="text-2xl text-gray-700 mb-4 leading-relaxed">
             Certificamos que
           </p>
           
-          <h2 className="text-4xl font-bold text-gray-800 mb-8 px-8">
+          <h2 className="text-4xl font-bold text-gray-800 mb-4 px-8">
             {data.studentName}
           </h2>
           
-          <p className="text-2xl text-gray-700 mb-8 leading-relaxed">
+          <p className="text-2xl text-gray-700 mb-4 leading-relaxed">
             concluiu com êxito o curso de
           </p>
           
-          <h3 className="text-3xl font-bold text-primary-600 mb-8 px-4">
+          <h3 className="text-3xl font-bold text-primary-600 mb-4 px-4">
             {data.trainingName}
           </h3>
           
-          <div className="text-lg text-gray-600 mb-8 space-y-2">
+          <div className="text-lg text-gray-600 mb-4 space-y-1">
             <p>
               <strong>Carga horária:</strong> {data.workload}
             </p>
@@ -87,10 +110,19 @@ export const CertificateTemplate = ({ data }: { data: CertificateData }) => {
         </div>
 
         {/* Footer */}
-        <div className="mt-auto pt-8">
-          <div className="flex justify-between items-end mb-8">
+        <div className="mt-auto pt-4">
+          <div className="flex justify-between items-end mb-4">
             <div className="flex-1 text-center mx-8">
-              <div className="border-t-2 border-gray-400 pt-2 mt-8">
+              <div className="border-t-2 border-gray-400 pt-2 mt-4">
+                {data.instructorSignature && (
+                  <div className="mb-2">
+                    <img 
+                      src={`http://localhost:4000${data.instructorSignature}`} 
+                      alt={`Assinatura de ${data.instructorName}`}
+                      className="max-w-40 max-h-12 object-scale-down mx-auto"
+                    />
+                  </div>
+                )}
                 <p className="text-lg font-semibold text-gray-700 mb-1">
                   {data.instructorName}
                 </p>
@@ -99,7 +131,7 @@ export const CertificateTemplate = ({ data }: { data: CertificateData }) => {
             </div>
             
             <div className="flex-1 text-center mx-8">
-              <div className="border-t-2 border-gray-400 pt-2 mt-8">
+              <div className="border-t-2 border-gray-400 pt-2 mt-4">
                 <p className="text-lg font-semibold text-gray-700">WT Work Treinamentos</p>
                 <p className="text-sm text-gray-600">Direção</p>
               </div>
@@ -140,11 +172,11 @@ export const generateCertificatePDF = async (data: CertificateData): Promise<voi
         ">
           <div style="position: relative; z-index: 10; height: 100%; display: flex; flex-direction: column;">
             <!-- Header -->
-            <div style="text-align: center; margin-bottom: 32px; margin-top: 96px;">
-              <h1 style="font-size: 72px; font-weight: bold; color: #1f2937; margin-bottom: 8px; margin: 0; line-height: 1;">
+            <div style="text-align: center; margin-bottom: 16px; margin-top: 0px;">
+              <h1 style="font-size: 72px; font-weight: bold; color: #1f2937; margin-bottom: 4px; margin-top: 0px; line-height: 1;">
                 CERTIFICADO
               </h1>
-              <div style="width: 128px; height: 4px; background-color: #78BA00; margin: 16px auto;"></div>
+              <div style="width: 128px; height: 4px; margin: 8px auto; margin-top: 10px;"></div>
               <p style="font-size: 20px; color: #4b5563; margin: 0;">
                 DE CONCLUSÃO DE CURSO
               </p>
@@ -152,38 +184,38 @@ export const generateCertificatePDF = async (data: CertificateData): Promise<voi
             
             <!-- Content -->
             <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; padding: 0 32px;">
-              <p style="font-size: 24px; color: #374151; margin-bottom: 32px; line-height: 1.5;">
+              <p style="font-size: 24px; color: #374151; margin-bottom: 16px; line-height: 1.5;">
                 Certificamos que
               </p>
               
-              <h2 style="font-size: 48px; font-weight: bold; color: #1f2937; margin-bottom: 32px; padding: 0 32px;">
+              <h2 style="font-size: 48px; font-weight: bold; color: #1f2937; margin-bottom: 16px; padding: 0 32px;">
                 ${data.studentName}
               </h2>
               
-              <p style="font-size: 24px; color: #374151; margin-bottom: 32px; line-height: 1.5;">
+              <p style="font-size: 24px; color: #374151; margin-bottom: 16px; line-height: 1.5;">
                 concluiu com êxito o curso de
               </p>
               
-              <h3 style="font-size: 36px; font-weight: bold; color: #78BA00; margin-bottom: 32px; padding: 0 16px;">
+              <h3 style="font-size: 36px; font-weight: bold; color: #78BA00; margin-bottom: 16px; padding: 0 16px;">
                 ${data.trainingName}
               </h3>
               
-              <div style="font-size: 18px; color: #4b5563; margin-bottom: 32px;">
-                <p style="margin: 8px 0;">
+              <div style="font-size: 18px; color: #4b5563; margin-bottom: 16px;">
+                <p style="margin: 4px 0;">
                   <strong>Carga horária:</strong> ${data.workload}
                 </p>
                 ${data.company ? `
-                  <p style="margin: 8px 0;">
+                  <p style="margin: 4px 0;">
                     <strong>Empresa:</strong> ${data.company}
                   </p>
                 ` : ''}
                 ${data.startDate && data.endDate ? `
-                  <p style="margin: 8px 0;">
+                  <p style="margin: 4px 0;">
                     <strong>Período:</strong> ${data.startDate} a ${data.endDate}
                     ${data.location ? ` • <strong>Local:</strong> ${data.location}` : ''}
                   </p>
                 ` : data.location ? `
-                  <p style="margin: 8px 0;">
+                  <p style="margin: 4px 0;">
                     <strong>Local:</strong> ${data.location}
                   </p>
                 ` : ''}
@@ -191,10 +223,20 @@ export const generateCertificatePDF = async (data: CertificateData): Promise<voi
             </div>
 
             <!-- Footer -->
-            <div style="margin-top: auto; padding-top: 32px;">
-              <div style="display: flex; justify-content: space-between; align-items: end; margin-bottom: 32px;">
+            <div style="margin-top: auto; padding-top: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: end; margin-bottom: 16px;">
                 <div style="flex: 1; text-align: center; margin: 0 32px;">
-                  <div style="border-top: 2px solid #9ca3af; padding-top: 8px; margin-top: 32px;">
+                ${data.instructorSignature ? `
+                      <div style="margin-bottom: 8px;">
+                        <img 
+                          src="http://localhost:4000${data.instructorSignature}" 
+                          alt="Assinatura de ${data.instructorName}"
+                          style="max-width: 200px; max-height: 48px; object-fit: scale-down; margin: 0 auto; display: block;"
+                        />
+                      </div>
+                    ` : ''}
+                  <div style="border-top: 2px solid #9ca3af; padding-top: 8px; margin-top: 16px;">
+                    
                     <p style="font-size: 18px; font-weight: 600; color: #374151; margin-bottom: 4px; margin-top: 0;">
                       ${data.instructorName}
                     </p>
@@ -205,7 +247,7 @@ export const generateCertificatePDF = async (data: CertificateData): Promise<voi
                 </div>
                 
                 <div style="flex: 1; text-align: center; margin: 0 32px;">
-                  <div style="border-top: 2px solid #9ca3af; padding-top: 8px; margin-top: 32px;">
+                  <div style="border-top: 2px solid #9ca3af; padding-top: 8px; margin-top: 16px;">
                     <p style="font-size: 18px; font-weight: 600; color: #374151; margin-bottom: 4px; margin-top: 0;">
                       WT Work Treinamentos
                     </p>
@@ -348,6 +390,15 @@ const generatePDFFromElement = async (element: HTMLElement, data: CertificateDat
 
   // Fazer download do PDF
   pdf.save(`certificado-${data.studentName.replace(/\s+/g, '-').toLowerCase()}.pdf`)
+}
+
+// Função para gerar PDF com assinatura automática
+export const generateCertificatePDFWithSignature = async (
+  data: CertificateData, 
+  instructorId?: string
+): Promise<void> => {
+  const enrichedData = await enrichCertificateWithSignature(data, instructorId)
+  return generateCertificatePDF(enrichedData)
 }
 
 // Função alternativa que usa o template React diretamente

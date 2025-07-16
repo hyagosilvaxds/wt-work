@@ -11,7 +11,7 @@ import { InstructorCreateModal } from "@/components/instructor-create-modal"
 import { InstructorEditModal } from "@/components/instructor-edit-modal"
 import { InstructorDeleteModal } from "@/components/instructor-delete-modal"
 import { SignaturesPage } from "@/components/signatures-page"
-import { SignatureUploadFromInstructorModal, InstructorWithoutUserModal } from "@/components/signature-upload-modal"
+import { ModernSignatureUploadModal } from "@/components/modern-signature-upload-modal"
 import { getInstructors } from "@/lib/api/superadmin"
 
 interface Instructor {
@@ -147,11 +147,6 @@ export function InstructorsPage() {
     setSignatureUploadKey(prev => prev + 1)
   }
 
-  // Atualizar lista após conectar usuário
-  const handleUserLinked = () => {
-    fetchInstructors(pagination.page, searchTerm)
-  }
-
   // Formatar telefone
   const formatPhone = (areaCode: string | null, number: string | null) => {
     if (!areaCode || !number) return null
@@ -179,12 +174,16 @@ export function InstructorsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-1">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="instructors" className="flex items-center">
             <Users className="w-4 h-4 mr-2" />
             Instrutores
           </TabsTrigger>
          
+          <TabsTrigger value="signatures" className="flex items-center">
+            <FileImage className="w-4 h-4 mr-2" />
+            Assinaturas
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="instructors" className="space-y-6">
@@ -198,7 +197,6 @@ export function InstructorsPage() {
               </p>
             </div>
             <div className="flex space-x-2">
-              <InstructorWithoutUserModal onUserLinked={handleUserLinked} />
               <InstructorCreateModal onInstructorCreated={handleInstructorCreated} />
             </div>
           </div>
@@ -399,7 +397,7 @@ export function InstructorsPage() {
             <div>
               <p className="text-gray-600">Gerencie as assinaturas dos instrutores</p>
             </div>
-            <SignatureUploadFromInstructorModal onSignatureUploaded={handleSignatureUploaded} />
+            <ModernSignatureUploadModal onSignatureUploaded={handleSignatureUploaded} />
           </div>
           
           <SignaturesPage key={signatureUploadKey} />

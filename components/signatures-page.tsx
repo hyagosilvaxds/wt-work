@@ -10,207 +10,14 @@ import { Upload, Eye, Trash2, Search, X, FileImage, User, Calendar } from "lucid
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { 
   getAllSignatures, 
-  getSignatureByInstructorId, 
-  uploadSignature, 
   deleteSignature,
   SignatureData,
   SignaturesResponse
 } from "@/lib/api/superadmin"
+import { ModernSignatureViewModal } from "@/components/modern-signature-modals"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { toast } from "sonner"
-
-interface SignatureUploadModalProps {
-  instructorId: string
-  instructorName: string
-  onSignatureUploaded: () => void
-  existingSignature?: SignatureData | null
-}
-
-function SignatureUploadModal({ 
-  instructorId, 
-  instructorName, 
-  onSignatureUploaded, 
-  existingSignature 
-}: SignatureUploadModalProps) {
-  const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [open, setOpen] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      if (selectedFile.type.startsWith('image/')) {
-        setFile(selectedFile)
-        const url = URL.createObjectURL(selectedFile)
-        setPreviewUrl(url)
-      } else {
-        toast.error('Apenas arquivos de imagem são permitidos')
-      }
-    }
-  }
-
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!file) {
-      toast.error('Selecione um arquivo para fazer upload')
-      return
-    }
-
-    try {
-      setUploading(true)
-      await uploadSignature(instructorId, file)
-      toast.success(existingSignature ? 'Assinatura atualizada com sucesso!' : 'Assinatura criada com sucesso!')
-      onSignatureUploaded()
-      setOpen(false)
-      setFile(null)
-      setPreviewUrl(null)
-    } catch (error) {
-      console.error('Erro ao fazer upload:', error)
-      toast.error('Erro ao fazer upload da assinatura')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const resetForm = () => {
-    setFile(null)
-    setPreviewUrl(null)
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      setOpen(newOpen)
-      if (!newOpen) resetForm()
-    }}>
-      <DialogTrigger asChild>
-        <Button variant={existingSignature ? "outline" : "default"}>
-          <Upload className="mr-2 h-4 w-4" />
-          {existingSignature ? 'Atualizar' : 'Fazer Upload'}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>
-            {existingSignature ? 'Atualizar Assinatura' : 'Fazer Upload de Assinatura'}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleUpload} className="space-y-4">
-          <div>
-            <Label htmlFor="instructor">Instrutor</Label>
-            <Input
-              id="instructor"
-              value={instructorName}
-              disabled
-              className="bg-gray-50"
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="signature">Arquivo de Assinatura</Label>
-            <Input
-              id="signature"
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="cursor-pointer"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Formatos aceitos: PNG, JPG, JPEG (máximo 5MB)
-            </p>
-          </div>
-
-          {previewUrl && (
-            <div className="border rounded-lg p-4">
-              <Label>Prévia:</Label>
-              <div className="mt-2 flex justify-center">
-                <img 
-                  src={previewUrl} 
-                  alt="Prévia da assinatura" 
-                  className="max-w-full max-h-48 object-contain border rounded"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button 
-              type="button"
-              variant="outline" 
-              onClick={() => setOpen(false)}
-              disabled={uploading}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="submit"
-              disabled={!file || uploading}
-            >
-              {uploading ? 'Enviando...' : (existingSignature ? 'Atualizar' : 'Fazer Upload')}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-interface SignatureViewModalProps {
-  signature: SignatureData
-}
-
-function SignatureViewModal({ signature }: SignatureViewModalProps) {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Eye className="mr-2 h-4 w-4" />
-          Visualizar
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[800px]">
-        <DialogHeader>
-          <DialogTitle>Assinatura - {signature.instructor.name}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="flex justify-center">
-            <img 
-              src={signature.pngPath} 
-              alt={`Assinatura de ${signature.instructor.name}`}
-              className="max-w-full max-h-96 object-contain border rounded"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <Label>Instrutor:</Label>
-              <p className="font-medium">{signature.instructor.name}</p>
-            </div>
-            <div>
-              <Label>Email:</Label>
-              <p className="font-medium">{signature.instructor.email || 'N/A'}</p>
-            </div>
-            <div>
-              <Label>Criada em:</Label>
-              <p className="font-medium">
-                {format(new Date(signature.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-              </p>
-            </div>
-            <div>
-              <Label>Atualizada em:</Label>
-              <p className="font-medium">
-                {format(new Date(signature.updatedAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-              </p>
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 export function SignaturesPage() {
   const [signatures, setSignatures] = useState<SignatureData[]>([])
@@ -374,20 +181,14 @@ export function SignaturesPage() {
                     
                     <div className="border rounded-lg p-2 bg-gray-50">
                       <img 
-                        src={signature.pngPath} 
+                        src={`http://localhost:4000${signature.pngPath}`} 
                         alt={`Assinatura de ${signature.instructor.name}`}
                         className="w-full h-20 object-contain"
                       />
                     </div>
 
                     <div className="flex space-x-2 mt-4">
-                      <SignatureViewModal signature={signature} />
-                      <SignatureUploadModal
-                        instructorId={signature.instructorId}
-                        instructorName={signature.instructor.name}
-                        onSignatureUploaded={handleSignatureUploaded}
-                        existingSignature={signature}
-                      />
+                      <ModernSignatureViewModal signature={signature} />
                       <Button
                         variant="outline"
                         size="sm"

@@ -253,7 +253,7 @@ export function TurmaLessons({
                           Próxima
                         </Badge>
                       )}
-                      {isPast(lesson.endDate) && lesson.status !== "CONCLUIDA" && (
+                      {isPast(lesson.endDate) && lesson.status !== "CONCLUIDA" && lesson.status !== "REALIZADA" && (
                         <Badge variant="outline" className="bg-orange-50 text-orange-700">
                           Atrasada
                         </Badge>

@@ -1281,17 +1281,45 @@ export interface SignaturesResponse {
   }
 }
 
-// Upload de assinatura para instrutor
-export const uploadSignature = async (instructorId: string, file: File) => {
+// Interface para resposta do upload de imagem
+export interface UploadImageResponse {
+  filename: string
+  originalname: string
+  path: string
+  mimetype: string
+  size: number
+  url: string
+}
+
+// Upload de imagem genérica
+export const uploadImage = async (file: File): Promise<UploadImageResponse> => {
   try {
     const formData = new FormData()
-    formData.append('signature', file)
-    formData.append('instructorId', instructorId)
+    formData.append('file', file)
 
-    const response = await api.post('/superadmin/signatures/upload', formData, {
+    const response = await api.post('/upload/image', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
+    })
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao fazer upload da imagem:', error)
+    throw error
+  }
+}
+
+// Upload de assinatura para instrutor (nova versão)
+export const uploadSignature = async (instructorId: string, file: File) => {
+  try {
+    // Primeiro faz upload da imagem
+    const uploadResponse = await uploadImage(file)
+    
+    // Depois envia o path da imagem para o endpoint de assinaturas
+    const response = await api.post('/superadmin/signatures', {
+      instructorId,
+      imagePath: uploadResponse.path
     })
     
     return response.data

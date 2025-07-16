@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Award, Download } from 'lucide-react'
-import { generateCertificatePDF, CertificateData } from '@/lib/certificate-generator'
+import { generateCertificatePDFWithSignature, CertificateData } from '@/lib/certificate-generator'
+import { getSignatureByInstructorId } from '@/lib/api/superadmin'
 import { toast } from 'sonner'
 
 interface CertificateGeneratorModalProps {
@@ -43,6 +44,7 @@ export function CertificateGeneratorModal({
 }: CertificateGeneratorModalProps) {  const [internalOpen, setInternalOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [validationCode, setValidationCode] = useState('')
+  const [instructorSignature, setInstructorSignature] = useState<string | null>(null)
   
   // Usar controle externo se fornecido, senão usar controle interno
   const open = externalOpen !== undefined ? externalOpen : internalOpen
@@ -58,12 +60,30 @@ export function CertificateGeneratorModal({
     return result
   }
 
+  // Buscar assinatura do instrutor
+  const fetchInstructorSignature = async (instructorId: string) => {
+    try {
+      const signature = await getSignatureByInstructorId(instructorId)
+      setInstructorSignature(signature?.pngPath || null)
+    } catch (error) {
+      console.error('Erro ao buscar assinatura do instrutor:', error)
+      setInstructorSignature(null)
+    }
+  }
+
   // Gerar código de validação único quando o modal abrir ou o estudante mudar
   useEffect(() => {
     if (student?.id) {
       setValidationCode(generateValidationCode())
     }
   }, [student?.id])
+
+  // Buscar assinatura quando o instrutor mudar
+  useEffect(() => {
+    if (instructor?.id) {
+      fetchInstructorSignature(instructor.id)
+    }
+  }, [instructor?.id])
 
   const formData: CertificateData = {
     studentName: student?.name || '',
@@ -75,7 +95,8 @@ export function CertificateGeneratorModal({
     company: company || '',
     location: classData?.location || '',
     startDate: classData?.startDate ? new Date(classData.startDate).toLocaleDateString('pt-BR') : '',
-    endDate: classData?.endDate ? new Date(classData.endDate).toLocaleDateString('pt-BR') : ''
+    endDate: classData?.endDate ? new Date(classData.endDate).toLocaleDateString('pt-BR') : '',
+    instructorSignature: instructorSignature || undefined
   }
 
   const handleGeneratePDF = async () => {
@@ -86,7 +107,7 @@ export function CertificateGeneratorModal({
 
     setIsGenerating(true)
     try {
-      await generateCertificatePDF(formData)
+      await generateCertificatePDFWithSignature(formData, instructor?.id)
       toast.success('Certificado gerado com sucesso!')
       onCertificateGenerated?.(formData)
       setOpen(false)
@@ -162,6 +183,16 @@ export function CertificateGeneratorModal({
               <div>
                 <label className="text-sm font-medium text-gray-700">Código de Validação</label>
                 <p className="text-sm text-gray-900 mt-1">{formData.validationCode}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Assinatura do Instrutor</label>
+                <p className="text-sm text-gray-900 mt-1">
+                  {instructorSignature ? (
+                    <span className="text-green-600">✓ Assinatura encontrada</span>
+                  ) : (
+                    <span className="text-orange-600">⚠ Assinatura não encontrada</span>
+                  )}
+                </p>
               </div>
             </div>
           </div>

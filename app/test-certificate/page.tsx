@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react'
-import { CertificateTemplate, CertificateData, generateCertificatePDF } from '@/lib/certificate-generator'
+import { CertificateTemplate, CertificateData, generateCertificatePDFWithSignature } from '@/lib/certificate-generator'
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
 
@@ -21,7 +21,7 @@ const testCertificate: CertificateData = {
 export default function TestCertificate() {
   const handleGeneratePDF = async () => {
     try {
-      await generateCertificatePDF(testCertificate)
+      await generateCertificatePDFWithSignature(testCertificate)
       alert('PDF gerado com sucesso!')
     } catch (error) {
       console.error('Erro ao gerar PDF:', error)

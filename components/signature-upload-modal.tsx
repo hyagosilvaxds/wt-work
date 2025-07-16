@@ -57,6 +57,13 @@ export function SignatureUploadFromInstructorModal({ onSignatureUploaded }: Sign
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
       if (selectedFile.type.startsWith('image/')) {
+        // Verificar tamanho do arquivo (5MB máximo)
+        const maxSize = 5 * 1024 * 1024 // 5MB em bytes
+        if (selectedFile.size > maxSize) {
+          toast.error('Arquivo muito grande. Tamanho máximo: 5MB')
+          return
+        }
+        
         setFile(selectedFile)
         const url = URL.createObjectURL(selectedFile)
         setPreviewUrl(url)
@@ -81,6 +88,10 @@ export function SignatureUploadFromInstructorModal({ onSignatureUploaded }: Sign
 
     try {
       setUploading(true)
+      
+      // Atualiza o toast para mostrar o progresso
+      toast.info('Enviando imagem para o servidor...')
+      
       await uploadSignature(selectedInstructorId, file)
       toast.success('Assinatura enviada com sucesso!')
       onSignatureUploaded()
@@ -142,7 +153,7 @@ export function SignatureUploadFromInstructorModal({ onSignatureUploaded }: Sign
               className="cursor-pointer"
             />
             <p className="text-sm text-gray-500 mt-1">
-              Formatos aceitos: PNG, JPG, JPEG (máximo 5MB)
+              Formatos aceitos: PNG, JPG, JPEG. Tamanho máximo: 5MB.
             </p>
           </div>
 
@@ -171,8 +182,16 @@ export function SignatureUploadFromInstructorModal({ onSignatureUploaded }: Sign
             <Button 
               type="submit"
               disabled={!selectedInstructorId || !file || uploading}
+              className="flex items-center space-x-2"
             >
-              {uploading ? 'Enviando...' : 'Fazer Upload'}
+              {uploading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Enviando...</span>
+                </>
+              ) : (
+                <span>Fazer Upload</span>
+              )}
             </Button>
           </div>
         </form>

@@ -13,10 +13,24 @@ import {
   Search,
   Filter,
   FileText,
-  Loader2
+  Loader2,
+  AlertTriangle,
+  CheckCircle,
+  XCircle
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { getFinishedClasses, getFinishedClassesByClient, getFinishedClassesByInstructor, createCertificate, getUserClientId, getUserInstructorId } from "@/lib/api/superadmin"
 import { CertificateGeneratorModal } from "./certificate-generator-modal"
 import { toast } from "sonner"
@@ -33,6 +47,8 @@ export function CertificatesPage() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [selectedClass, setSelectedClass] = useState<any>(null)
   const [showCertificateModal, setShowCertificateModal] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [pendingCertificate, setPendingCertificate] = useState<{student: any, classData: any} | null>(null)
   const [clientId, setClientId] = useState<string | null>(null)
   const [instructorId, setInstructorId] = useState<string | null>(null)
 
@@ -152,9 +168,64 @@ export function CertificatesPage() {
   }
 
   const handleGenerateCertificate = (student: any, classData: any) => {
+    // Verificar se o estudante tem faltas
+    const hasAbsences = student.hasAbsences || student.totalAbsences > 0
+    
+    // Se for cliente e o estudante tiver faltas, não permitir geração
+    if (isClient && hasAbsences) {
+      toast.error('Não é possível gerar certificado para estudante com faltas')
+      return
+    }
+    
+    // Se for instrutor ou admin e o estudante tiver faltas, mostrar dialog de confirmação
+    if ((isInstructor || (!isClient && !isInstructor)) && hasAbsences) {
+      setPendingCertificate({ student, classData })
+      setShowConfirmDialog(true)
+      return
+    }
+    
+    // Se não há faltas ou é um caso permitido, gerar certificado diretamente
+    proceedWithCertificateGeneration(student, classData)
+  }
+
+  const proceedWithCertificateGeneration = (student: any, classData: any) => {
     setSelectedStudent(student)
     setSelectedClass(classData)
     setShowCertificateModal(true)
+  }
+
+  const handleConfirmGeneration = () => {
+    if (pendingCertificate) {
+      proceedWithCertificateGeneration(pendingCertificate.student, pendingCertificate.classData)
+    }
+    setShowConfirmDialog(false)
+    setPendingCertificate(null)
+  }
+
+  const handleCancelGeneration = () => {
+    setShowConfirmDialog(false)
+    setPendingCertificate(null)
+  }
+
+  const getAttendanceInfo = (student: any) => {
+    const totalLessons = student.attendances ? student.attendances.length : 0
+    const presentCount = student.attendances ? student.attendances.filter((att: any) => att.status === 'PRESENTE').length : 0
+    const absentCount = student.totalAbsences || 0
+    
+    return {
+      totalLessons,
+      presentCount,
+      absentCount,
+      hasAbsences: student.hasAbsences || absentCount > 0
+    }
+  }
+
+  const getAttendanceStatusColor = (hasAbsences: boolean) => {
+    return hasAbsences ? 'text-red-600' : 'text-green-600'
+  }
+
+  const getAttendanceStatusIcon = (hasAbsences: boolean) => {
+    return hasAbsences ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />
   }
 
   const handleCertificateGenerated = async (certificateData: any) => {
@@ -408,17 +479,72 @@ export function CertificatesPage() {
                                   <span className="text-gray-600">Email:</span>
                                   <span>{student.email || 'N/A'}</span>
                                 </div>
+                                {(() => {
+                                  const attendanceInfo = getAttendanceInfo(student)
+                                  return (
+                                    <>
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Presenças:</span>
+                                        <span className="font-medium">{attendanceInfo.presentCount}/{attendanceInfo.totalLessons}</span>
+                                      </div>
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-gray-600">Status:</span>
+                                        <div className={`flex items-center gap-1 ${getAttendanceStatusColor(attendanceInfo.hasAbsences)}`}>
+                                          {getAttendanceStatusIcon(attendanceInfo.hasAbsences)}
+                                          <span className="font-medium">
+                                            {attendanceInfo.hasAbsences ? `${attendanceInfo.absentCount} falta(s)` : 'Sem faltas'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </>
+                                  )
+                                })()}
                               </div>
 
                               <div className="flex gap-2 pt-3">
-                                <Button 
-                                  size="sm" 
-                                  className="flex-1 bg-primary-500 hover:bg-primary-600"
-                                  onClick={() => handleGenerateCertificate(student, classItem)}
-                                >
-                                  <Download className="mr-1 h-3 w-3" />
-                                  Gerar Certificado
-                                </Button>
+                                {(() => {
+                                  const attendanceInfo = getAttendanceInfo(student)
+                                  
+                                  // Se for cliente e o estudante tiver faltas, desabilitar o botão
+                                  if (isClient && attendanceInfo.hasAbsences) {
+                                    return (
+                                      <Button 
+                                        size="sm" 
+                                        className="flex-1 bg-gray-400 cursor-not-allowed"
+                                        disabled
+                                      >
+                                        <XCircle className="mr-1 h-3 w-3" />
+                                        Não Disponível (Faltas)
+                                      </Button>
+                                    )
+                                  }
+                                  
+                                  // Se for instrutor/admin e o estudante tiver faltas, mostrar aviso
+                                  if ((isInstructor || (!isClient && !isInstructor)) && attendanceInfo.hasAbsences) {
+                                    return (
+                                      <Button 
+                                        size="sm" 
+                                        className="flex-1 bg-yellow-500 hover:bg-yellow-600"
+                                        onClick={() => handleGenerateCertificate(student, classItem)}
+                                      >
+                                        <AlertTriangle className="mr-1 h-3 w-3" />
+                                        Gerar com Faltas
+                                      </Button>
+                                    )
+                                  }
+                                  
+                                  // Caso padrão - sem faltas
+                                  return (
+                                    <Button 
+                                      size="sm" 
+                                      className="flex-1 bg-primary-500 hover:bg-primary-600"
+                                      onClick={() => handleGenerateCertificate(student, classItem)}
+                                    >
+                                      <Download className="mr-1 h-3 w-3" />
+                                      Gerar Certificado
+                                    </Button>
+                                  )
+                                })()}
                               </div>
                             </CardContent>
                           </Card>
@@ -479,6 +605,57 @@ export function CertificatesPage() {
           </Button>
         </div>
       )}
+
+      {/* Dialog de Confirmação para Estudantes com Faltas */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              Confirmar Geração de Certificado
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O estudante <strong>{pendingCertificate?.student.name}</strong> possui faltas registradas.
+              <br />
+              <br />
+              {(() => {
+                if (pendingCertificate) {
+                  const attendanceInfo = getAttendanceInfo(pendingCertificate.student)
+                  return (
+                    <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                      <div className="text-sm space-y-1">
+                        <div className="flex justify-between">
+                          <span>Total de aulas:</span>
+                          <span className="font-medium">{attendanceInfo.totalLessons}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Presenças:</span>
+                          <span className="font-medium text-green-600">{attendanceInfo.presentCount}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Faltas:</span>
+                          <span className="font-medium text-red-600">{attendanceInfo.absentCount}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+                return null
+              })()}
+              <br />
+              Deseja continuar mesmo assim?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelGeneration}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmGeneration} className="bg-yellow-500 hover:bg-yellow-600">
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal do Gerador de Certificados */}
       <CertificateGeneratorModal

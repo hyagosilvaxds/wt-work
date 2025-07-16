@@ -179,12 +179,15 @@ export function InstructorsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-1">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="instructors" className="flex items-center">
             <Users className="w-4 h-4 mr-2" />
             Instrutores
           </TabsTrigger>
-         
+         <TabsTrigger value="signatures" className="flex items-center">
+            <Users className="w-4 h-4 mr-2" />
+            Assinaturas
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="instructors" className="space-y-6">

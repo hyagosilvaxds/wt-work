@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Award, Download, Eye, RefreshCw } from 'lucide-react'
-import { generateCertificatePDF, CertificateData } from '@/lib/certificate-generator'
+import { generateCertificatePDFWithSignature, CertificateData } from '@/lib/certificate-generator'
 import { toast } from 'sonner'
 
 const sampleCertificates: CertificateData[] = [
@@ -101,7 +101,7 @@ export function CertificateExamplePage() {
   const handleGeneratePDF = async (certificateData: CertificateData) => {
     setIsGenerating(true)
     try {
-      await generateCertificatePDF(certificateData)
+      await generateCertificatePDFWithSignature(certificateData)
       toast.success('Certificado gerado e baixado com sucesso!')
     } catch (error) {
       console.error('Erro ao gerar certificado:', error)
