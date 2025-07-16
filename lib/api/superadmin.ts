@@ -1217,23 +1217,6 @@ export const getClientClasses = async () => {
     }
 };
 
-// Função para buscar turmas do instrutor (para usuários do tipo INSTRUTOR)
-export const getInstructorClasses = async () => {
-    try {
-        console.log('Fetching instructor classes...');
-        
-        const response = await api.get('/superadmin/instructor-classes');
-        
-        console.log('getInstructorClasses response:', response);
-        console.log('getInstructorClasses response.data:', response.data);
-        
-        return response.data;
-    } catch (error) {
-        console.error('Erro ao buscar turmas do instrutor:', error);
-        throw error;
-    }
-};
-
 // Função para buscar o clientId de um usuário
 export const getUserClientId = async (userId: string) => {
     try {

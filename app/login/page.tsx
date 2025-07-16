@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,11 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { getRedirectUrl } from "@/lib/utils"
 
-export default function LoginPage() {
+interface LoginFormProps {
+  onSuccess?: () => void
+}
+
+function LoginForm({ onSuccess }: LoginFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -224,5 +228,39 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Componente de fallback para loading
+function LoginPageFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card className="glass backdrop-blur-sm border-white/20 shadow-2xl">
+          <CardHeader className="space-y-1 text-center pb-6">
+            <div className="flex justify-center mb-6">
+              <div className="w-12 h-12 bg-gray-200 rounded-full animate-pulse"></div>
+            </div>
+            <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="h-11 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-11 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-11 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginForm />
+    </Suspense>
   )
 }

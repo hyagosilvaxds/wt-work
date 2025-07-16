@@ -12,7 +12,6 @@ import {
   savePermissionsToCookie,
   getClientClasses
 } from '@/lib/api/auth'
-import { getInstructorClasses } from '@/lib/api/superadmin'
 
 interface User {
   id: string
@@ -39,7 +38,6 @@ interface AuthContextType {
   isClient: boolean
   isInstructor: boolean
   getClientClasses: () => Promise<any>
-  getInstructorClasses: () => Promise<any>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -260,13 +258,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return await getClientClasses()
   }
 
-  const handleGetInstructorClasses = async () => {
-    if (!isInstructor) {
-      throw new Error('Usuário não é do tipo INSTRUTOR')
-    }
-    return await getInstructorClasses()
-  }
-
   return (
     <AuthContext.Provider
       value={{
@@ -279,8 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasPermission,
         isClient,
         isInstructor,
-        getClientClasses: handleGetClientClasses,
-        getInstructorClasses: handleGetInstructorClasses
+        getClientClasses: handleGetClientClasses
       }}
     >
       {children}
