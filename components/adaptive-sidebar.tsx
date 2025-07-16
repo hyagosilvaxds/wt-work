@@ -36,7 +36,7 @@ interface SidebarProps {
 }
 
 // Menu baseado em permissões
-const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: boolean) => {
+const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: boolean, isInstructor: boolean) => {
   const items = []
   
   // Dashboard - sempre visível para usuários autenticados
@@ -59,8 +59,8 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
     items.push({ id: "students", label: "Alunos", icon: Users, badge: null })
   }
   
-  // Instrutores/Usuários
-  if (hasPermission('VIEW_USERS') || hasPermission('MANAGE_USERS')) {
+  // Instrutores/Usuários - OCULTO para instrutores
+  if ((hasPermission('VIEW_USERS') || hasPermission('MANAGE_USERS')) && !isInstructor) {
     items.push({ id: "instructors", label: "Instrutores", icon: UserCheck, badge: null })
   }
   
@@ -74,8 +74,8 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
     items.push({ id: "classes", label: "Turmas", icon: UsersRound, badge: null })
   }
   
-  // Clientes (se houver permissão específica ou VIEW_USERS)
-  if (hasPermission('VIEW_USERS')) {
+  // Clientes - OCULTO para instrutores
+  if (hasPermission('VIEW_USERS') && !isInstructor) {
     items.push({ id: "clients", label: "Clientes", icon: Building2, badge: null })
   }
   
@@ -97,8 +97,8 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
   //   items.push({ id: "reports", label: "Relatórios", icon: BarChart3, badge: null })
   // }
   
-  // Configurações/Roles
-  if (hasPermission('VIEW_ROLES') || hasPermission('MANAGE_USERS') || hasPermission('EDIT_PROFILE')) {
+  // Configurações/Roles - OCULTO para instrutores
+  if ((hasPermission('VIEW_ROLES') || hasPermission('MANAGE_USERS') || hasPermission('EDIT_PROFILE')) && !isInstructor) {
     items.push({ id: "settings", label: "Configurações", icon: Settings, badge: null })
   }
   
@@ -107,9 +107,9 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
 
 export function AdaptiveSidebar({ activeTab, setActiveTab }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const { user, permissions, logout, hasPermission, isClient } = useAuth()
+  const { user, permissions, logout, hasPermission, isClient, isInstructor } = useAuth()
 
-  const menuItems = getMenuItems(hasPermission, isClient)
+  const menuItems = getMenuItems(hasPermission, isClient, isInstructor)
 
   // Obter informações do usuário para exibição
   const getUserInfo = () => {

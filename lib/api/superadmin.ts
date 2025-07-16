@@ -15,6 +15,29 @@ export interface ScheduledLesson {
   observations: string | null
 }
 
+// Interface para aulas agendadas do instrutor
+export interface InstructorScheduledLesson {
+  id: string
+  title: string
+  description: string
+  startDate: string
+  endDate: string
+  location: string | null
+  status: string
+  className: string
+  clientName: string
+  observations: string | null
+}
+
+// Interface para dados do dashboard do instrutor
+export interface InstructorDashboardData {
+  totalStudents: number
+  totalClasses: number
+  totalScheduledLessons: number
+  totalCompletedClasses: number
+  scheduledLessons: InstructorScheduledLesson[]
+}
+
 export interface RecentActivity {
   id: string
   type: string
@@ -42,6 +65,17 @@ export const getDashboardData = async (): Promise<DashboardData> => {
     return response.data
   } catch (error) {
     console.error('Erro ao buscar dados do dashboard:', error)
+    throw error
+  }
+}
+
+// Função para buscar dados do dashboard do instrutor
+export const getInstructorDashboard = async (instructorId: string): Promise<InstructorDashboardData> => {
+  try {
+    const response = await api.get(`/superadmin/instructors/${instructorId}/dashboard`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar dados do dashboard do instrutor:', error)
     throw error
   }
 }
@@ -1183,6 +1217,23 @@ export const getClientClasses = async () => {
     }
 };
 
+// Função para buscar turmas do instrutor (para usuários do tipo INSTRUTOR)
+export const getInstructorClasses = async () => {
+    try {
+        console.log('Fetching instructor classes...');
+        
+        const response = await api.get('/superadmin/instructor-classes');
+        
+        console.log('getInstructorClasses response:', response);
+        console.log('getInstructorClasses response.data:', response.data);
+        
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar turmas do instrutor:', error);
+        throw error;
+    }
+};
+
 // Função para buscar o clientId de um usuário
 export const getUserClientId = async (userId: string) => {
     try {
@@ -1196,6 +1247,23 @@ export const getUserClientId = async (userId: string) => {
         return response.data;
     } catch (error) {
         console.error('Erro ao buscar clientId do usuário:', error);
+        throw error;
+    }
+};
+
+// Função para buscar o instructorId de um usuário
+export const getUserInstructorId = async (userId: string) => {
+    try {
+        console.log('Fetching instructorId for user:', userId);
+        
+        const response = await api.get(`/superadmin/users/${userId}/instructor-id`);
+        
+        console.log('getUserInstructorId response:', response);
+        console.log('getUserInstructorId response.data:', response.data);
+        
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar instructorId do usuário:', error);
         throw error;
     }
 };

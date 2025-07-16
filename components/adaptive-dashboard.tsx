@@ -7,7 +7,7 @@ import ClientDashboard from "@/components/client-dashboard"
 import LoadingPage from "@/components/loading-page"
 
 export default function AdaptiveDashboard() {
-  const { user, isLoading, isClient } = useAuth()
+  const { user, isLoading, isClient, isInstructor } = useAuth()
 
   if (isLoading) {
     return <LoadingPage />
@@ -27,6 +27,11 @@ export default function AdaptiveDashboard() {
     return <ClientDashboard />
   }
 
-  // Por enquanto, outros usuários veem o dashboard de admin
+  // Se for instrutor, mostrar dashboard do instrutor
+  if (isInstructor) {
+    return <InstructorDashboard />
+  }
+
+  // Por padrão, outros usuários veem o dashboard de admin
   return <SuperAdminDashboard />
 }

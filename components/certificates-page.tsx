@@ -17,11 +17,13 @@ import {
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
-import { getFinishedClasses, createCertificate } from "@/lib/api/superadmin"
+import { getFinishedClasses, getFinishedClassesByClient, getFinishedClassesByInstructor, createCertificate, getUserClientId, getUserInstructorId } from "@/lib/api/superadmin"
 import { CertificateGeneratorModal } from "./certificate-generator-modal"
 import { toast } from "sonner"
+import { useAuth } from "@/hooks/use-auth"
 
 export function CertificatesPage() {
+  const { user, isClient, isInstructor } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [expandedGroups, setExpandedGroups] = useState<string[]>([])
   const [finishedClasses, setFinishedClasses] = useState<any[]>([])
@@ -31,15 +33,92 @@ export function CertificatesPage() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [selectedClass, setSelectedClass] = useState<any>(null)
   const [showCertificateModal, setShowCertificateModal] = useState(false)
+  const [clientId, setClientId] = useState<string | null>(null)
+  const [instructorId, setInstructorId] = useState<string | null>(null)
 
   useEffect(() => {
-    loadFinishedClasses()
-  }, [currentPage])
+    if (isClient && user?.id) {
+      loadClientId()
+    } else if (isInstructor && user?.id) {
+      loadInstructorId()
+    } else {
+      loadFinishedClasses()
+    }
+  }, [currentPage, isClient, isInstructor, user?.id])
+
+  const loadClientId = async () => {
+    try {
+      if (!user?.id) return
+      const response = await getUserClientId(user.id)
+      setClientId(response.clientId)
+    } catch (error) {
+      console.error('Erro ao carregar clientId:', error)
+      toast.error('Erro ao carregar dados do cliente')
+    }
+  }
+
+  const loadInstructorId = async () => {
+    try {
+      if (!user?.id) return
+      const response = await getUserInstructorId(user.id)
+      setInstructorId(response.instructorId)
+    } catch (error) {
+      console.error('Erro ao carregar instructorId:', error)
+      toast.error('Erro ao carregar dados do instrutor')
+    }
+  }
+
+  useEffect(() => {
+    if (clientId) {
+      loadFinishedClasses()
+    }
+  }, [clientId])
+
+  useEffect(() => {
+    if (instructorId) {
+      loadFinishedClasses()
+    }
+  }, [instructorId])
+
+  // Recarregar quando o termo de busca mudar
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (isClient && clientId) {
+        loadFinishedClasses()
+      } else if (isInstructor && instructorId) {
+        loadFinishedClasses()
+      } else if (!isClient && !isInstructor) {
+        loadFinishedClasses()
+      }
+    }, 500) // Debounce de 500ms
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm])
 
   const loadFinishedClasses = async () => {
     try {
       setLoading(true)
-      const response = await getFinishedClasses(currentPage, 10, searchTerm)
+      let response
+      
+      if (isClient) {
+        // Se for cliente, verificar se tem clientId antes de fazer a requisição
+        if (!clientId) {
+          console.log('Aguardando clientId para carregar turmas...')
+          return
+        }
+        response = await getFinishedClassesByClient(clientId, currentPage, 10, searchTerm)
+      } else if (isInstructor) {
+        // Se for instrutor, verificar se tem instructorId antes de fazer a requisição
+        if (!instructorId) {
+          console.log('Aguardando instructorId para carregar turmas...')
+          return
+        }
+        response = await getFinishedClassesByInstructor(instructorId, currentPage, 10, searchTerm)
+      } else {
+        // Se for admin/superadmin, usar endpoint geral
+        response = await getFinishedClasses(currentPage, 10, searchTerm)
+      }
+      
       setFinishedClasses(response.classes || [])
       setTotalPages(response.pagination?.totalPages || 1)
     } catch (error) {
@@ -114,7 +193,12 @@ export function CertificatesPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Certificados</h1>
-          <p className="text-gray-600">Gerencie os certificados das turmas concluídas</p>
+          <p className="text-gray-600">
+            {isClient 
+              ? "Gerencie os certificados das suas turmas concluídas" 
+              : "Gerencie os certificados das turmas concluídas"
+            }
+          </p>
         </div>
       </div>
 
@@ -280,8 +364,18 @@ export function CertificatesPage() {
         {filteredGroups.length === 0 && (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <Award className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-gray-600">Nenhuma turma concluída encontrada</h3>
-            <p className="text-gray-500 mt-2">Não há turmas concluídas para exibir certificados</p>
+            <h3 className="text-xl font-medium text-gray-600">
+              {isClient 
+                ? "Você não possui turmas concluídas" 
+                : "Nenhuma turma concluída encontrada"
+              }
+            </h3>
+            <p className="text-gray-500 mt-2">
+              {isClient 
+                ? "Suas turmas concluídas aparecerão aqui para emissão de certificados" 
+                : "Não há turmas concluídas para exibir certificados"
+              }
+            </p>
           </div>
         )}
       </div>

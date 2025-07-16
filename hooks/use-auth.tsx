@@ -12,6 +12,7 @@ import {
   savePermissionsToCookie,
   getClientClasses
 } from '@/lib/api/auth'
+import { getInstructorClasses } from '@/lib/api/superadmin'
 
 interface User {
   id: string
@@ -36,7 +37,9 @@ interface AuthContextType {
   isLoading: boolean
   hasPermission: (permissionName: string) => boolean
   isClient: boolean
+  isInstructor: boolean
   getClientClasses: () => Promise<any>
+  getInstructorClasses: () => Promise<any>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -213,6 +216,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   })();
 
+  // Verificar se o usuário é instrutor
+  const isInstructor = (() => {
+    if (!user) return false;
+    
+    // Primeiro verificar a estrutura mais comum: user.role.name
+    if (user.role && user.role.name) {
+      return ['INSTRUTOR', 'Instrutor', 'instructor', 'INSTRUCTOR'].includes(user.role.name);
+    }
+    
+    // Verificar outras possibilidades de estrutura do objeto user
+    const checkRoles = [
+      user?.role?.roleName,
+      user?.roleName,
+      user?.roleId,
+      user?.role?.id,
+      user?.role
+    ];
+    
+    const instructorRoles = ['INSTRUTOR', 'Instrutor', 'instructor', 'INSTRUCTOR'];
+    
+    return checkRoles.some(role => {
+      if (typeof role === 'string') {
+        return instructorRoles.includes(role);
+      }
+      return false;
+    });
+  })();
+
   // Log temporário para debug do problema
   if (user) {
     console.log('DEBUG - Usuário atual:', {
@@ -229,6 +260,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return await getClientClasses()
   }
 
+  const handleGetInstructorClasses = async () => {
+    if (!isInstructor) {
+      throw new Error('Usuário não é do tipo INSTRUTOR')
+    }
+    return await getInstructorClasses()
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -240,7 +278,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         hasPermission,
         isClient,
-        getClientClasses: handleGetClientClasses
+        isInstructor,
+        getClientClasses: handleGetClientClasses,
+        getInstructorClasses: handleGetInstructorClasses
       }}
     >
       {children}

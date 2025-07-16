@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { CalendarWithEvents } from "@/components/ui/calendar-with-events"
+import { Badge } from "@/components/ui/badge"
 import {
   Users,
   BookOpen,
@@ -10,123 +12,168 @@ import {
   CalendarIcon,
   ChevronRight,
   Target,
-  Zap,
-  Activity,
-  Plus,
   Award,
   CheckCircle,
   Calendar,
   UserCheck,
-  Star,
   TrendingUp,
+  Loader2,
+  ArrowUpRight,
+  Building2,
+  MapPin,
+  User,
 } from "lucide-react"
-// import { WeeklyTimelineCalendar } from "@/components/weekly-timeline-calendar"
-import { getInstructors } from "@/lib/api/superadmin"
+import { getInstructorDashboard, getUserInstructorId, type InstructorDashboardData } from "@/lib/api/superadmin"
+import { useAuth } from "@/hooks/use-auth"
+import { toast } from "sonner"
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 export function InstructorDashboard() {
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const { user } = useAuth()
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+  const [dashboardData, setDashboardData] = useState<InstructorDashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [instructorId, setInstructorId] = useState<string | null>(null)
 
-  const instructorStats = [
-    {
-      title: "Aulas Ministradas",
-      value: "28",
-      description: "Este mês",
-      icon: BookOpen,
-      color: "from-blue-500 to-blue-600",
-      textColor: "text-blue-600",
-      bgColor: "bg-blue-50",
-      trend: "+5",
-      trendColor: "text-green-600",
-    },
-    {
-      title: "Alunos Ativos",
-      value: "156",
-      description: "Across all classes",
-      icon: Users,
-      color: "from-green-500 to-green-600",
-      textColor: "text-green-600",
-      bgColor: "bg-green-50",
-      trend: "+12",
-      trendColor: "text-green-600",
-    },
-    {
-      title: "Horas Lecionadas",
-      value: "84h",
-      description: "Este mês",
-      icon: Clock,
-      color: "from-purple-500 to-purple-600",
-      textColor: "text-purple-600",
-      bgColor: "bg-purple-50",
-      trend: "+8h",
-      trendColor: "text-green-600",
-    },
-    {
-      title: "Taxa de Aprovação",
-      value: "94%",
-      description: "Últimos 3 meses",
-      icon: Award,
-      color: "from-orange-500 to-orange-600",
-      textColor: "text-orange-600",
-      bgColor: "bg-orange-50",
-      trend: "+2%",
-      trendColor: "text-green-600",
-    },
-  ]
+  useEffect(() => {
+    if (user?.id) {
+      loadInstructorId()
+    }
+  }, [user?.id])
 
-  const nextClasses = [
-    {
-      id: 1,
-      title: "Segurança do Trabalho - Básico",
-      time: "08:00 - 12:00",
-      date: "Hoje",
-      location: "Sala 101",
-      students: 25,
-      type: "Presencial",
-    },
-    {
-      id: 2,
-      title: "NR-35 - Trabalho em Altura",
-      time: "14:00 - 18:00",
-      date: "Amanhã",
-      location: "Campo de Treinamento",
-      students: 15,
-      type: "Prático",
-    },
-    {
-      id: 3,
-      title: "Primeiros Socorros",
-      time: "09:00 - 17:00",
-      date: "Quinta-feira",
-      location: "Sala 102",
-      students: 20,
-      type: "Teórico-Prático",
-    },
-  ]
+  useEffect(() => {
+    if (instructorId) {
+      loadDashboardData()
+    }
+  }, [instructorId])
 
-  const recentAchievements = [
-    {
-      title: "100% de Aprovação",
-      description: "Turma de Excel Avançado",
-      date: "Ontem",
-      icon: Star,
-      color: "text-yellow-500",
-    },
-    {
-      title: "Feedback Excelente",
-      description: "Média 4.9/5 - Curso de Liderança",
-      date: "2 dias atrás",
-      icon: TrendingUp,
-      color: "text-green-500",
-    },
-    {
-      title: "Certificação Concluída",
-      description: "25 alunos certificados em Segurança",
-      date: "1 semana atrás",
-      icon: Award,
-      color: "text-blue-500",
-    },
-  ]
+  const loadInstructorId = async () => {
+    try {
+      if (!user?.id) return
+      const response = await getUserInstructorId(user.id)
+      setInstructorId(response.instructorId)
+    } catch (error) {
+      console.error('Erro ao carregar instructorId:', error)
+      toast.error('Erro ao carregar dados do instrutor')
+    }
+  }
+
+  const loadDashboardData = async () => {
+    try {
+      if (!instructorId) return
+      setLoading(true)
+      const data = await getInstructorDashboard(instructorId)
+      setDashboardData(data)
+    } catch (error) {
+      console.error('Erro ao carregar dados do dashboard:', error)
+      toast.error('Erro ao carregar dados do dashboard')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getStats = () => {
+    if (!dashboardData) return []
+    
+    return [
+      {
+        title: "Total de Alunos",
+        value: dashboardData.totalStudents.toString(),
+        description: "Alunos ativos",
+        icon: Users,
+        color: "from-blue-500 to-blue-600",
+        textColor: "text-blue-600",
+        bgColor: "bg-blue-50",
+        trend: dashboardData.totalStudents.toString(),
+        trendColor: "text-blue-600",
+      },
+      {
+        title: "Total de Turmas",
+        value: dashboardData.totalClasses.toString(),
+        description: "Turmas ativas",
+        icon: BookOpen,
+        color: "from-green-500 to-green-600",
+        textColor: "text-green-600",
+        bgColor: "bg-green-50",
+        trend: dashboardData.totalClasses.toString(),
+        trendColor: "text-green-600",
+      },
+      {
+        title: "Aulas Agendadas",
+        value: dashboardData.totalScheduledLessons.toString(),
+        description: "Próximas aulas",
+        icon: Calendar,
+        color: "from-purple-500 to-purple-600",
+        textColor: "text-purple-600",
+        bgColor: "bg-purple-50",
+        trend: dashboardData.totalScheduledLessons.toString(),
+        trendColor: "text-purple-600",
+      },
+      {
+        title: "Turmas Concluídas",
+        value: dashboardData.totalCompletedClasses.toString(),
+        description: "Turmas finalizadas",
+        icon: Award,
+        color: "from-orange-500 to-orange-600",
+        textColor: "text-orange-600",
+        bgColor: "bg-orange-50",
+        trend: dashboardData.totalCompletedClasses.toString(),
+        trendColor: "text-orange-600",
+      },
+    ]
+  }
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+    
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} min atrás`
+    } else if (diffInMinutes < 1440) {
+      return `${Math.floor(diffInMinutes / 60)} h atrás`
+    } else {
+      return `${Math.floor(diffInMinutes / 1440)} dias atrás`
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'AGENDADA':
+        return 'bg-blue-100 text-blue-800'
+      case 'EM_ANDAMENTO':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'CONCLUIDA':
+        return 'bg-green-100 text-green-800'
+      case 'CANCELADA':
+        return 'bg-red-100 text-red-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+        <span className="ml-2 text-lg">Carregando dashboard...</span>
+      </div>
+    )
+  }
+
+  if (!dashboardData) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-600">Dados não disponíveis</h3>
+          <p className="text-gray-500 mt-2">Não foi possível carregar os dados do dashboard</p>
+        </div>
+      </div>
+    )
+  }
+
+  const stats = getStats()
 
   return (
     <div className="space-y-6">
@@ -137,142 +184,129 @@ export function InstructorDashboard() {
           <p className="text-gray-600">Gerencie suas aulas e acompanhe seu desempenho</p>
         </div>
         <div className="flex space-x-3">
-          <Button className="bg-blue-500 hover:bg-blue-600">
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Aula
-          </Button>
-          <Button variant="outline">
-            <Calendar className="mr-2 h-4 w-4" />
-            Ver Agenda
+          <Button variant="outline" onClick={() => loadDashboardData()}>
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            Atualizar
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {instructorStats.map((stat, index) => (
+        {stats.map((stat, index) => (
           <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
-              <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                <stat.icon className={`h-4 w-4 ${stat.textColor}`} />
+              <div className={`p-3 rounded-xl ${stat.bgColor} transition-all duration-300`}>
+                <stat.icon className={`h-5 w-5 ${stat.textColor}`} />
               </div>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-                <div className={`text-sm font-medium ${stat.trendColor} flex items-center`}>
-                  {stat.trend}
-                  <ChevronRight className="h-3 w-3 ml-1" />
+                <div className="text-3xl font-bold text-gray-900">{stat.value}</div>
+                <div className="flex items-center space-x-1">
+                  <ArrowUpRight className="h-4 w-4 text-green-500" />
+                  <span className="text-sm text-green-500 font-medium">+{stat.trend}</span>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
+              <p className="text-xs text-gray-500 mt-2">{stat.description}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Próximas Aulas */}
-        <div className="lg:col-span-2">
-          <Card className="border-none shadow-lg">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl font-bold">Próximas Aulas</CardTitle>
-                  <CardDescription>Suas aulas agendadas</CardDescription>
-                </div>
-                <Button variant="outline" size="sm">
-                  Ver Todas
-                </Button>
+      <div className="grid grid-cols-1 gap-6">
+        {/* Calendar and Events */}
+        <Card className="border-none shadow-lg">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold">Calendário e Aulas</CardTitle>
+                <CardDescription>Suas aulas agendadas e eventos</CardDescription>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {nextClasses.map((classItem) => (
-                <div
-                  key={classItem.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{classItem.title}</h3>
-                    <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                      <span className="flex items-center">
-                        <Clock className="h-4 w-4 mr-1" />
-                        {classItem.time}
-                      </span>
-                      <span className="flex items-center">
-                        <CalendarIcon className="h-4 w-4 mr-1" />
-                        {classItem.date}
-                      </span>
-                      <span className="flex items-center">
-                        <Users className="h-4 w-4 mr-1" />
-                        {classItem.students} alunos
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                        {classItem.type}
-                      </span>
-                      <span className="text-xs text-gray-500">{classItem.location}</span>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline">
-                    Gerenciar
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Conquistas Recentes */}
-        <div>
-          <Card className="border-none shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl font-bold">Conquistas Recentes</CardTitle>
-              <CardDescription>Seus últimos sucessos</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentAchievements.map((achievement, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className={`p-2 rounded-lg bg-gray-50`}>
-                    <achievement.icon className={`h-4 w-4 ${achievement.color}`} />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{achievement.title}</h4>
-                    <p className="text-sm text-gray-600">{achievement.description}</p>
-                    <p className="text-xs text-gray-400 mt-1">{achievement.date}</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+              <Button variant="outline" size="sm">
+                <Calendar className="mr-2 h-4 w-4" />
+                Ver Todas
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <CalendarWithEvents
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+              lessons={dashboardData.scheduledLessons.map(lesson => ({
+                ...lesson,
+                instructorName: user?.name || 'Instrutor'
+              }))}
+              className="w-full"
+            />
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Calendar */}
+      {/* Upcoming Lessons */}
       <Card className="border-none shadow-lg">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-xl font-bold">Agenda Semanal</CardTitle>
-              <CardDescription>Suas aulas e compromissos</CardDescription>
+              <CardTitle className="text-xl font-bold">Próximas Aulas</CardTitle>
+              <CardDescription>Suas aulas agendadas para os próximos dias</CardDescription>
             </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm">
-                Semana Anterior
-              </Button>
-              <Button variant="outline" size="sm">
-                Próxima Semana
-              </Button>
-            </div>
+            <Button variant="outline" size="sm">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              Ver Agenda Completa
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {/* <WeeklyTimelineCalendar /> */}
-          <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-            <p className="text-gray-600">Timeline temporariamente desabilitado</p>
-          </div>
+          {dashboardData.scheduledLessons.length > 0 ? (
+            <div className="space-y-4">
+              {dashboardData.scheduledLessons.map((lesson) => (
+                <div
+                  key={lesson.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">{lesson.title}</h3>
+                    <p className="text-sm text-gray-600 mt-1">{lesson.description}</p>
+                    <div className="flex items-center space-x-4 text-sm text-gray-500 mt-2">
+                      <span className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        {format(new Date(lesson.startDate), 'dd/MM/yyyy HH:mm', { locale: ptBR })} - 
+                        {format(new Date(lesson.endDate), 'HH:mm', { locale: ptBR })}
+                      </span>
+                      <span className="flex items-center">
+                        <Building2 className="h-4 w-4 mr-1" />
+                        {lesson.clientName}
+                      </span>
+                      {lesson.location && (
+                        <span className="flex items-center">
+                          <MapPin className="h-4 w-4 mr-1" />
+                          {lesson.location}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <Badge className={getStatusColor(lesson.status)}>
+                        {lesson.status}
+                      </Badge>
+                      <span className="text-xs text-gray-500">{lesson.className}</span>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline">
+                    <ArrowUpRight className="h-4 w-4 mr-1" />
+                    Detalhes
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Calendar className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+              <p>Nenhuma aula agendada no momento</p>
+              <p className="text-sm mt-1">Suas próximas aulas aparecerão aqui</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
