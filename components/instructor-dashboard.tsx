@@ -224,9 +224,12 @@ export function InstructorDashboard() {
                 <CardTitle className="text-xl font-bold">Calendário e Aulas</CardTitle>
                 <CardDescription>Suas aulas agendadas e eventos</CardDescription>
               </div>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => {
+                // Usar o sistema de navegação da aplicação
+                window.dispatchEvent(new CustomEvent('navigate', { detail: 'instructor-classes' }))
+              }}>
                 <Calendar className="mr-2 h-4 w-4" />
-                Ver Todas
+                Ver Todas as Turmas
               </Button>
             </div>
           </CardHeader>

@@ -269,6 +269,22 @@ export const getLightInstructors = async () => {
   }
 }
 
+export const getInstructorClasses = async (page: number = 1, limit: number = 10, search?: string) => {
+  try {
+    const response = await api.get('/superadmin/instructor-classes', {
+      params: {
+        page,
+        limit,
+        search
+      }
+    })
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar classes do instrutor:', error)
+    throw error
+  }
+}
+
 export interface CreateInstructorUserDto {
   userId?: string
   isActive?: boolean

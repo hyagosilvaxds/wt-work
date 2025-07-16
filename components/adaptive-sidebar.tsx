@@ -71,7 +71,11 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
   
   // Turmas/Aulas
   if (hasPermission('VIEW_CLASSES') || hasPermission('VIEW_OWN_CLASSES')) {
-    items.push({ id: "classes", label: "Turmas", icon: UsersRound, badge: null })
+    if (isInstructor) {
+      items.push({ id: "instructor-classes", label: "Minhas Turmas", icon: UsersRound, badge: null })
+    } else {
+      items.push({ id: "classes", label: "Turmas", icon: UsersRound, badge: null })
+    }
   }
   
   // Clientes - OCULTO para instrutores

@@ -45,7 +45,7 @@ interface TurmaData {
     durationHours: number
     validityDays: number
   }
-  instructor: {
+  instructor?: {
     id: string
     name: string
     email?: string
@@ -326,7 +326,7 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-500">Instrutor</Label>
-                  <p className="text-sm font-medium">{turma.instructor.name}</p>
+                  <p className="text-sm font-medium">{turma.instructor?.name || "Instrutor não informado"}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-500">Período da Turma</Label>

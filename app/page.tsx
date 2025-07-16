@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AdaptiveSidebar } from "@/components/adaptive-sidebar"
 import { Header } from "@/components/header"
 import AdaptiveDashboard from "@/components/adaptive-dashboard"
@@ -16,12 +16,26 @@ import { CertificateExamplePage } from "@/components/certificate-example-page"
 import { ReportsPage } from "@/components/reports-page"
 import { FinancialModule } from "@/components/financial/financial-module"
 import { SettingsPage } from "@/components/settings-page-simple"
+import { InstructorClassesPage } from "@/components/instructor-classes-page"
 import ProtectedRoute from "@/components/protected-route"
 import { useAuth } from "@/hooks/use-auth"
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const { isClient } = useAuth()
+
+  // Escutar eventos de navegação personalizada
+  useEffect(() => {
+    const handleNavigate = (event: CustomEvent) => {
+      handleSetActiveTab(event.detail)
+    }
+    
+    window.addEventListener('navigate', handleNavigate as EventListener)
+    
+    return () => {
+      window.removeEventListener('navigate', handleNavigate as EventListener)
+    }
+  }, [])
 
   // Função para definir a aba ativa com validação para clientes
   const handleSetActiveTab = (tab: string) => {
@@ -43,6 +57,8 @@ export default function Home() {
         return <TrainingsPage />
       case "classes":
         return <TurmasPage />
+      case "instructor-classes":
+        return <InstructorClassesPage />
       case "my-classes":
         return <TurmasPage isClientView={true} />
       case "instructors":

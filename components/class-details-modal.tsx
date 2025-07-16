@@ -62,7 +62,7 @@ interface TurmaData {
     isActive: boolean
     validityDays: number
   }
-  instructor: {
+  instructor?: {
     id: string
     name: string
     email?: string
@@ -529,9 +529,9 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                     <CardContent className="space-y-4">
                       <div>
                         <label className="text-sm font-medium text-gray-500">Nome</label>
-                        <p className="text-sm">{turma.instructor.name}</p>
+                        <p className="text-sm">{turma.instructor?.name || "Instrutor não informado"}</p>
                       </div>
-                      {turma.instructor.email && (
+                      {turma.instructor?.email && (
                         <div>
                           <label className="text-sm font-medium text-gray-500">Email</label>
                           <p className="text-sm flex items-center gap-2">
@@ -540,7 +540,7 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                           </p>
                         </div>
                       )}
-                      {turma.instructor.cpf && (
+                      {turma.instructor?.cpf && (
                         <div>
                           <label className="text-sm font-medium text-gray-500">CPF</label>
                           <p className="text-sm flex items-center gap-2">
@@ -549,7 +549,7 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                           </p>
                         </div>
                       )}
-                      {turma.instructor.education && (
+                      {turma.instructor?.education && (
                         <div>
                           <label className="text-sm font-medium text-gray-500">Formação</label>
                           <p className="text-sm">{turma.instructor.education}</p>
@@ -557,7 +557,7 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                       )}
                       <div>
                         <label className="text-sm font-medium text-gray-500">Tipo</label>
-                        <p className="text-sm">{turma.instructor.personType}</p>
+                        <p className="text-sm">{turma.instructor?.personType || "Não informado"}</p>
                       </div>
                     </CardContent>
                   </Card>

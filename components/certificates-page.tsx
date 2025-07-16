@@ -16,7 +16,8 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Package
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { getFinishedClasses, getFinishedClassesByClient, getFinishedClassesByInstructor, createCertificate, getUserClientId, getUserInstructorId } from "@/lib/api/superadmin"
 import { CertificateGeneratorModal } from "./certificate-generator-modal"
+import { generateBatchCertificatesPDFWithSignature, CertificateData } from "@/lib/certificate-generator"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -49,6 +51,7 @@ export function CertificatesPage() {
   const [showCertificateModal, setShowCertificateModal] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [pendingCertificate, setPendingCertificate] = useState<{student: any, classData: any} | null>(null)
+  const [batchGenerating, setBatchGenerating] = useState(false)
   const [clientId, setClientId] = useState<string | null>(null)
   const [instructorId, setInstructorId] = useState<string | null>(null)
 
@@ -228,6 +231,73 @@ export function CertificatesPage() {
     return hasAbsences ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />
   }
 
+  const handleBatchGenerate = async (classItem: any) => {
+    try {
+      setBatchGenerating(true)
+      
+      // Filtrar apenas estudantes sem faltas
+      const eligibleStudents = classItem.students?.filter((student: any) => {
+        const attendanceInfo = getAttendanceInfo(student)
+        return !attendanceInfo.hasAbsences
+      }) || []
+
+      if (eligibleStudents.length === 0) {
+        toast.error('Nenhum estudante sem faltas encontrado para gerar certificados')
+        return
+      }
+
+      // Preparar dados dos certificados
+      const certificates: CertificateData[] = eligibleStudents.map((student: any) => {
+        const startDate = classItem.startDate ? new Date(classItem.startDate).toLocaleDateString('pt-BR') : ''
+        const endDate = classItem.endDate ? new Date(classItem.endDate).toLocaleDateString('pt-BR') : ''
+        
+        return {
+          studentName: student.name,
+          trainingName: classItem.training?.title || 'Treinamento',
+          instructorName: classItem.instructor?.name || 'Instrutor',
+          issueDate: new Date().toLocaleDateString('pt-BR'),
+          validationCode: `${classItem.id}-${student.id}`.slice(-12).toUpperCase(),
+          workload: `${classItem.training?.durationHours || 0} horas`,
+          company: classItem.client?.name,
+          location: classItem.location,
+          startDate,
+          endDate
+        }
+      })
+
+      // Gerar PDF em lote
+      await generateBatchCertificatesPDFWithSignature(
+        certificates,
+        classItem.instructor?.id,
+        classItem.training?.title
+      )
+
+      // Salvar certificados no banco de dados
+      const savePromises = eligibleStudents.map(async (student: any) => {
+        try {
+          await createCertificate({
+            studentId: student.id,
+            trainingId: classItem.training.id,
+            instructorId: classItem.instructor.id,
+            classId: classItem.id
+          })
+        } catch (error) {
+          console.error(`Erro ao salvar certificado para ${student.name}:`, error)
+        }
+      })
+
+      await Promise.all(savePromises)
+
+      toast.success(`${eligibleStudents.length} certificados gerados com sucesso!`)
+      
+    } catch (error) {
+      console.error('Erro ao gerar certificados em lote:', error)
+      toast.error('Erro ao gerar certificados em lote')
+    } finally {
+      setBatchGenerating(false)
+    }
+  }
+
   const handleCertificateGenerated = async (certificateData: any) => {
     try {
       // Criar o certificado no banco de dados
@@ -336,12 +406,12 @@ export function CertificatesPage() {
       <div className="space-y-6">
         {filteredGroups.map((classItem) => (
           <Card key={classItem.id} className="border-none shadow-md hover:shadow-lg transition-all duration-300">
-            <CardHeader
-              className="cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
-              onClick={() => toggleGroupExpansion(classItem.id)}
-            >
+            <CardHeader className="bg-gray-50">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+                <div 
+                  className="flex items-center space-x-4 cursor-pointer flex-1"
+                  onClick={() => toggleGroupExpansion(classItem.id)}
+                >
                   <div className="p-2 bg-primary-500 rounded-lg">
                     <Award className="h-5 w-5 text-white" />
                   </div>
@@ -372,7 +442,44 @@ export function CertificatesPage() {
                     }
                     return null
                   })()}
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  
+                  {/* Botão de geração em lote */}
+                  {(() => {
+                    const eligibleStudents = classItem.students?.filter((student: any) => {
+                      const attendanceInfo = getAttendanceInfo(student)
+                      return !attendanceInfo.hasAbsences
+                    }) || []
+                    
+                    if (eligibleStudents.length > 0) {
+                      return (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleBatchGenerate(classItem)
+                          }}
+                          disabled={batchGenerating}
+                          className="gap-2"
+                        >
+                          {batchGenerating ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Package className="h-4 w-4" />
+                          )}
+                          Gerar Lote ({eligibleStudents.length})
+                        </Button>
+                      )
+                    }
+                    return null
+                  })()}
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    onClick={() => toggleGroupExpansion(classItem.id)}
+                  >
                     {expandedGroups.includes(classItem.id) ? (
                       <ChevronUp className="h-4 w-4" />
                     ) : (
@@ -426,6 +533,36 @@ export function CertificatesPage() {
                             return <p className="text-sm text-green-600 font-medium">Válido por {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}</p>
                           }
                         })()}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <div>
+                        <p className="text-sm font-medium">Sem Faltas</p>
+                        <p className="text-sm text-green-600">
+                          {(() => {
+                            const eligibleStudents = classItem.students?.filter((student: any) => {
+                              const attendanceInfo = getAttendanceInfo(student)
+                              return !attendanceInfo.hasAbsences
+                            }) || []
+                            return `${eligibleStudents.length} estudante${eligibleStudents.length !== 1 ? 's' : ''}`
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <XCircle className="h-4 w-4 text-red-500" />
+                      <div>
+                        <p className="text-sm font-medium">Com Faltas</p>
+                        <p className="text-sm text-red-600">
+                          {(() => {
+                            const studentsWithAbsences = classItem.students?.filter((student: any) => {
+                              const attendanceInfo = getAttendanceInfo(student)
+                              return attendanceInfo.hasAbsences
+                            }) || []
+                            return `${studentsWithAbsences.length} estudante${studentsWithAbsences.length !== 1 ? 's' : ''}`
+                          })()}
+                        </p>
                       </div>
                     </div>
                   </div>
