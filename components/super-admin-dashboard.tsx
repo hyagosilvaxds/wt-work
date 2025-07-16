@@ -12,9 +12,7 @@ import {
   CalendarIcon,
   ChevronRight,
   Target,
-  Zap,
   ArrowUpRight,
-  Plus,
   Building2,
   UserCheck,
   CheckCircle,
@@ -161,33 +159,6 @@ export function SuperAdminDashboard() {
   }
 
   const stats = getStats()
-
-  const quickActions = [
-    {
-      title: "Novo Aluno",
-      icon: Users,
-      color: "from-blue-500 to-blue-600",
-      description: "Cadastrar novo aluno",
-    },
-    {
-      title: "Novo Curso",
-      icon: BookOpen,
-      color: "from-green-500 to-green-600",
-      description: "Criar novo treinamento",
-    },
-    {
-      title: "Agendar",
-      icon: CalendarIcon,
-      color: "from-purple-500 to-purple-600",
-      description: "Agendar nova aula",
-    },
-    {
-      title: "Certificados",
-      icon: Award,
-      color: "from-orange-500 to-orange-600",
-      description: "Emitir certificado",
-    },
-  ]
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -524,46 +495,6 @@ export function SuperAdminDashboard() {
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <Card className="border-none shadow-lg hover:shadow-xl transition-all duration-300 bg-white overflow-hidden">
-        <div className="bg-green-50 p-6 border-b">
-          <CardTitle className="flex items-center text-xl font-bold text-gray-900">
-            <div className="p-2 bg-green-600 rounded-lg mr-3">
-              <Zap className="h-5 w-5 text-white" />
-            </div>
-            Ações Rápidas
-          </CardTitle>
-          <CardDescription className="text-gray-600 mt-2">Acesso rápido às funcionalidades</CardDescription>
-        </div>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => {
-              const Icon = action.icon
-              return (
-                <Button
-                  key={index}
-                  className={`h-auto py-6 flex flex-col items-center justify-center bg-gradient-to-br ${action.color} hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 text-white border-none rounded-xl group`}
-                >
-                  <Icon className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
-                  <span className="font-medium">{action.title}</span>
-                  <span className="text-xs opacity-90 mt-1">{action.description}</span>
-                </Button>
-              )
-            })}
-          </div>
-          <Button
-            variant="outline"
-            className="w-full mt-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-all duration-200"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Personalizar ações
-          </Button>
         </CardContent>
       </Card>
     </div>

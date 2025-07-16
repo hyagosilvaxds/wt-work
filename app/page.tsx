@@ -12,6 +12,7 @@ import { ClientsPage } from "@/components/clients-page"
 import { GroupsPage } from "@/components/groups-page"
 import { RoomsPage } from "@/components/rooms-page"
 import { CertificatesPage } from "@/components/certificates-page"
+import { CertificateExamplePage } from "@/components/certificate-example-page"
 import { ReportsPage } from "@/components/reports-page"
 import { FinancialModule } from "@/components/financial/financial-module"
 import { SettingsPage } from "@/components/settings-page-simple"
@@ -54,6 +55,8 @@ export default function Home() {
         return <RoomsPage />
       case "certificates":
         return <CertificatesPage />
+      case "certificate-generator":
+        return <CertificateExamplePage />
       case "financial":
         return <FinancialModule />
       case "reports":

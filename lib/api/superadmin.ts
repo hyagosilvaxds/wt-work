@@ -1200,3 +1200,368 @@ export const getUserClientId = async (userId: string) => {
     }
 };
 
+// ============ SIGNATURES MANAGEMENT ============
+
+export interface SignatureData {
+  id: string
+  instructorId: string
+  pngPath: string
+  createdAt: string
+  updatedAt: string
+  instructor: {
+    id: string
+    name: string
+    email: string | null
+  }
+}
+
+export interface UploadSignatureData {
+  instructorId: string
+  signature: File
+}
+
+export interface SignaturesResponse {
+  signatures: SignatureData[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
+// Upload de assinatura para instrutor
+export const uploadSignature = async (instructorId: string, file: File) => {
+  try {
+    const formData = new FormData()
+    formData.append('signature', file)
+    formData.append('instructorId', instructorId)
+
+    const response = await api.post('/superadmin/signatures/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao fazer upload da assinatura:', error)
+    throw error
+  }
+}
+
+// Buscar assinatura por ID do instrutor
+export const getSignatureByInstructorId = async (instructorId: string) => {
+  try {
+    const response = await api.get(`/superadmin/signatures/instructor/${instructorId}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar assinatura do instrutor:', error)
+    throw error
+  }
+}
+
+// Listar todas as assinaturas
+export const getAllSignatures = async (page: number = 1, limit: number = 10, search?: string) => {
+  try {
+    const response = await api.get('/superadmin/signatures', {
+      params: {
+        page,
+        limit,
+        search
+      }
+    })
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar assinaturas:', error)
+    throw error
+  }
+}
+
+// Deletar assinatura
+export const deleteSignature = async (instructorId: string) => {
+  try {
+    const response = await api.delete(`/superadmin/signatures/instructor/${instructorId}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao deletar assinatura:', error)
+    throw error
+  }
+}
+
+// ============ CERTIFICATES MANAGEMENT ============
+
+export interface CertificateData {
+  id?: string
+  studentId: string
+  studentName: string
+  trainingId: string
+  trainingName: string
+  instructorId: string
+  instructorName: string
+  issueDate: string
+  validationCode: string
+  workload: string
+  company?: string
+  location?: string
+  startDate?: string
+  endDate?: string
+  classId?: string
+}
+
+export interface CreateCertificateData {
+  studentId: string
+  trainingId: string
+  instructorId: string
+  classId?: string
+  validationCode?: string
+  issueDate?: string
+}
+
+export interface CertificatesResponse {
+  certificates: CertificateData[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
+// Buscar certificados
+export const getCertificates = async (page: number = 1, limit: number = 10, search?: string) => {
+  try {
+    const response = await api.get('/superadmin/certificates', {
+      params: {
+        page,
+        limit,
+        search
+      }
+    })
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar certificados:', error)
+    throw error
+  }
+}
+
+// Criar certificado
+export const createCertificate = async (certificateData: CreateCertificateData) => {
+  try {
+    const response = await api.post('/superadmin/certificates', certificateData)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao criar certificado:', error)
+    throw error
+  }
+}
+
+// Buscar certificado por ID
+export const getCertificateById = async (id: string) => {
+  try {
+    const response = await api.get(`/superadmin/certificates/${id}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar certificado por ID:', error)
+    throw error
+  }
+}
+
+// Atualizar certificado
+export const updateCertificate = async (id: string, updateData: Partial<CertificateData>) => {
+  try {
+    const response = await api.patch(`/superadmin/certificates/${id}`, updateData)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao atualizar certificado:', error)
+    throw error
+  }
+}
+
+// Deletar certificado
+export const deleteCertificate = async (id: string) => {
+  try {
+    const response = await api.delete(`/superadmin/certificates/${id}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao deletar certificado:', error)
+    throw error
+  }
+}
+
+// Gerar certificado em lote para uma turma
+export const generateBatchCertificates = async (classId: string) => {
+  try {
+    const response = await api.post(`/superadmin/classes/${classId}/certificates/batch`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao gerar certificados em lote:', error)
+    throw error
+  }
+}
+
+// Buscar certificados por turma
+export const getCertificatesByClass = async (classId: string) => {
+  try {
+    const response = await api.get(`/superadmin/classes/${classId}/certificates`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar certificados da turma:', error)
+    throw error
+  }
+}
+
+// Buscar certificados por estudante
+export const getCertificatesByStudent = async (studentId: string) => {
+  try {
+    const response = await api.get(`/superadmin/students/${studentId}/certificates`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar certificados do estudante:', error)
+    throw error
+  }
+}
+
+// ============ FINISHED CLASSES MANAGEMENT ============
+
+export interface FinishedClassData {
+  id: string
+  status: 'CONCLUIDO'
+  startDate: string
+  endDate: string
+  location?: string
+  observations?: string
+  training: {
+    id: string
+    title: string
+    description?: string
+    durationHours: number
+    validityDays?: number
+  }
+  instructor: {
+    id: string
+    name: string
+    email?: string
+    corporateName?: string
+  }
+  client: {
+    id: string
+    name: string
+    email?: string
+    cpf?: string
+    cnpj?: string
+  }
+  students: {
+    id: string
+    name: string
+    email?: string
+    cpf?: string
+    birthDate?: string
+    mobileAreaCode?: string
+    mobileNumber?: string
+    landlineAreaCode?: string
+    landlineNumber?: string
+    address?: string
+    city?: string
+    state?: string
+    zipCode?: string
+    createdAt: string
+  }[]
+  lessons: {
+    id: string
+    title: string
+    startDate: string
+    endDate: string
+    status?: string
+  }[]
+}
+
+export interface FinishedClassesResponse {
+  classes: FinishedClassData[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
+// Buscar todas as classes finalizadas
+export const getFinishedClasses = async (page: number = 1, limit: number = 10, search?: string) => {
+  try {
+    console.log('Calling getFinishedClasses with params:', { page, limit, search })
+    
+    const response = await api.get('/superadmin/classes/finished', {
+      params: {
+        page,
+        limit,
+        search
+      }
+    })
+    
+    console.log('getFinishedClasses response:', response)
+    console.log('getFinishedClasses response.data:', response.data)
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar classes finalizadas:', error)
+    throw error
+  }
+}
+
+// Buscar classes finalizadas por ID do cliente
+export const getFinishedClassesByClient = async (clientId: string, page: number = 1, limit: number = 10, search?: string) => {
+  try {
+    console.log('Calling getFinishedClassesByClient with params:', { clientId, page, limit, search })
+    
+    // Validação básica
+    if (!clientId || clientId.trim() === '') {
+      throw new Error('ID do cliente é obrigatório')
+    }
+    
+    const response = await api.get(`/superadmin/classes/finished/client/${clientId}`, {
+      params: {
+        page,
+        limit,
+        search
+      }
+    })
+    
+    console.log('getFinishedClassesByClient response:', response)
+    console.log('getFinishedClassesByClient response.data:', response.data)
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar classes finalizadas do cliente:', error)
+    throw error
+  }
+}
+
+// Buscar classes finalizadas por ID do instrutor
+export const getFinishedClassesByInstructor = async (instructorId: string, page: number = 1, limit: number = 10, search?: string) => {
+  try {
+    console.log('Calling getFinishedClassesByInstructor with params:', { instructorId, page, limit, search })
+    
+    // Validação básica
+    if (!instructorId || instructorId.trim() === '') {
+      throw new Error('ID do instrutor é obrigatório')
+    }
+    
+    const response = await api.get(`/superadmin/classes/finished/instructor/${instructorId}`, {
+      params: {
+        page,
+        limit,
+        search
+      }
+    })
+    
+    console.log('getFinishedClassesByInstructor response:', response)
+    console.log('getFinishedClassesByInstructor response.data:', response.data)
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar classes finalizadas do instrutor:', error)
+    throw error
+  }
+}
+

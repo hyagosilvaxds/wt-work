@@ -69,6 +69,7 @@ export default function DashboardContent() {
       bgColor: "bg-orange-50",
       permission: "VIEW_TRAININGS"
     },
+    /*
     {
       title: "Receita Total",
       value: "R$ 89,245",
@@ -89,6 +90,7 @@ export default function DashboardContent() {
       bgColor: "bg-red-50",
       permission: "VIEW_ACCOUNTS_RECEIVABLE"
     },
+    */
     {
       title: "Turmas Ativas",
       value: "28",
@@ -177,18 +179,22 @@ export default function DashboardContent() {
               Novo Treinamento
             </Button>
           )}
+          {/* Temporariamente oculto - relatórios
           {hasPermission('VIEW_REPORTS') && (
             <Button variant="outline">
               <BarChart3 className="h-4 w-4 mr-2" />
               Relatórios
             </Button>
           )}
+          */}
+          {/* Temporariamente oculto - financeiro
           {hasPermission('VIEW_FINANCIAL') && (
             <Button variant="outline">
               <DollarSign className="h-4 w-4 mr-2" />
               Financeiro
             </Button>
           )}
+          */}
         </div>
       </div>
 
@@ -224,7 +230,7 @@ export default function DashboardContent() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-8">
         {/* Simple Chart */}
         <Card>
           <CardHeader>
@@ -268,7 +274,7 @@ export default function DashboardContent() {
           </CardContent>
         </Card>
 
-        {/* Financial Overview */}
+        {/* Temporariamente oculto - Financial Overview
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -303,6 +309,7 @@ export default function DashboardContent() {
             </div>
           </CardContent>
         </Card>
+        */}
       </div>
 
       {/* Events Calendar */}

@@ -23,6 +23,7 @@ import {
   ClipboardList,
   Play,
   Download,
+  FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -83,15 +84,18 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
     items.push({ id: "certificates", label: "Certificados", icon: Award, badge: null })
   }
   
-  // Financeiro
-  if (hasPermission('VIEW_FINANCIAL') || hasPermission('VIEW_ACCOUNTS_RECEIVABLE') || hasPermission('VIEW_ACCOUNTS_PAYABLE') || hasPermission('VIEW_CASH_FLOW')) {
-    items.push({ id: "financial", label: "Financeiro", icon: DollarSign, badge: null })
-  }
+  // Gerador de Certificados (temporário para demonstração)
+  // Gerador de certificados removido do menu - integrado na tela de certificados
   
-  // Relatórios
-  if (hasPermission('VIEW_REPORTS') || hasPermission('VIEW_FINANCIAL_REPORTS') || hasPermission('VIEW_ANALYTICS')) {
-    items.push({ id: "reports", label: "Relatórios", icon: BarChart3, badge: null })
-  }
+  // Financeiro - TEMPORARIAMENTE OCULTO
+  // if (hasPermission('VIEW_FINANCIAL') || hasPermission('VIEW_ACCOUNTS_RECEIVABLE') || hasPermission('VIEW_ACCOUNTS_PAYABLE') || hasPermission('VIEW_CASH_FLOW')) {
+  //   items.push({ id: "financial", label: "Financeiro", icon: DollarSign, badge: null })
+  // }
+  
+  // Relatórios - TEMPORARIAMENTE OCULTO
+  // if (hasPermission('VIEW_REPORTS') || hasPermission('VIEW_FINANCIAL_REPORTS') || hasPermission('VIEW_ANALYTICS')) {
+  //   items.push({ id: "reports", label: "Relatórios", icon: BarChart3, badge: null })
+  // }
   
   // Configurações/Roles
   if (hasPermission('VIEW_ROLES') || hasPermission('MANAGE_USERS') || hasPermission('EDIT_PROFILE')) {

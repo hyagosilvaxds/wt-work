@@ -1,0 +1,458 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Upload, Eye, Trash2, Search, X, FileImage, User, Calendar } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { 
+  getAllSignatures, 
+  getSignatureByInstructorId, 
+  uploadSignature, 
+  deleteSignature,
+  SignatureData,
+  SignaturesResponse
+} from "@/lib/api/superadmin"
+import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
+import { toast } from "sonner"
+
+interface SignatureUploadModalProps {
+  instructorId: string
+  instructorName: string
+  onSignatureUploaded: () => void
+  existingSignature?: SignatureData | null
+}
+
+function SignatureUploadModal({ 
+  instructorId, 
+  instructorName, 
+  onSignatureUploaded, 
+  existingSignature 
+}: SignatureUploadModalProps) {
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (selectedFile) {
+      if (selectedFile.type.startsWith('image/')) {
+        setFile(selectedFile)
+        const url = URL.createObjectURL(selectedFile)
+        setPreviewUrl(url)
+      } else {
+        toast.error('Apenas arquivos de imagem são permitidos')
+      }
+    }
+  }
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!file) {
+      toast.error('Selecione um arquivo para fazer upload')
+      return
+    }
+
+    try {
+      setUploading(true)
+      await uploadSignature(instructorId, file)
+      toast.success(existingSignature ? 'Assinatura atualizada com sucesso!' : 'Assinatura criada com sucesso!')
+      onSignatureUploaded()
+      setOpen(false)
+      setFile(null)
+      setPreviewUrl(null)
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error)
+      toast.error('Erro ao fazer upload da assinatura')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const resetForm = () => {
+    setFile(null)
+    setPreviewUrl(null)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      setOpen(newOpen)
+      if (!newOpen) resetForm()
+    }}>
+      <DialogTrigger asChild>
+        <Button variant={existingSignature ? "outline" : "default"}>
+          <Upload className="mr-2 h-4 w-4" />
+          {existingSignature ? 'Atualizar' : 'Fazer Upload'}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>
+            {existingSignature ? 'Atualizar Assinatura' : 'Fazer Upload de Assinatura'}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleUpload} className="space-y-4">
+          <div>
+            <Label htmlFor="instructor">Instrutor</Label>
+            <Input
+              id="instructor"
+              value={instructorName}
+              disabled
+              className="bg-gray-50"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="signature">Arquivo de Assinatura</Label>
+            <Input
+              id="signature"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="cursor-pointer"
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              Formatos aceitos: PNG, JPG, JPEG (máximo 5MB)
+            </p>
+          </div>
+
+          {previewUrl && (
+            <div className="border rounded-lg p-4">
+              <Label>Prévia:</Label>
+              <div className="mt-2 flex justify-center">
+                <img 
+                  src={previewUrl} 
+                  alt="Prévia da assinatura" 
+                  className="max-w-full max-h-48 object-contain border rounded"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button 
+              type="button"
+              variant="outline" 
+              onClick={() => setOpen(false)}
+              disabled={uploading}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="submit"
+              disabled={!file || uploading}
+            >
+              {uploading ? 'Enviando...' : (existingSignature ? 'Atualizar' : 'Fazer Upload')}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+interface SignatureViewModalProps {
+  signature: SignatureData
+}
+
+function SignatureViewModal({ signature }: SignatureViewModalProps) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Eye className="mr-2 h-4 w-4" />
+          Visualizar
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[800px]">
+        <DialogHeader>
+          <DialogTitle>Assinatura - {signature.instructor.name}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="flex justify-center">
+            <img 
+              src={signature.pngPath} 
+              alt={`Assinatura de ${signature.instructor.name}`}
+              className="max-w-full max-h-96 object-contain border rounded"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <Label>Instrutor:</Label>
+              <p className="font-medium">{signature.instructor.name}</p>
+            </div>
+            <div>
+              <Label>Email:</Label>
+              <p className="font-medium">{signature.instructor.email || 'N/A'}</p>
+            </div>
+            <div>
+              <Label>Criada em:</Label>
+              <p className="font-medium">
+                {format(new Date(signature.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+              </p>
+            </div>
+            <div>
+              <Label>Atualizada em:</Label>
+              <p className="font-medium">
+                {format(new Date(signature.updatedAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+              </p>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function SignaturesPage() {
+  const [signatures, setSignatures] = useState<SignatureData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [searchInput, setSearchInput] = useState("")
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1
+  })
+
+  // Buscar assinaturas com debounce
+  const fetchSignatures = useCallback(async (page = 1, search = "") => {
+    try {
+      setLoading(true)
+      const response: SignaturesResponse = await getAllSignatures(page, pagination.limit, search || undefined)
+      setSignatures(response.signatures)
+      setPagination(response.pagination)
+    } catch (error) {
+      console.error('Erro ao buscar assinaturas:', error)
+      toast.error('Erro ao carregar assinaturas')
+    } finally {
+      setLoading(false)
+    }
+  }, [pagination.limit])
+
+  // Effect para buscar assinaturas quando a página ou termo de busca mudam
+  useEffect(() => {
+    fetchSignatures(1, searchTerm)
+  }, [searchTerm, fetchSignatures])
+
+  // Effect para debounce da busca
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  // Limpar busca
+  const clearSearch = () => {
+    setSearchInput("")
+    setSearchTerm("")
+  }
+
+  // Navegar para página específica
+  const goToPage = (page: number) => {
+    fetchSignatures(page, searchTerm)
+  }
+
+  // Atualizar lista após upload
+  const handleSignatureUploaded = () => {
+    fetchSignatures(pagination.page, searchTerm)
+  }
+
+  // Deletar assinatura
+  const handleDelete = async (signature: SignatureData) => {
+    if (window.confirm(`Tem certeza que deseja deletar a assinatura de ${signature.instructor.name}?`)) {
+      try {
+        await deleteSignature(signature.instructorId)
+        toast.success('Assinatura deletada com sucesso!')
+        
+        // Verificar se precisa voltar uma página
+        const targetPage = signatures.length === 1 && pagination.page > 1 
+          ? pagination.page - 1 
+          : pagination.page
+        fetchSignatures(targetPage, searchTerm)
+      } catch (error) {
+        console.error('Erro ao deletar assinatura:', error)
+        toast.error('Erro ao deletar assinatura')
+      }
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Assinaturas</h2>
+          <p className="text-gray-600">
+            {loading 
+              ? "Carregando assinaturas..." 
+              : `${pagination.total} assinatura(s) cadastrada(s)`
+            }
+          </p>
+        </div>
+      </div>
+
+      {/* Barra de Busca */}
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Buscar por nome do instrutor..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-10 pr-10"
+          />
+          {searchInput && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSearch}
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        {searchTerm && (
+          <Badge variant="secondary" className="flex items-center space-x-2">
+            <span>Busca ativa: "{searchTerm}"</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSearch}
+              className="h-4 w-4 p-0 ml-2"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </Badge>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {signatures.map((signature) => (
+              <Card key={signature.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg flex items-center">
+                        <FileImage className="mr-2 h-5 w-5 text-blue-500" />
+                        {signature.instructor.name}
+                      </CardTitle>
+                      {signature.instructor.email && (
+                        <p className="text-sm text-gray-600 mt-1">{signature.instructor.email}</p>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center text-sm text-gray-600">
+                      <User className="mr-2 h-4 w-4" />
+                      ID: {signature.instructorId}
+                    </div>
+                    
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Criada em: {format(new Date(signature.createdAt), 'dd/MM/yyyy', { locale: ptBR })}
+                    </div>
+                    
+                    <div className="border rounded-lg p-2 bg-gray-50">
+                      <img 
+                        src={signature.pngPath} 
+                        alt={`Assinatura de ${signature.instructor.name}`}
+                        className="w-full h-20 object-contain"
+                      />
+                    </div>
+
+                    <div className="flex space-x-2 mt-4">
+                      <SignatureViewModal signature={signature} />
+                      <SignatureUploadModal
+                        instructorId={signature.instructorId}
+                        instructorName={signature.instructor.name}
+                        onSignatureUploaded={handleSignatureUploaded}
+                        existingSignature={signature}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(signature)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Paginação */}
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-center space-x-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => goToPage(pagination.page - 1)}
+                disabled={pagination.page === 1}
+              >
+                Anterior
+              </Button>
+              
+              {[...Array(pagination.totalPages)].map((_, i) => (
+                <Button
+                  key={i + 1}
+                  variant={pagination.page === i + 1 ? "default" : "outline"}
+                  onClick={() => goToPage(i + 1)}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+              
+              <Button
+                variant="outline"
+                onClick={() => goToPage(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+              >
+                Próxima
+              </Button>
+            </div>
+          )}
+
+          {signatures.length === 0 && (
+            <div className="text-center py-12">
+              <FileImage className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma assinatura encontrada</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchTerm 
+                  ? `Não encontramos assinaturas com o termo "${searchTerm}". Tente buscar por outro termo.`
+                  : 'Não há assinaturas cadastradas ainda.'
+                }
+              </p>
+              {searchTerm && (
+                <Button onClick={clearSearch} variant="outline" className="mt-4">
+                  Limpar Busca
+                </Button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
