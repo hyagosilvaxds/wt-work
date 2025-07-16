@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Search, UserPlus, UserMinus, X, Users } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 import { getStudents, addStudentsToClass, removeStudentsFromClass } from "@/lib/api/superadmin"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -36,6 +37,7 @@ interface ClassStudentsModalProps {
 
 export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma }: ClassStudentsModalProps) {
   const { toast } = useToast()
+  const { isClient } = useAuth()
   const [loading, setLoading] = useState(false)
   const [allStudents, setAllStudents] = useState<Student[]>([])
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
@@ -272,23 +274,25 @@ export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma }: ClassS
                           {student.email} • CPF: {student.cpf}
                         </p>
                       </div>
-                      <Button
-                        variant={studentsToRemove.includes(student.id) ? "destructive" : "outline"}
-                        size="sm"
-                        onClick={() => toggleStudentRemoval(student.id)}
-                      >
-                        {studentsToRemove.includes(student.id) ? (
-                          <>
-                            <X className="h-4 w-4 mr-2" />
-                            Cancelar
-                          </>
-                        ) : (
-                          <>
-                            <UserMinus className="h-4 w-4 mr-2" />
-                            Remover
-                          </>
-                        )}
-                      </Button>
+                      {!isClient && (
+                        <Button
+                          variant={studentsToRemove.includes(student.id) ? "destructive" : "outline"}
+                          size="sm"
+                          onClick={() => toggleStudentRemoval(student.id)}
+                        >
+                          {studentsToRemove.includes(student.id) ? (
+                            <>
+                              <X className="h-4 w-4 mr-2" />
+                              Cancelar
+                            </>
+                          ) : (
+                            <>
+                              <UserMinus className="h-4 w-4 mr-2" />
+                              Remover
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </div>
                   ))}
                   

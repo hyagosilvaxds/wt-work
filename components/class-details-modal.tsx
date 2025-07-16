@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 import { getStudents, addStudentsToClass, removeStudentsFromClass } from "@/lib/api/superadmin"
 import {
   Users,
@@ -112,6 +113,7 @@ interface ClassDetailsModalProps {
 
 export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLesson, onSuccess }: ClassDetailsModalProps) {
   const { toast } = useToast()
+  const { isClient } = useAuth()
   const [activeTab, setActiveTab] = useState("overview")
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [editingLesson, setEditingLesson] = useState<any>(null)
@@ -639,8 +641,8 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                 turmaId={turma.id}
                 refreshTrigger={refreshTrigger}
                 onScheduleNew={onScheduleLesson ? () => onScheduleLesson(turma) : undefined}
-                onEditLesson={handleEditLesson}
-                onDeleteLesson={handleDeleteLesson}
+                onEditLesson={!isClient ? handleEditLesson : undefined}
+                onDeleteLesson={!isClient ? handleDeleteLesson : undefined}
               />
             </TabsContent>
 
@@ -696,29 +698,31 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                             <Badge variant={student.isActive ? "default" : "secondary"}>
                               {student.isActive ? "Ativo" : "Inativo"}
                             </Badge>
-                            <Button
-                              variant={studentsToRemove.includes(student.id) ? "destructive" : "outline"}
-                              size="sm"
-                              onClick={() => toggleStudentRemoval(student.id)}
-                              disabled={actionLoading}
-                            >
-                              {studentsToRemove.includes(student.id) ? (
-                                <>
-                                  <X className="h-4 w-4 mr-1" />
-                                  Cancelar
-                                </>
-                              ) : (
-                                <>
-                                  <UserMinus className="h-4 w-4 mr-1" />
-                                  Remover
-                                </>
-                              )}
-                            </Button>
+                            {!isClient && (
+                              <Button
+                                variant={studentsToRemove.includes(student.id) ? "destructive" : "outline"}
+                                size="sm"
+                                onClick={() => toggleStudentRemoval(student.id)}
+                                disabled={actionLoading}
+                              >
+                                {studentsToRemove.includes(student.id) ? (
+                                  <>
+                                    <X className="h-4 w-4 mr-1" />
+                                    Cancelar
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserMinus className="h-4 w-4 mr-1" />
+                                    Remover
+                                  </>
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
                       
-                      {studentsToRemove.length > 0 && (
+                      {studentsToRemove.length > 0 && !isClient && (
                         <div className="flex justify-end pt-4 border-t">
                           <Button
                             variant="destructive"
@@ -739,14 +743,15 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                 </CardContent>
               </Card>
 
-              {/* Adicionar Novos Alunos */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserPlus className="h-5 w-5" />
-                    Adicionar Alunos
-                  </CardTitle>
-                </CardHeader>
+              {/* Adicionar Novos Alunos - Apenas para não-CLIENT */}
+              {!isClient && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <UserPlus className="h-5 w-5" />
+                      Adicionar Alunos
+                    </CardTitle>
+                  </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div>
@@ -848,6 +853,7 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                   </div>
                 </CardContent>
               </Card>
+              )}
             </TabsContent>
           </Tabs>
         </DialogContent>

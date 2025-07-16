@@ -1,5 +1,51 @@
 import api from './client'
 
+// Interfaces para os dados do dashboard
+export interface ScheduledLesson {
+  id: string
+  title: string
+  description: string
+  startDate: string
+  endDate: string
+  location: string | null
+  status: string
+  instructorName: string
+  clientName: string
+  className: string
+  observations: string | null
+}
+
+export interface RecentActivity {
+  id: string
+  type: string
+  description: string
+  createdAt: string
+  entityId: string
+  entityType: string
+}
+
+export interface DashboardData {
+  totalStudents: number
+  totalClasses: number
+  totalScheduledLessons: number
+  totalCompletedClasses: number
+  totalInstructors: number
+  totalClients: number
+  totalTrainings: number
+  scheduledLessons: ScheduledLesson[]
+  recentActivities: RecentActivity[]
+}
+
+export const getDashboardData = async (): Promise<DashboardData> => {
+  try {
+    const response = await api.get('/superadmin/dashboard')
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar dados do dashboard:', error)
+    throw error
+  }
+}
+
 export const getUsers = async (page = 1, limit = 10) => {
   try {
     const response = await api.get('/superadmin/users', {

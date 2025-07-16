@@ -16,9 +16,21 @@ import { ReportsPage } from "@/components/reports-page"
 import { FinancialModule } from "@/components/financial/financial-module"
 import { SettingsPage } from "@/components/settings-page-simple"
 import ProtectedRoute from "@/components/protected-route"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard")
+  const { isClient } = useAuth()
+
+  // Função para definir a aba ativa com validação para clientes
+  const handleSetActiveTab = (tab: string) => {
+    // Bloquear acesso de clientes às configurações
+    if (isClient && tab === "settings") {
+      setActiveTab("dashboard")
+      return
+    }
+    setActiveTab(tab)
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -47,6 +59,10 @@ export default function Home() {
       case "reports":
         return <ReportsPage />
       case "settings":
+        // Bloquear acesso de clientes às configurações
+        if (isClient) {
+          return <AdaptiveDashboard />
+        }
         return <SettingsPage />
       default:
         return <AdaptiveDashboard />
@@ -56,7 +72,7 @@ export default function Home() {
   return (
     <ProtectedRoute>
       <div className="flex h-screen bg-gray-50">
-        <AdaptiveSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <AdaptiveSidebar activeTab={activeTab} setActiveTab={handleSetActiveTab} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header />
           <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">

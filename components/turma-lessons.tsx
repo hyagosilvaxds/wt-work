@@ -25,6 +25,7 @@ import {
   Users
 } from "lucide-react"
 import { getLessons } from "@/lib/api/superadmin"
+import { useAuth } from "@/hooks/use-auth"
 
 interface LessonData {
   id: string
@@ -72,6 +73,7 @@ export function TurmaLessons({
   refreshTrigger 
 }: TurmaLessonsProps) {
   const { toast } = useToast()
+  const { isClient } = useAuth()
   const [loading, setLoading] = useState(true)
   const [lessons, setLessons] = useState<LessonData[]>([])
 
@@ -304,7 +306,7 @@ export function TurmaLessons({
                         <Eye className="h-4 w-4" />
                       </Button>
                     )}
-                    {onEditLesson && (
+                    {onEditLesson && !isClient && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -314,7 +316,7 @@ export function TurmaLessons({
                         <Edit className="h-4 w-4" />
                       </Button>
                     )}
-                    {onDeleteLesson && (
+                    {onDeleteLesson && !isClient && (
                       <Button
                         variant="ghost"
                         size="sm"

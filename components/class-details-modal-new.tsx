@@ -30,6 +30,7 @@ import {
 import { TurmaLessons } from "@/components/turma-lessons"
 import { LessonEditModal } from "@/components/lesson-edit-modal"
 import { LessonDeleteModal } from "@/components/lesson-delete-modal"
+import { useAuth } from "@/hooks/use-auth"
 
 interface TurmaData {
   id: string
@@ -102,6 +103,7 @@ interface ClassDetailsModalProps {
 }
 
 export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLesson }: ClassDetailsModalProps) {
+  const { isClient } = useAuth()
   const [activeTab, setActiveTab] = useState("overview")
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [editingLesson, setEditingLesson] = useState<any>(null)
@@ -522,8 +524,8 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                 turmaId={turma.id}
                 refreshTrigger={refreshTrigger}
                 onScheduleNew={onScheduleLesson ? () => onScheduleLesson(turma) : undefined}
-                onEditLesson={handleEditLesson}
-                onDeleteLesson={handleDeleteLesson}
+                onEditLesson={!isClient ? handleEditLesson : undefined}
+                onDeleteLesson={!isClient ? handleDeleteLesson : undefined}
               />
             </TabsContent>
 
