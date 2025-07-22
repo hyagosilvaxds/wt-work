@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from "react"
 import InstructorDocumentUploadFinal from '@/components/instructor-document-upload-final'
+import UltraIsolatedFileTest from '@/components/ultra-isolated-file-test'
+import FileInputDebugger from '@/components/file-input-debugger'
+import AuthStateMonitor from '@/components/auth-state-monitor'
+import AntiRemountFileInput from '@/components/anti-remount-file-input'
+import PathMonitor from '@/components/path-monitor'
 import { AdaptiveSidebar } from "@/components/adaptive-sidebar"
 import { Header } from "@/components/header"
 import AdaptiveDashboard from "@/components/adaptive-dashboard"
@@ -18,15 +23,16 @@ import { ReportsPage } from "@/components/reports-page"
 import { FinancialModule } from "@/components/financial/financial-module"
 import { SettingsPage } from "@/components/settings-page-simple"
 import { InstructorClassesPage } from "@/components/instructor-classes-page"
+import InstructorDocumentUploadIsolated from "@/components/instructor-document-upload-isolated"
+import InstructorDocumentUploadNoForm from "@/components/instructor-document-upload-no-form"
 import ProtectedRoute from "@/components/protected-route"
 import { useAuth } from "@/hooks/use-auth"
 
 export default function Home() {
-  // Iniciar com dashboard por padrão, permitir teste-upload via parâmetro URL
+  // Iniciar com teste-upload se houver parâmetro na URL ou para demonstração
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search)
-      // Usar ?teste=upload para acessar a aba de teste de upload
       if (urlParams.get('teste') === 'upload') {
         return "teste-upload"
       }
@@ -88,22 +94,46 @@ export default function Home() {
         return (
           <div>
             <div style={{ 
-              backgroundColor: '#d4edda', 
-              border: '1px solid #c3e6cb', 
+              backgroundColor: '#fff3cd', 
+              border: '1px solid #ffeaa7', 
               borderRadius: '6px', 
               padding: '16px', 
               marginBottom: '20px',
               textAlign: 'center'
             }}>
-              <h3 style={{ margin: '0 0 12px 0', color: '#155724' }}>
-                ✅ UPLOAD DE ARQUIVO - PROBLEMA RESOLVIDO
-              </h3>
-              <p style={{ margin: '0', fontSize: '14px', color: '#155724' }}>
-                Componente funcional baseado no teste isolado que funcionou
+              <h3 style={{ margin: '0 0 12px 0', color: '#856404' }}>🧪 DIAGNÓSTICO DE RELOAD - SELEÇÃO DE ARQUIVO</h3>
+              <p style={{ margin: '0', fontSize: '14px', color: '#856404' }}>
+                Este teste foca especificamente no problema de reload durante a seleção de arquivo
               </p>
             </div>
             
+            {/* Monitor de pathname */}
+            <PathMonitor />
+            
+            {/* Monitor do useAuth */}
+            <AuthStateMonitor />
+            
+            {/* Debugger de detecção de remount */}
+            <FileInputDebugger />
+            
+            {/* Testes anti-remount */}
+            <AntiRemountFileInput />
+            
+            {/* Teste ultra isolado primeiro */}
+            <UltraIsolatedFileTest />
+            
+            {/* Teste específico para file input */}
             <InstructorDocumentUploadFinal />
+            
+            <div style={{ margin: '40px 0', borderTop: '2px solid #ddd', paddingTop: '20px' }}>
+              <h3 style={{ textAlign: 'center', color: '#666', marginBottom: '20px' }}>
+                Outros Testes (caso o problema persista)
+              </h3>
+            </div>
+            
+            <InstructorDocumentUploadIsolated />
+            <div style={{ margin: '40px 0' }}></div>
+            <InstructorDocumentUploadNoForm />
           </div>
         )
       case "financial":

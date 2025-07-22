@@ -10,6 +10,7 @@ import { Plus, Mail, Phone, BookOpen, Star, User, MapPin, Calendar, FileText, Se
 import { InstructorCreateModal } from "@/components/instructor-create-modal"
 import { InstructorEditModal } from "@/components/instructor-edit-modal"
 import { InstructorDeleteModal } from "@/components/instructor-delete-modal"
+import { InstructorDetailsModal } from "@/components/instructor-details-modal"
 import { SignaturesPage } from "@/components/signatures-page"
 import { ModernSignatureUploadModal } from "@/components/modern-signature-upload-modal"
 import { getInstructors } from "@/lib/api/superadmin"
@@ -63,6 +64,7 @@ export function InstructorsPage() {
   const [searchInput, setSearchInput] = useState("")
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false)
   const [selectedInstructorId, setSelectedInstructorId] = useState<string>("")
   const [selectedInstructorName, setSelectedInstructorName] = useState<string>("")
   const [pagination, setPagination] = useState({
@@ -121,6 +123,12 @@ export function InstructorsPage() {
   const handleEdit = (instructorId: string) => {
     setSelectedInstructorId(instructorId)
     setEditModalOpen(true)
+  }
+
+  // Abrir modal de detalhes
+  const handleViewDetails = (instructorId: string) => {
+    setSelectedInstructorId(instructorId)
+    setDetailsModalOpen(true)
   }
 
   // Abrir modal de exclusão
@@ -314,21 +322,29 @@ export function InstructorsPage() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => handleViewDetails(instructor.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Detalhes
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => handleEdit(instructor.id)}
                           >
                             <Edit className="h-4 w-4 mr-1" />
                             Editar
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(instructor.id, instructor.name)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Deletar
-                          </Button>
                         </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(instructor.id, instructor.name)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Deletar
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -405,6 +421,12 @@ export function InstructorsPage() {
       </Tabs>
 
       {/* Modais */}
+      <InstructorDetailsModal
+        instructorId={selectedInstructorId}
+        open={detailsModalOpen}
+        onOpenChange={setDetailsModalOpen}
+      />
+      
       <InstructorEditModal
         instructorId={selectedInstructorId}
         open={editModalOpen}

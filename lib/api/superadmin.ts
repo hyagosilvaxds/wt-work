@@ -373,7 +373,7 @@ export const createInstructor = async (instructorData: CreateInstructorUserDto) 
 }
 
 // Buscar instrutor por ID
-export const getInstructorById = async (id: string) => {
+export const getInstructorById = async (id: string): Promise<InstructorDetails> => {
   try {
     const response = await api.get(`/superadmin/instructors/${id}`)
     return response.data
@@ -672,6 +672,7 @@ export interface CreateTrainingData {
   durationHours: number
   isActive?: boolean
   validityDays?: number
+
 }
 
 export interface UpdateTrainingData {
@@ -681,6 +682,139 @@ export interface UpdateTrainingData {
   durationHours?: number
   isActive?: boolean
   validityDays?: number
+}
+
+// ============ INSTRUCTOR DOCUMENTS MANAGEMENT ============
+export interface LinkInstructorDocumentDto {
+  path: string;
+  type: string;
+  description?: string;
+}
+
+export interface InstructorDocument {
+  id: string;
+  instructorId: string;
+  path: string;
+  type: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Interface completa para instrutor com detalhes
+export interface InstructorDetails {
+  id: string
+  userId: string | null
+  isActive: boolean
+  name: string
+  corporateName: string | null
+  personType: "FISICA" | "JURIDICA"
+  cpf: string | null
+  cnpj: string | null
+  municipalRegistration: string | null
+  stateRegistration: string | null
+  zipCode: string | null
+  address: string | null
+  addressNumber: string | null
+  neighborhood: string | null
+  city: string | null
+  state: string | null
+  landlineAreaCode: string | null
+  landlineNumber: string | null
+  mobileAreaCode: string | null
+  mobileNumber: string | null
+  email: string | null
+  education: string | null
+  registrationNumber: string | null
+  observations: string | null
+  createdAt: string
+  updatedAt: string
+  user: {
+    id: string
+    name: string
+    email: string
+  } | null
+  classes: {
+    id: string
+    startDate: string
+    endDate: string
+    status: string
+    type: string
+    location: string | null
+    training: {
+      id: string
+      title: string
+      description: string
+      durationHours: number
+    }
+  }[]
+  documents: InstructorDocument[]
+}
+
+// Lista todos os documentos vinculados ao instrutor
+export const getInstructorDocuments = async (instructorId: string): Promise<InstructorDocument[]> => {
+  try {
+    if (!instructorId || instructorId.trim() === '') {
+      throw new Error('ID do instrutor é obrigatório');
+    }
+    const response = await api.get(`/superadmin/instructors/${instructorId}/documents`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Erro ao listar documentos do instrutor:', error);
+    if (error.response) {
+      console.error('API Error Response:', error.response.data);
+      console.error('API Error Status:', error.response.status);
+    }
+    throw error;
+  }
+};
+
+// Remove um documento específico do instrutor
+export const deleteInstructorDocument = async (documentId: string): Promise<any> => {
+  try {
+    if (!documentId || documentId.trim() === '') {
+      throw new Error('ID do documento é obrigatório');
+    }
+    const response = await api.delete(`/superadmin/documents/${documentId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Erro ao remover documento do instrutor:', error);
+    if (error.response) {
+      console.error('API Error Response:', error.response.data);
+      console.error('API Error Status:', error.response.status);
+    }
+    throw error;
+  }
+};
+
+
+// Vincula um documento previamente enviado ao instrutor
+export const linkDocumentToInstructor = async (
+  instructorId: string,
+  documentData: LinkInstructorDocumentDto
+) => {
+  try {
+    // Validação básica
+    if (!instructorId || instructorId.trim() === '') {
+      throw new Error('ID do instrutor é obrigatório');
+    }
+    if (!documentData.path || !documentData.type) {
+      throw new Error('path e type são obrigatórios');
+    }
+
+    const response = await api.post(
+      `/superadmin/instructors/${instructorId}/documents`,
+      documentData
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error('Erro ao vincular documento ao instrutor:', error);
+    if (error.response) {
+      console.error('API Error Response:', error.response.data);
+      console.error('API Error Status:', error.response.status);
+    }
+    throw error;
+  }
 }
 
 // Criar treinamento
@@ -1307,6 +1441,22 @@ export interface UploadImageResponse {
   url: string
 }
 
+// Interface para resposta do upload de documento do instrutor
+export interface UploadInstructorDocumentResponse {
+  id: string
+  instructorId: string
+  filename: string
+  originalname: string
+  path: string
+  mimetype: string
+  size: number
+  category?: string
+  type?: string
+  description?: string
+  createdAt: string
+  updatedAt: string
+}
+
 // Upload de imagem genérica
 export const uploadImage = async (file: File): Promise<UploadImageResponse> => {
   try {
@@ -1322,6 +1472,36 @@ export const uploadImage = async (file: File): Promise<UploadImageResponse> => {
     return response.data
   } catch (error) {
     console.error('Erro ao fazer upload da imagem:', error)
+    throw error
+  }
+}
+
+// Upload de documento para instrutor
+export const uploadInstructorDocument = async (
+  file: File,
+  instructorId: string,
+  category?: string,
+  type?: string,
+  description?: string
+): Promise<UploadInstructorDocumentResponse> => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('instructorId', instructorId)
+    
+    if (category) formData.append('category', category)
+    if (type) formData.append('type', type)
+    if (description) formData.append('description', description)
+
+    const response = await api.post('/upload/instructor-document', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao fazer upload do documento do instrutor:', error)
     throw error
   }
 }
@@ -1659,4 +1839,5 @@ export const getFinishedClassesByInstructor = async (instructorId: string, page:
     throw error
   }
 }
+
 

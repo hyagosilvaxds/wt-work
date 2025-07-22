@@ -24,6 +24,7 @@ import {
   Play,
   Download,
   FileText,
+  Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -100,6 +101,11 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
   // if (hasPermission('VIEW_REPORTS') || hasPermission('VIEW_FINANCIAL_REPORTS') || hasPermission('VIEW_ANALYTICS')) {
   //   items.push({ id: "reports", label: "Relatórios", icon: BarChart3, badge: null })
   // }
+  
+  // Teste Upload - disponível para todos os usuários autenticados
+  if (hasPermission('VIEW_DASHBOARD')) {
+    items.push({ id: "teste-upload", label: "🧪 Teste Upload", icon: Upload, badge: "TESTE" })
+  }
   
   // Configurações/Roles - OCULTO para instrutores
   if ((hasPermission('VIEW_ROLES') || hasPermission('MANAGE_USERS') || hasPermission('EDIT_PROFILE')) && !isInstructor) {

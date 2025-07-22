@@ -55,15 +55,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // Recarregar dados sempre que a rota mudar
-  useEffect(() => {
+  // DESABILITADO PERMANENTEMENTE - CAUSAVA REMOUNT DOS COMPONENTES DE UPLOAD
+  // Este useEffect reagia a mudanças de pathname e causava re-renders em cascata
+  // que faziam componentes com file input perderem o estado selecionado
+  /*useEffect(() => {
     if (isAuth) {
       console.log('Rota mudou, recarregando dados do usuário...')
       checkAuth()
     }
-  }, [pathname])
+  }, [pathname])*/
 
   // Recarregar dados quando a janela receber foco (usuário voltar para a aba)
-  useEffect(() => {
+  /*useEffect(() => {
     const handleFocus = () => {
       if (isAuth) {
         console.log('Janela recebeu foco, recarregando dados do usuário...')
@@ -73,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [isAuth])
+  }, [isAuth])*/
 
   const checkAuth = async () => {
     setIsLoading(true)
