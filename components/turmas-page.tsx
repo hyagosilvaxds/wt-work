@@ -21,7 +21,9 @@ import {
   Loader2,
   UserPlus,
   UserMinus,
-  ClipboardList
+  ClipboardList,
+  Star,
+  Camera
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -32,8 +34,10 @@ import { ClassCreateModal } from "@/components/class-create-modal"
 import { ClassDetailsModal } from "@/components/class-details-modal"
 import { ClassStudentsModal } from "@/components/class-students-modal"
 import { ClassAttendanceModal } from "@/components/class-attendance-modal"
+import { ClassGradesModal } from "@/components/class-grades-modal"
 import { LessonScheduleModal } from "@/components/lesson-schedule-modal"
 import { LessonEditModal } from "@/components/lesson-edit-modal"
+import { ClassPhotosModal } from "@/components/class-photos-modal"
 
 interface TurmaData {
   id: string
@@ -57,7 +61,7 @@ interface TurmaData {
     isActive: boolean
     validityDays: number
   }
-  instructor: {
+  instructor?: {
     id: string
     name: string
     email?: string
@@ -102,6 +106,8 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
   const [editingLesson, setEditingLesson] = useState<any>(null)
   const [managingStudentsTurma, setManagingStudentsTurma] = useState<TurmaData | null>(null)
   const [attendanceTurma, setAttendanceTurma] = useState<TurmaData | null>(null)
+  const [gradesTurma, setGradesTurma] = useState<TurmaData | null>(null)
+  const [photosTurma, setPhotosTurma] = useState<TurmaData | null>(null)
 
   // Carregar dados das turmas
   const loadTurmas = async (resetPage = false) => {
@@ -277,6 +283,16 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setAttendanceTurma(turma)
   }
 
+  // Função para abrir modal de avaliações
+  const handleManageGrades = (turma: TurmaData) => {
+    setGradesTurma(turma)
+  }
+
+  // Função para abrir modal de fotos
+  const handleManagePhotos = (turma: TurmaData) => {
+    setPhotosTurma(turma)
+  }
+
   // Função para fechar modais
   const handleCloseModal = () => {
     setCreateModalOpen(false)
@@ -286,6 +302,8 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setEditingLesson(null)
     setManagingStudentsTurma(null)
     setAttendanceTurma(null)
+    setGradesTurma(null)
+    setPhotosTurma(null)
   }
 
   // Função para fechar apenas o modal de gerenciamento de alunos
@@ -582,6 +600,28 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                           </DropdownMenuItem>
                         )}
                         
+                        {/* Avaliações - Não disponível para CLIENTE */}
+                        {!isClientView && (
+                          <DropdownMenuItem 
+                            className="gap-2"
+                            onClick={() => handleManageGrades(turma)}
+                          >
+                            <Star className="h-4 w-4" />
+                            Avaliações
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {/* Fotos - Não disponível para CLIENTE */}
+                        {!isClientView && (
+                          <DropdownMenuItem 
+                            className="gap-2"
+                            onClick={() => handleManagePhotos(turma)}
+                          >
+                            <Camera className="h-4 w-4" />
+                            Fotos
+                          </DropdownMenuItem>
+                        )}
+                        
                         {/* Agendar Aula - Apenas para não-CLIENTE */}
                         {!isClientView && (
                           <DropdownMenuItem 
@@ -617,7 +657,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                         <BookOpen className="h-4 w-4" />
                         Instrutor
                       </div>
-                      <p className="font-medium">{turma.instructor.name}</p>
+                      <p className="font-medium">{turma.instructor?.name || "Instrutor não definido"}</p>
                     </div>
 
                     {/* Informações dos Alunos */}
@@ -729,6 +769,30 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                       >
                         <ClipboardList className="h-4 w-4" />
                         Chamada
+                      </Button>
+                    )}
+                    
+                    {!isClientView && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2"
+                        onClick={() => handleManageGrades(turma)}
+                      >
+                        <Star className="h-4 w-4" />
+                        Avaliações
+                      </Button>
+                    )}
+                    
+                    {!isClientView && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2"
+                        onClick={() => handleManagePhotos(turma)}
+                      >
+                        <Camera className="h-4 w-4" />
+                        Fotos
                       </Button>
                     )}
                     
@@ -884,6 +948,30 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
           onClose={handleCloseModal}
           onSuccess={handleAttendanceSuccess}
           turma={attendanceTurma}
+        />
+      )}
+
+      {/* Modal de Avaliações - Não disponível para clientes */}
+      {!isClientView && (
+        <ClassGradesModal
+          isOpen={!!gradesTurma}
+          onClose={handleCloseModal}
+          onSuccess={handleSuccess}
+          turma={gradesTurma}
+        />
+      )}
+
+      {/* Modal de Fotos - Não disponível para clientes */}
+      {!isClientView && (
+        <ClassPhotosModal
+          isOpen={!!photosTurma}
+          onClose={handleCloseModal}
+          turma={photosTurma ? {
+            id: photosTurma.id,
+            training: {
+              title: photosTurma.training.title
+            }
+          } : null}
         />
       )}
     </>

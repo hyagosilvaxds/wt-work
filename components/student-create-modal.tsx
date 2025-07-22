@@ -11,6 +11,53 @@ import { Switch } from "@/components/ui/switch"
 import { createStudent, CreateStudentData, getClients } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
 
+// Função para validar CPF
+const validateCPF = (cpf: string): boolean => {
+  // Remove caracteres não numéricos
+  const cleanCPF = cpf.replace(/\D/g, '')
+  
+  // Verifica se tem 11 dígitos
+  if (cleanCPF.length !== 11) return false
+  
+  // Verifica se todos os dígitos são iguais
+  if (/^(\d)\1{10}$/.test(cleanCPF)) return false
+  
+  // Valida primeiro dígito verificador
+  let sum = 0
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cleanCPF.charAt(i)) * (10 - i)
+  }
+  let remainder = (sum * 10) % 11
+  if (remainder === 10 || remainder === 11) remainder = 0
+  if (remainder !== parseInt(cleanCPF.charAt(9))) return false
+  
+  // Valida segundo dígito verificador
+  sum = 0
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(cleanCPF.charAt(i)) * (11 - i)
+  }
+  remainder = (sum * 10) % 11
+  if (remainder === 10 || remainder === 11) remainder = 0
+  if (remainder !== parseInt(cleanCPF.charAt(10))) return false
+  
+  return true
+}
+
+// Função para formatar CPF
+const formatCPF = (value: string): string => {
+  const cleanValue = value.replace(/\D/g, '')
+  const match = cleanValue.match(/^(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/)
+  if (!match) return cleanValue
+  
+  let formatted = ''
+  if (match[1]) formatted += match[1]
+  if (match[2]) formatted += '.' + match[2]
+  if (match[3]) formatted += '.' + match[3]
+  if (match[4]) formatted += '-' + match[4]
+  
+  return formatted
+}
+
 interface Client {
   id: string
   name: string
@@ -30,6 +77,7 @@ export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCre
   const [loading, setLoading] = useState(false)
   const [clients, setClients] = useState<Client[]>([])
   const [loadingClients, setLoadingClients] = useState(false)
+  const [cpfError, setCpfError] = useState<string>("")
   const [formData, setFormData] = useState<CreateStudentData>({
     name: "",
     cpf: "",
@@ -57,6 +105,9 @@ export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCre
   useEffect(() => {
     if (open) {
       loadClients()
+    } else {
+      // Limpar erro de CPF quando modal fechar
+      setCpfError("")
     }
   }, [open])
 
@@ -89,10 +140,21 @@ export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCre
       return
     }
 
-    if (formData.cpf.length < 11) {
+    // Validar CPF
+    const cleanCPF = formData.cpf.replace(/\D/g, '')
+    if (cleanCPF.length !== 11) {
       toast({
         title: "Erro",
-        description: "CPF deve ter pelo menos 11 caracteres",
+        description: "CPF deve ter 11 dígitos",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!validateCPF(cleanCPF)) {
+      toast({
+        title: "Erro",
+        description: "CPF inválido",
         variant: "destructive"
       })
       return
@@ -170,6 +232,9 @@ export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCre
         isActive: true
       })
       
+      // Reset CPF error
+      setCpfError("")
+      
       onOpenChange(false)
       onSuccess()
     } catch (error: any) {
@@ -189,6 +254,24 @@ export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCre
       ...prev,
       [field]: value
     }))
+  }
+
+  const handleCPFChange = (value: string) => {
+    const formattedCPF = formatCPF(value)
+    setFormData(prev => ({ ...prev, cpf: formattedCPF }))
+    
+    // Limpar erro anterior
+    setCpfError("")
+    
+    // Validar CPF se tiver 11 dígitos
+    const cleanCPF = value.replace(/\D/g, '')
+    if (cleanCPF.length === 11) {
+      if (!validateCPF(cleanCPF)) {
+        setCpfError("CPF inválido")
+      }
+    } else if (cleanCPF.length > 0 && cleanCPF.length < 11) {
+      setCpfError("CPF deve ter 11 dígitos")
+    }
   }
 
   return (
@@ -220,10 +303,15 @@ export function StudentCreateModal({ open, onOpenChange, onSuccess }: StudentCre
               <Input
                 id="cpf"
                 value={formData.cpf}
-                onChange={(e) => handleInputChange('cpf', e.target.value)}
+                onChange={(e) => handleCPFChange(e.target.value)}
                 placeholder="000.000.000-00"
+                maxLength={14}
+                className={cpfError ? "border-red-500 focus:border-red-500" : ""}
                 required
               />
+              {cpfError && (
+                <p className="text-sm text-red-500 mt-1">{cpfError}</p>
+              )}
             </div>
 
             <div>

@@ -22,6 +22,7 @@ interface Training {
   title: string
   description?: string
   durationHours: number
+  programContent?: string
   isActive: boolean
   validityDays?: number
 }
@@ -43,6 +44,7 @@ export function TrainingCreateModal({
     title: "",
     description: "",
     durationHours: 1,
+    programContent: "",
     isActive: true,
     validityDays: undefined,
   })
@@ -56,6 +58,7 @@ export function TrainingCreateModal({
         title: training.title,
         description: training.description || "",
         durationHours: training.durationHours,
+        programContent: training.programContent || "",
         isActive: training.isActive,
         validityDays: training.validityDays,
       })
@@ -64,6 +67,7 @@ export function TrainingCreateModal({
         title: "",
         description: "",
         durationHours: 1,
+        programContent: "",
         isActive: true,
         validityDays: undefined,
       })
@@ -116,6 +120,7 @@ export function TrainingCreateModal({
           title: "",
           description: "",
           durationHours: 1,
+          programContent: "",
           isActive: true,
           validityDays: undefined,
         })
@@ -143,6 +148,7 @@ export function TrainingCreateModal({
           title: "",
           description: "",
           durationHours: 1,
+          programContent: "",
           isActive: true,
           validityDays: undefined,
         })
@@ -152,7 +158,7 @@ export function TrainingCreateModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {training ? "Editar Treinamento" : "Novo Treinamento"}
@@ -188,6 +194,22 @@ export function TrainingCreateModal({
               disabled={loading}
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="programContent">Conteúdo Programático</Label>
+            <Textarea
+              id="programContent"
+              placeholder="Detalhe o programa do treinamento: módulos, carga horária, objetivos..."
+              value={formData.programContent}
+              onChange={(e) => setFormData({ ...formData, programContent: e.target.value })}
+              disabled={loading}
+              rows={6}
+              className="resize-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              Inclua informações sobre módulos, conteúdo teórico/prático, avaliações, etc.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

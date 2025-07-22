@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Clock, Users, BookOpen, Search, Edit, Trash2 } from "lucide-react"
+import { Plus, Clock, Users, BookOpen, Search, Edit, Trash2, Eye } from "lucide-react"
 import { useState, useEffect } from "react"
 import { 
   getTrainings, 
@@ -13,12 +13,14 @@ import {
 } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
 import { TrainingCreateModal } from "./training-create-modal"
+import { TrainingDetailsModal } from "./training-details-modal"
 
 interface Training {
   id: string
   title: string
   description?: string
   durationHours: number
+  programContent?: string
   isActive: boolean
   validityDays?: number
   createdAt: string
@@ -35,6 +37,7 @@ export function TrainingsPage() {
   const [totalItems, setTotalItems] = useState(0)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingTraining, setEditingTraining] = useState<Training | null>(null)
+  const [viewingTraining, setViewingTraining] = useState<Training | null>(null)
   const { toast } = useToast()
 
   // Carregar treinamentos
@@ -136,6 +139,11 @@ export function TrainingsPage() {
     setShowCreateModal(true)
   }
 
+  // Abrir modal de visualização de detalhes
+  const handleViewTraining = (training: Training) => {
+    setViewingTraining(training)
+  }
+
   // Abrir modal de edição
   const handleEditTraining = (training: Training) => {
     setEditingTraining(training)
@@ -196,7 +204,7 @@ export function TrainingsPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Buscar treinamentos..."
+            placeholder="Buscar por título, descrição ou conteúdo programático..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-10"
@@ -245,11 +253,25 @@ export function TrainingsPage() {
                       Válido por {training.validityDays} dias
                     </div>
                   )}
+                  {training.programContent && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Conteúdo programático disponível
+                    </div>
+                  )}
                   <div className="flex gap-2 pt-2">
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      className="flex-1 bg-secondary-500 hover:bg-secondary-600 text-white"
+                      onClick={() => handleViewTraining(training)}
+                    >
+                      <Eye className="mr-1 h-3 w-3" />
+                      Ver
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="bg-secondary-500 hover:bg-secondary-600 text-white"
                       onClick={() => handleEditTraining(training)}
                     >
                       <Edit className="mr-1 h-3 w-3" />
@@ -316,6 +338,13 @@ export function TrainingsPage() {
         onClose={handleCloseModal}
         onSuccess={handleModalSuccess}
         training={editingTraining}
+      />
+
+      {/* Modal de visualização de detalhes */}
+      <TrainingDetailsModal
+        isOpen={!!viewingTraining}
+        onClose={() => setViewingTraining(null)}
+        training={viewingTraining}
       />
     </div>
   )

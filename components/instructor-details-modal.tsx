@@ -24,7 +24,6 @@ import {
   Search,
   X,
   Plus,
-  Eye,
   Loader2
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -35,6 +34,7 @@ import {
   getInstructorById, 
   getInstructorDocuments, 
   uploadInstructorDocument,
+  downloadInstructorDocument,
   deleteInstructorDocument,
   type InstructorDetails, 
   type InstructorDocument,
@@ -58,6 +58,7 @@ export function InstructorDetailsModal({ instructorId, open, onOpenChange }: Ins
   // Estados para upload
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null)
   const [uploadForm, setUploadForm] = useState({
     file: null as File | null,
     category: "instructor",
@@ -222,14 +223,18 @@ export function InstructorDetailsModal({ instructorId, open, onOpenChange }: Ins
   }
 
   // Remover documento real
-  const handleRemoveDocument = async (docId: string) => {
+  const handleRemoveDocument = async (document: any) => {
     if (!confirm('Tem certeza que deseja excluir este documento?')) {
       return
     }
 
     try {
-      await deleteInstructorDocument(docId)
-      setDocuments(prev => prev.filter(doc => doc.id !== docId))
+      console.log('Removendo documento:', document)
+      console.log('ID do documento:', document.id)
+      
+      // Usar document.id para deletar o documento
+      await deleteInstructorDocument(document.id)
+      setDocuments(prev => prev.filter(doc => doc.id !== document.id))
       alert('Documento removido com sucesso!')
     } catch (error) {
       console.error('Erro ao remover documento:', error)
@@ -237,7 +242,29 @@ export function InstructorDetailsModal({ instructorId, open, onOpenChange }: Ins
     }
   }
 
-  // Formatar telefone
+  // Download de documento
+  const handleDownloadDocument = async (document: any) => {
+    try {
+      setDownloadingDocId(document.id)
+      console.log('Documento para download:', document)
+      console.log('Path do documento:', document.path)
+      
+      // Usar document.path conforme a interface InstructorDocument
+      const fileName = document.path?.split('/').pop() || `documento_${document.id}`
+      await downloadInstructorDocument(document.path, fileName)
+      console.log('Download realizado com sucesso')
+    } catch (error) {
+      console.error('Erro ao fazer download:', error)
+      // Exibir mensagem de erro específica para o usuário
+      let errorMessage = 'Erro ao fazer download do documento'
+      if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      alert(errorMessage)
+    } finally {
+      setDownloadingDocId(null)
+    }
+  }  // Formatar telefone
   const formatPhone = (areaCode: string | null, number: string | null) => {
     if (!areaCode || !number) return null
     return `(${areaCode}) ${number}`
@@ -245,8 +272,8 @@ export function InstructorDetailsModal({ instructorId, open, onOpenChange }: Ins
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center">
             <User className="h-5 w-5 mr-2" />
             Detalhes do Instrutor: {instructor?.name || 'Carregando...'}
@@ -263,7 +290,7 @@ export function InstructorDetailsModal({ instructorId, open, onOpenChange }: Ins
         ) : instructor ? (
           <div className="flex-1 overflow-hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-3 flex-shrink-0">
                 <TabsTrigger value="info" className="flex items-center">
                   <Info className="w-4 h-4 mr-2" />
                   Informações
@@ -278,9 +305,9 @@ export function InstructorDetailsModal({ instructorId, open, onOpenChange }: Ins
                 </TabsTrigger>
               </TabsList>
 
-            <div className="flex-1 overflow-y-auto mt-4">
-              <TabsContent value="info" className="space-y-6 mt-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex-1 overflow-y-auto mt-4 pr-2">
+                <TabsContent value="info" className="space-y-6 mt-0 h-full">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Informações Pessoais */}
                   <Card>
                     <CardHeader>
@@ -418,156 +445,174 @@ export function InstructorDetailsModal({ instructorId, open, onOpenChange }: Ins
                     </CardContent>
                   </Card>
                 </div>
-              </TabsContent>
+                </TabsContent>
 
-              <TabsContent value="documents" className="space-y-6 mt-0">
-                {/* Cabeçalho dos Documentos */}
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-lg font-semibold">Documentos do Instrutor</h3>
-                    <p className="text-gray-600">{filteredDocuments.length} documento(s) encontrado(s)</p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button 
-                      onClick={() => setUploadModalOpen(true)}
-                      className="flex items-center"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Filtros */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="Buscar documentos..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-full sm:w-48">
-                      <SelectValue placeholder="Filtrar por categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as categorias</SelectItem>
-                      <SelectItem value="instructor">Instrutor</SelectItem>
-                      <SelectItem value="certificados">Certificados</SelectItem>
-                      <SelectItem value="formacao">Formação</SelectItem>
-                      <SelectItem value="documentos">Documentos</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Lista de Documentos */}
-                <div className="space-y-4">
-                  {filteredDocuments.length === 0 ? (
-                    <div className="text-center py-12">
-                      <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        {searchTerm || categoryFilter !== "all" 
-                          ? 'Nenhum documento encontrado'
-                          : 'Nenhum documento cadastrado'
-                        }
-                      </h3>
-                      <p className="text-gray-600">
-                        {searchTerm || categoryFilter !== "all"
-                          ? 'Tente ajustar os filtros de busca.'
-                          : 'Comece fazendo upload dos documentos do instrutor.'
-                        }
-                      </p>
+                <TabsContent value="documents" className="space-y-6 mt-0 h-full">
+                  {/* Cabeçalho dos Documentos */}
+                  <div className="flex justify-between items-center flex-shrink-0">
+                    <div>
+                      <h3 className="text-lg font-semibold">Documentos do Instrutor</h3>
+                      <p className="text-gray-600">{filteredDocuments.length} documento(s) encontrado(s)</p>
                     </div>
-                  ) : (
-                    filteredDocuments.map((doc) => (
-                      <Card key={doc.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3 flex-1">
-                              <div className="flex-shrink-0">
-                                {getCategoryIcon(doc.type)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-medium text-gray-900 truncate">
-                                  {doc.description || doc.path.split('/').pop() || doc.type}
-                                </h4>
-                                <div className="flex items-center space-x-4 mt-1">
-                                  <Badge className={getCategoryColor(doc.type)} variant="secondary">
-                                    {getCategoryName(doc.type)}
-                                  </Badge>
-                                  <span className="text-xs text-gray-500">
-                                    {formatDate(doc.createdAt)}
-                                  </span>
+                    <div className="flex space-x-2">
+                      <Button 
+                        onClick={() => setUploadModalOpen(true)}
+                        className="flex items-center"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Filtros */}
+                  <div className="flex flex-col sm:flex-row gap-4 flex-shrink-0">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Buscar documentos..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                      <SelectTrigger className="w-full sm:w-48">
+                        <SelectValue placeholder="Filtrar por categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas as categorias</SelectItem>
+                        <SelectItem value="instructor">Instrutor</SelectItem>
+                        <SelectItem value="certificados">Certificados</SelectItem>
+                        <SelectItem value="formacao">Formação</SelectItem>
+                        <SelectItem value="documentos">Documentos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Lista de Documentos */}
+                  <div className="space-y-4 flex-1 overflow-y-auto">
+                    {filteredDocuments.length === 0 ? (
+                      <div className="text-center py-12">
+                        <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                          {searchTerm || categoryFilter !== "all" 
+                            ? 'Nenhum documento encontrado'
+                            : 'Nenhum documento cadastrado'
+                          }
+                        </h3>
+                        <p className="text-gray-600">
+                          {searchTerm || categoryFilter !== "all"
+                            ? 'Tente ajustar os filtros de busca.'
+                            : 'Comece fazendo upload dos documentos do instrutor.'
+                          }
+                        </p>
+                      </div>
+                    ) : (
+                      filteredDocuments.map((doc) => (
+                        <Card key={doc.id} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className="flex-shrink-0">
+                                  {getCategoryIcon(doc.type)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-medium text-gray-900 truncate">
+                                    {doc.description || doc.path.split('/').pop() || doc.type}
+                                  </h4>
+                                  <div className="flex items-center space-x-4 mt-1">
+                                    <Badge className={getCategoryColor(doc.type)} variant="secondary">
+                                      {getCategoryName(doc.type)}
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">
+                                      {formatDate(doc.createdAt)}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Button variant="outline" size="sm">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button variant="outline" size="sm">
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleRemoveDocument(doc.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="classes" className="space-y-6 mt-0">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Turmas do Instrutor</h3>
-                  <div className="space-y-4">
-                    {instructor.classes.map((cls) => (
-                      <Card key={cls.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">{cls.training.title}</h4>
-                              <p className="text-sm text-gray-600">{cls.training.description}</p>
-                              <div className="flex items-center space-x-4 mt-2">
-                                <Badge variant="outline">
-                                  {cls.status}
-                                </Badge>
-                                <span className="text-xs text-gray-500">
-                                  {cls.training.durationHours}h
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {formatDate(cls.startDate)} - {formatDate(cls.endDate)}
-                                </span>
+                              <div className="flex items-center space-x-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleDownloadDocument(doc)}
+                                  disabled={downloadingDocId === doc.id}
+                                >
+                                  {downloadingDocId === doc.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Download className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleRemoveDocument(doc)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
-                              {cls.location && (
-                                <p className="text-xs text-gray-500 mt-1">📍 {cls.location}</p>
-                              )}
                             </div>
-                            <Button variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver Detalhes
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
                   </div>
-                </div>
-              </TabsContent>
-            </div>
-          </Tabs>
-        </div>
+                </TabsContent>
+
+                <TabsContent value="classes" className="space-y-6 mt-0 h-full">
+                  <div className="h-full flex flex-col">
+                    <h3 className="text-lg font-semibold mb-4 flex-shrink-0">Turmas do Instrutor</h3>
+                    <div className="space-y-4 flex-1 overflow-y-auto">
+                      {instructor.classes.length === 0 ? (
+                        <div className="text-center py-12">
+                          <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            Nenhuma turma encontrada
+                          </h3>
+                          <p className="text-gray-600">
+                            Este instrutor ainda não possui turmas cadastradas.
+                          </p>
+                        </div>
+                      ) : (
+                        instructor.classes.map((cls) => (
+                          <Card key={cls.id}>
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="font-medium">{cls.training.title}</h4>
+                                  <p className="text-sm text-gray-600">{cls.training.description}</p>
+                                  <div className="flex items-center space-x-4 mt-2">
+                                    <Badge variant="outline">
+                                      {cls.status}
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">
+                                      {cls.training.durationHours}h
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {formatDate(cls.startDate)} - {formatDate(cls.endDate)}
+                                    </span>
+                                  </div>
+                                  {cls.location && (
+                                    <p className="text-xs text-gray-500 mt-1">📍 {cls.location}</p>
+                                  )}
+                                </div>
+                                <Button variant="outline" size="sm">
+                                  <Info className="h-4 w-4 mr-2" />
+                                  Ver Detalhes
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
         ) : (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">

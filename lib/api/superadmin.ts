@@ -667,21 +667,49 @@ export const linkUserToClient = async (id: string, linkData: Omit<LinkUserToClie
 // ============ TRAININGS CRUD ============
 
 export interface CreateTrainingData {
-  title: string
-  description?: string
-  durationHours: number
-  isActive?: boolean
-  validityDays?: number
-
+  title: string                    // Título do treinamento (obrigatório, único)
+  description?: string             // Descrição detalhada (opcional)
+  durationHours: number           // Duração em horas (obrigatório)
+  programContent?: string         // Conteúdo programático (opcional)
+  isActive?: boolean              // Status ativo/inativo (padrão: true)
+  validityDays?: number           // Validade do certificado em dias (opcional)
 }
 
 export interface UpdateTrainingData {
   id?: string
-  title?: string
-  description?: string
-  durationHours?: number
-  isActive?: boolean
-  validityDays?: number
+  title?: string                   // Título do treinamento (deve ser único)
+  description?: string             // Descrição detalhada
+  durationHours?: number          // Duração em horas (deve ser > 0)
+  programContent?: string         // Conteúdo programático
+  isActive?: boolean              // Status ativo/inativo
+  validityDays?: number           // Validade do certificado em dias
+}
+
+export interface Training {
+  id: string
+  title: string                    // Título do treinamento (obrigatório, único)
+  description?: string             // Descrição detalhada (opcional)
+  durationHours: number           // Duração em horas (obrigatório)
+  programContent?: string         // Conteúdo programático (opcional)
+  isActive: boolean               // Status ativo/inativo (padrão: true)
+  validityDays?: number           // Validade do certificado em dias (opcional)
+  createdAt: string               // Data de criação
+  updatedAt: string               // Data de atualização
+  
+  // Relacionamentos (quando incluídos na resposta)
+  classes?: any[]                 // Turmas que usam este treinamento
+  certificates?: any[]            // Certificados emitidos
+  instructors?: any[]             // Instrutores habilitados
+}
+
+export interface TrainingsListResponse {
+  trainings: Training[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
 }
 
 // ============ INSTRUCTOR DOCUMENTS MANAGEMENT ============
@@ -769,13 +797,17 @@ export const getInstructorDocuments = async (instructorId: string): Promise<Inst
   }
 };
 
-// Remove um documento específico do instrutor
+// Remove um documento específico do instrutor usando o ID do documento
 export const deleteInstructorDocument = async (documentId: string): Promise<any> => {
   try {
     if (!documentId || documentId.trim() === '') {
       throw new Error('ID do documento é obrigatório');
     }
-    const response = await api.delete(`/superadmin/documents/${documentId}`);
+    
+    console.log('Deletando documento com ID:', documentId);
+    
+    const response = await api.delete(`/upload/document/${documentId}`);
+    
     return response.data;
   } catch (error: any) {
     console.error('Erro ao remover documento do instrutor:', error);
@@ -889,8 +921,12 @@ export const deleteTraining = async (id: string) => {
   try {
     const response = await api.delete(`/superadmin/trainings/${id}`)
     return response.data
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao deletar treinamento:', error)
+    if (error.response) {
+      console.error('API Error Response:', error.response.data)
+      console.error('API Error Status:', error.response.status)
+    }
     throw error
   }
 }
@@ -1506,6 +1542,82 @@ export const uploadInstructorDocument = async (
   }
 }
 
+// Download de documento do instrutor
+export const downloadInstructorDocument = async (documentPath: string, fileName?: string) => {
+  try {
+    // Validação do parâmetro documentPath
+    if (!documentPath || documentPath.trim() === '') {
+      throw new Error('Path do documento é obrigatório')
+    }
+    
+    console.log('Iniciando download do documento:')
+    console.log('- documentPath:', documentPath)
+    console.log('- fileName:', fileName)
+    
+    // Construir a URL do arquivo baseada no path do documento
+    const baseUrl = 'http://localhost:4000'
+    const fileUrl = `${baseUrl}${documentPath}`
+    console.log('- fileUrl:', fileUrl)
+    
+    // Obter o token de autenticação se disponível
+    const token = localStorage.getItem('token')
+    
+    // Fazer o download do arquivo com autenticação se necessário
+    const headers: HeadersInit = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+    
+    const response = await fetch(fileUrl, {
+      method: 'GET',
+      headers
+    })
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Arquivo não encontrado no servidor')
+        
+      } else if (response.status === 403) {
+        throw new Error('Sem permissão para acessar este arquivo')
+      } else {
+        throw new Error(`Erro ao baixar arquivo: ${response.status} ${response.statusText}`)
+      }
+    }
+    
+    const blob = await response.blob()
+    
+    // Criar um link temporário para download
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    
+    // Usar o nome do arquivo fornecido ou extrair do path
+    const downloadFileName = fileName || documentPath.split('/').pop() || 'documento'
+    link.download = downloadFileName
+    
+    console.log('- downloadFileName:', downloadFileName)
+    
+    // Adicionar ao DOM temporariamente para permitir o clique
+    link.style.display = 'none'
+    document.body.appendChild(link)
+    
+    // Simular clique para iniciar o download
+    link.click()
+    
+    // Limpar recursos após um pequeno delay
+    setTimeout(() => {
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    }, 100)
+    
+    console.log('Download concluído com sucesso')
+    return true
+  } catch (error) {
+    console.error('Erro ao fazer download do documento:', error)
+    throw error
+  }
+}
+
 // Upload de assinatura para instrutor (nova versão)
 export const uploadSignature = async (instructorId: string, file: File) => {
   try {
@@ -1840,4 +1952,578 @@ export const getFinishedClassesByInstructor = async (instructorId: string, page:
   }
 }
 
+// ===== INTERFACES PARA IMPORTAÇÃO/EXPORTAÇÃO EXCEL =====
+
+// Interface para filtros de exportação de instrutores
+export interface InstructorExportFilters {
+  search?: string
+  city?: string
+  state?: string
+  isActive?: boolean
+  startDate?: string
+  endDate?: string
+  personType?: 'FISICA' | 'JURIDICA'
+}
+
+// Interface para filtros de exportação de estudantes
+export interface StudentExportFilters {
+  search?: string
+  city?: string
+  state?: string
+  isActive?: boolean
+  startDate?: string
+  endDate?: string
+  gender?: string
+  clientId?: string
+}
+
+// Interface para resposta de exportação
+export interface ExportResponse {
+  filePath: string
+  fileName: string
+  downloadUrl: string
+  totalRecords: number
+  generatedAt: string
+}
+
+// Interface para erro de importação
+export interface ImportError {
+  row: number
+  field: string
+  message: string
+}
+
+// Interface para resposta de importação
+export interface ImportResponse {
+  success: boolean
+  totalRecords: number
+  validRecords: number
+  invalidRecords: number
+  importedRecords?: number
+  errors: ImportError[]
+}
+
+// ===== FUNÇÕES DE EXPORTAÇÃO =====
+
+/**
+ * Exporta instrutores para arquivo Excel
+ * @param filters - Filtros para a exportação
+ * @returns Dados do arquivo gerado
+ */
+export const exportInstructorsToExcel = async (filters: InstructorExportFilters = {}): Promise<ExportResponse> => {
+  try {
+    console.log('Exportando instrutores para Excel com filtros:', filters)
+    
+    const response = await api.post('/excel/export/instructors', filters, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    console.log('Resposta da exportação:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao exportar instrutores:', error)
+    throw error
+  }
+}
+
+/**
+ * Faz download do arquivo Excel gerado
+ * @param fileName - Nome do arquivo para download
+ * @returns Blob do arquivo
+ */
+export const downloadExcelFile = async (fileName: string): Promise<Blob> => {
+  try {
+    console.log('Fazendo download do arquivo:', fileName)
+    
+    const response = await api.get(`/excel/download/${fileName}`, {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
+    })
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao fazer download do arquivo:', error)
+    throw error
+  }
+}
+
+/**
+ * Baixa o template Excel para importação de instrutores
+ * @returns Blob do arquivo template
+ */
+export const downloadInstructorsTemplate = async (): Promise<Blob> => {
+  try {
+    console.log('Baixando template de instrutores')
+    
+    const response = await api.get('/excel/template/instructors', {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
+    })
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao baixar template:', error)
+    throw error
+  }
+}
+
+/**
+ * Deleta um arquivo Excel gerado
+ * @param fileName - Nome do arquivo para deletar
+ */
+export const deleteExcelFile = async (fileName: string): Promise<void> => {
+  try {
+    console.log('Deletando arquivo:', fileName)
+    
+    await api.delete(`/excel/file/${fileName}`)
+    
+    console.log('Arquivo deletado com sucesso')
+  } catch (error) {
+    console.error('Erro ao deletar arquivo:', error)
+    throw error
+  }
+}
+
+// ===== FUNÇÕES DE IMPORTAÇÃO =====
+
+/**
+ * Importa instrutores de um arquivo Excel
+ * @param file - Arquivo Excel para importação
+ * @param validateOnly - Se true, apenas valida sem salvar
+ * @returns Resultado da importação
+ */
+export const importInstructorsFromExcel = async (
+  file: File, 
+  validateOnly: boolean = false
+): Promise<ImportResponse> => {
+  try {
+    console.log('Importando instrutores do Excel:', file.name, 'Validação apenas:', validateOnly)
+    
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    if (validateOnly) {
+      formData.append('validateOnly', 'true')
+    }
+    
+    const response = await api.post('/excel/import/instructors', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    console.log('Resposta da importação:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao importar instrutores:', error)
+    throw error
+  }
+}
+
+/**
+ * Valida um arquivo Excel de instrutores sem importar
+ * @param file - Arquivo Excel para validação
+ * @returns Resultado da validação
+ */
+export const validateInstructorsExcel = async (file: File): Promise<ImportResponse> => {
+  return importInstructorsFromExcel(file, true)
+}
+
+// ===== FUNÇÕES DE EXPORTAÇÃO E IMPORTAÇÃO DE ESTUDANTES =====
+
+/**
+ * Exporta estudantes para arquivo Excel
+ * @param filters - Filtros para a exportação
+ * @returns Dados do arquivo gerado
+ */
+export const exportStudentsToExcel = async (filters: StudentExportFilters = {}): Promise<ExportResponse> => {
+  try {
+    console.log('Exportando estudantes para Excel com filtros:', filters)
+    
+    const response = await api.post('/excel/export/students', filters, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    console.log('Resposta da exportação de estudantes:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao exportar estudantes:', error)
+    throw error
+  }
+}
+
+/**
+ * Baixa o template Excel para importação de estudantes
+ * @returns Blob do arquivo template
+ */
+export const downloadStudentsTemplate = async (): Promise<Blob> => {
+  try {
+    console.log('Baixando template de estudantes')
+    
+    const response = await api.get('/excel/template/students', {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
+    })
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao baixar template de estudantes:', error)
+    throw error
+  }
+}
+
+/**
+ * Importa estudantes de um arquivo Excel
+ * @param file - Arquivo Excel para importação
+ * @param validateOnly - Se true, apenas valida sem salvar
+ * @returns Resultado da importação
+ */
+export const importStudentsFromExcel = async (
+  file: File, 
+  validateOnly: boolean = false
+): Promise<ImportResponse> => {
+  try {
+    console.log('Importando estudantes do Excel:', file.name, 'Validação apenas:', validateOnly)
+    
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    if (validateOnly) {
+      formData.append('validateOnly', 'true')
+    }
+    
+    const response = await api.post('/excel/import/students', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    console.log('Resposta da importação de estudantes:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao importar estudantes:', error)
+    throw error
+  }
+}
+
+/**
+ * Valida um arquivo Excel de estudantes sem importar
+ * @param file - Arquivo Excel para validação
+ * @returns Resultado da validação
+ */
+export const validateStudentsExcel = async (file: File): Promise<ImportResponse> => {
+  return importStudentsFromExcel(file, true)
+}
+
+// ===== FUNÇÕES UTILITÁRIAS =====
+
+/**
+ * Cria um link para download e inicia o download automaticamente
+ * @param blob - Blob do arquivo
+ * @param fileName - Nome do arquivo
+ */
+export const downloadBlobAsFile = (blob: Blob, fileName: string): void => {
+  try {
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Erro ao fazer download do arquivo:', error)
+    throw error
+  }
+}
+
+/**
+ * Gera nome de arquivo único com timestamp
+ * @param prefix - Prefixo do arquivo
+ * @param extension - Extensão do arquivo
+ * @returns Nome do arquivo com timestamp
+ */
+export const generateFileName = (prefix: string, extension: string = 'xlsx'): string => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0]
+  return `${prefix}_${timestamp}.${extension}`
+}
+
+/**
+ * Formata o tamanho do arquivo em formato legível
+ * @param bytes - Tamanho em bytes
+ * @returns Tamanho formatado
+ */
+export const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes'
+  
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// Interfaces para o sistema de notas dos alunos
+export interface StudentGrade {
+  id: string
+  classId: string
+  studentId: string
+  practicalGrade?: number
+  theoreticalGrade?: number
+  observations?: string
+  gradedAt: string
+  gradedBy?: string
+  createdAt: string
+  updatedAt: string
+  class?: {
+    id: string
+    startDate: string
+    endDate: string
+    training: {
+      id: string
+      title: string
+    }
+  }
+  student?: {
+    id: string
+    name: string
+    cpf: string
+    email?: string
+  }
+}
+
+export interface StudentGradeInput {
+  classId: string
+  studentId: string
+  practicalGrade?: number
+  theoreticalGrade?: number
+  observations?: string
+}
+
+export interface ClassGradeStats {
+  classInfo: {
+    id: string
+    trainingTitle: string
+    totalStudents: number
+  }
+  statistics: {
+    studentsWithGrades: number
+    studentsWithoutGrades: number
+    studentsWithPracticalGrade: number
+    studentsWithTheoreticalGrade: number
+    averagePracticalGrade?: number
+    averageTheoreticalGrade?: number
+    practicalGradeDistribution: {
+      excellent: number  // 9-10
+      good: number       // 7-8.9
+      average: number    // 5-6.9
+      poor: number       // <5
+    }
+    theoreticalGradeDistribution: {
+      excellent: number
+      good: number
+      average: number
+      poor: number
+    }
+  }
+  gradedStudents: Array<{
+    studentId: string
+    studentName: string
+    practicalGrade?: number
+    theoreticalGrade?: number
+    observations?: string
+    gradedAt: string
+  }>
+}
+
+// Funções da API para gerenciar notas dos alunos
+
+// Criar ou atualizar nota do aluno
+export async function createOrUpdateStudentGrade(gradeData: StudentGradeInput): Promise<StudentGrade> {
+  const response = await api.post('/superadmin/student-grades', gradeData)
+  return response.data
+}
+
+// Buscar notas de um aluno específico
+export async function getStudentGrades(studentId: string): Promise<StudentGrade[]> {
+  const response = await api.get(`/superadmin/student-grades/student/${studentId}`)
+  return response.data
+}
+
+// Buscar notas de uma turma específica
+export async function getClassGrades(classId: string): Promise<StudentGrade[]> {
+  const response = await api.get(`/superadmin/student-grades/class/${classId}`)
+  return response.data
+}
+
+// Buscar estatísticas de uma turma
+export async function getClassGradeStats(classId: string): Promise<ClassGradeStats> {
+  const response = await api.get(`/superadmin/student-grades/class/${classId}/stats`)
+  return response.data
+}
+
+// Atualizar nota específica
+export async function updateStudentGrade(
+  classId: string, 
+  studentId: string, 
+  gradeData: Partial<StudentGradeInput>
+): Promise<StudentGrade> {
+  const response = await api.patch(`/superadmin/student-grades/${classId}/${studentId}`, gradeData)
+  return response.data
+}
+
+// Remover nota de um aluno
+export async function deleteStudentGrade(classId: string, studentId: string): Promise<{ id: string; message: string }> {
+  const response = await api.delete(`/superadmin/student-grades/${classId}/${studentId}`)
+  return response.data
+}
+
+// Buscar todas as notas com filtros
+export async function getAllStudentGrades(params?: {
+  classId?: string
+  studentId?: string
+  hasPracticalGrade?: boolean
+  hasTheoreticalGrade?: boolean
+  page?: number
+  limit?: number
+}): Promise<{
+  grades: StudentGrade[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}> {
+  const queryParams = new URLSearchParams()
+  
+  if (params?.classId) queryParams.append('classId', params.classId)
+  if (params?.studentId) queryParams.append('studentId', params.studentId)
+  if (params?.hasPracticalGrade !== undefined) queryParams.append('hasPracticalGrade', params.hasPracticalGrade.toString())
+  if (params?.hasTheoreticalGrade !== undefined) queryParams.append('hasTheoreticalGrade', params.hasTheoreticalGrade.toString())
+  if (params?.page) queryParams.append('page', params.page.toString())
+  if (params?.limit) queryParams.append('limit', params.limit.toString())
+
+  const response = await api.get(`/superadmin/student-grades?${queryParams.toString()}`)
+  return response.data
+}
+
+// Interface para fotos de turmas
+export interface ClassPhoto {
+  id: string
+  classId: string
+  path: string
+  caption?: string
+  uploadedBy?: string
+  uploadedAt: string
+  createdAt: string
+  updatedAt: string
+  class?: {
+    id: string
+    training: {
+      title: string
+    }
+  }
+}
+
+export interface ClassPhotoStats {
+  classInfo: {
+    id: string
+    trainingTitle: string
+  }
+  statistics: {
+    totalPhotos: number
+    photosWithCaption: number
+    photosWithoutCaption: number
+    photosByDate: Record<string, number>
+    photosByUser: Record<string, number>
+    firstPhotoUploadedAt?: string
+    lastPhotoUploadedAt?: string
+  }
+}
+
+// Upload de foto para turma
+export async function uploadClassPhoto(
+  classId: string,
+  photo: File,
+  caption?: string
+): Promise<ClassPhoto> {
+  const formData = new FormData()
+  formData.append('photo', photo)
+  if (caption) {
+    formData.append('caption', caption)
+  }
+
+  const response = await api.post(`/superadmin/class-photos/upload/${classId}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+  return response.data
+}
+
+// Listar fotos de uma turma
+export async function getClassPhotos(classId: string): Promise<ClassPhoto[]> {
+  const response = await api.get(`/superadmin/class-photos/class/${classId}`)
+  return response.data
+}
+
+// Listar todas as fotos com filtros
+export async function getAllClassPhotos(params?: {
+  classId?: string
+  uploadedBy?: string
+  page?: number
+  limit?: number
+}): Promise<{
+  photos: ClassPhoto[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}> {
+  const queryParams = new URLSearchParams()
+  
+  if (params?.classId) queryParams.append('classId', params.classId)
+  if (params?.uploadedBy) queryParams.append('uploadedBy', params.uploadedBy)
+  if (params?.page) queryParams.append('page', params.page.toString())
+  if (params?.limit) queryParams.append('limit', params.limit.toString())
+
+  const response = await api.get(`/superadmin/class-photos?${queryParams.toString()}`)
+  return response.data
+}
+
+// Estatísticas de fotos da turma
+export async function getClassPhotoStats(classId: string): Promise<ClassPhotoStats> {
+  const response = await api.get(`/superadmin/class-photos/class/${classId}/stats`)
+  return response.data
+}
+
+// Atualizar legenda da foto
+export async function updateClassPhotoCaption(
+  photoId: string,
+  caption: string
+): Promise<ClassPhoto> {
+  const response = await api.patch(`/superadmin/class-photos/${photoId}`, {
+    caption
+  })
+  return response.data
+}
+
+// Remover foto
+export async function deleteClassPhoto(photoId: string): Promise<void> {
+  await api.delete(`/superadmin/class-photos/${photoId}`)
+}
 

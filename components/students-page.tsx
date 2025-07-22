@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast"
 import { StudentCreateModal } from "@/components/student-create-modal"
 import { StudentEditModal } from "@/components/student-edit-modal"
 import { StudentDeleteModal } from "@/components/student-delete-modal"
+import { StudentExcelExportModal } from "@/components/student-excel-export-modal"
+import { StudentExcelImportModal } from "@/components/student-excel-import-modal"
 
 interface Student {
   id: string
@@ -128,13 +130,17 @@ export function StudentsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Alunos</h1>
           <p className="text-gray-600">Gerencie os alunos cadastrados no sistema</p>
         </div>
-        <Button 
-          className="bg-primary-500 hover:bg-primary-600"
-          onClick={() => setCreateModalOpen(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Aluno
-        </Button>
+        <div className="flex gap-2">
+          <StudentExcelImportModal onImportCompleted={handleSuccess} />
+          <StudentExcelExportModal onExportCompleted={handleSuccess} />
+          <Button 
+            className="bg-primary-500 hover:bg-primary-600"
+            onClick={() => setCreateModalOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Aluno
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filters */}
