@@ -25,6 +25,7 @@ import {
   Download,
   FileText,
   Upload,
+  Shield,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -63,6 +64,11 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
   // Instrutores/Usuários - OCULTO para instrutores
   if ((hasPermission('VIEW_USERS') || hasPermission('MANAGE_USERS')) && !isInstructor) {
     items.push({ id: "instructors", label: "Instrutores", icon: UserCheck, badge: null })
+  }
+
+  // Responsáveis Técnicos - OCULTO para instrutores e clientes
+  if ((hasPermission('VIEW_USERS') || hasPermission('MANAGE_USERS')) && !isInstructor && !isClient) {
+    items.push({ id: "technical-responsibles", label: "Responsáveis Técnicos", icon: Shield, badge: null })
   }
   
   // Treinamentos

@@ -2527,3 +2527,173 @@ export async function deleteClassPhoto(photoId: string): Promise<void> {
   await api.delete(`/superadmin/class-photos/${photoId}`)
 }
 
+// ===== FUNÇÕES PARA RESPONSÁVEIS TÉCNICOS =====
+
+export interface TechnicalResponsible {
+  id: string
+  name: string
+  email: string
+  cpf: string
+  rg?: string
+  profession: string
+  professionalRegistry?: string
+  phone?: string
+  mobilePhone?: string
+  signaturePath?: string
+  isActive: boolean
+  observations?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TechnicalResponsibleCreateData {
+  name: string
+  email: string
+  cpf: string
+  rg?: string
+  profession: string
+  professionalRegistry?: string
+  phone?: string
+  mobilePhone?: string
+  isActive?: boolean
+  observations?: string
+}
+
+export interface TechnicalResponsibleUpdateData {
+  name?: string
+  email?: string
+  rg?: string
+  profession?: string
+  professionalRegistry?: string
+  phone?: string
+  mobilePhone?: string
+  isActive?: boolean
+  observations?: string
+}
+
+export interface TechnicalResponsibleResponse {
+  technicalResponsibles: TechnicalResponsible[]
+  pagination: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
+// Listar responsáveis técnicos com paginação e busca
+export async function getTechnicalResponsibles(
+  page: number = 1,
+  limit: number = 10,
+  search?: string
+): Promise<TechnicalResponsibleResponse> {
+  try {
+    const response = await api.get('/technical-responsible', {
+      params: {
+        page,
+        limit,
+        search
+      }
+    })
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar responsáveis técnicos:', error)
+    throw error
+  }
+}
+
+// Listar apenas responsáveis técnicos ativos
+export async function getActiveTechnicalResponsibles(): Promise<TechnicalResponsible[]> {
+  try {
+    const response = await api.get('/technical-responsible/active')
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar responsáveis técnicos ativos:', error)
+    throw error
+  }
+}
+
+// Buscar responsável técnico por ID
+export async function getTechnicalResponsibleById(id: string): Promise<TechnicalResponsible> {
+  try {
+    const response = await api.get(`/technical-responsible/${id}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar responsável técnico:', error)
+    throw error
+  }
+}
+
+// Criar responsável técnico
+export async function createTechnicalResponsible(
+  data: TechnicalResponsibleCreateData
+): Promise<{ message: string; technicalResponsible: TechnicalResponsible }> {
+  try {
+    const response = await api.post('/technical-responsible', data)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao criar responsável técnico:', error)
+    throw error
+  }
+}
+
+// Atualizar responsável técnico
+export async function updateTechnicalResponsible(
+  id: string,
+  data: TechnicalResponsibleUpdateData
+): Promise<{ message: string; technicalResponsible: TechnicalResponsible }> {
+  try {
+    const response = await api.patch(`/technical-responsible/${id}`, data)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao atualizar responsável técnico:', error)
+    throw error
+  }
+}
+
+// Deletar responsável técnico
+export async function deleteTechnicalResponsible(id: string): Promise<{ message: string }> {
+  try {
+    const response = await api.delete(`/technical-responsible/${id}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao deletar responsável técnico:', error)
+    throw error
+  }
+}
+
+// Ativar/Desativar responsável técnico
+export async function toggleTechnicalResponsibleStatus(
+  id: string
+): Promise<{ message: string; technicalResponsible: TechnicalResponsible }> {
+  try {
+    const response = await api.patch(`/technical-responsible/${id}/toggle-status`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao alterar status do responsável técnico:', error)
+    throw error
+  }
+}
+
+// Upload de assinatura para responsável técnico
+export async function uploadTechnicalResponsibleSignature(
+  technicalResponsibleId: string,
+  signatureFile: File
+): Promise<{ message: string; technicalResponsible: TechnicalResponsible }> {
+  try {
+    const formData = new FormData()
+    formData.append('signature', signatureFile)
+    formData.append('technicalResponsibleId', technicalResponsibleId)
+
+    const response = await api.post('/technical-responsible/signature/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
+  } catch (error) {
+    console.error('Erro ao fazer upload da assinatura:', error)
+    throw error
+  }
+}
+

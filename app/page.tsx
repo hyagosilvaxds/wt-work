@@ -9,6 +9,7 @@ import { StudentsPage } from "@/components/students-page"
 import { TrainingsPage } from "@/components/trainings-page"
 import TurmasPage from "@/components/turmas-page"
 import { InstructorsPage } from "@/components/instructors-page"
+import { TechnicalResponsiblesPage } from "@/components/technical-responsibles-page"
 import { ClientsPage } from "@/components/clients-page"
 import { GroupsPage } from "@/components/groups-page"
 import { RoomsPage } from "@/components/rooms-page"
@@ -74,6 +75,8 @@ export default function Home() {
         return <TurmasPage isClientView={true} />
       case "instructors":
         return <InstructorsPage />
+      case "technical-responsibles":
+        return <TechnicalResponsiblesPage />
       case "clients":
         return <ClientsPage />
       case "groups":

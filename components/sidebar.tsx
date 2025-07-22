@@ -20,6 +20,7 @@ import {
   Star,
   DoorOpen,
   DollarSign,
+  Shield,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -36,6 +37,7 @@ const menuItems = [
   { id: "trainings", label: "Treinamentos", icon: BookOpen, badge: null },
   
   { id: "instructors", label: "Instrutores", icon: UserCheck, badge: null },
+  { id: "technical-responsibles", label: "Responsáveis Técnicos", icon: Shield, badge: null },
   { id: "clients", label: "Clientes", icon: Building2, badge: null },
   { id: "groups", label: "Turmas", icon: UsersRound, badge: null },
 
