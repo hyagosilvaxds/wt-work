@@ -26,17 +26,22 @@ import {
   MapPin,
   GraduationCap,
   Target,
-  TrendingUp
+  TrendingUp,
+  Download,
+  Award,
+  Eye
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { 
   getStudentHistory, 
   getStudentStatistics,
+  downloadCertificatePDF,
   type StudentHistoryResponseDto, 
   type StudentStatistics,
   type StudentHistoryFilters,
   type StudentHistoryClassDto
 } from "@/lib/api/superadmin"
+import { CertificatePreviewModal } from "@/components/certificate-preview-modal"
 
 interface StudentHistoryModalProps {
   studentId: string
@@ -49,6 +54,7 @@ const STATUS_COLORS = {
   'EM_ABERTO': 'bg-gray-100 text-gray-800',
   'EM_ANDAMENTO': 'bg-blue-100 text-blue-800',
   'CONCLUIDA': 'bg-green-100 text-green-800',
+  'CONCLUIDO': 'bg-green-100 text-green-800',
   'CANCELADA': 'bg-red-100 text-red-800',
   'SUSPENSA': 'bg-yellow-100 text-yellow-800'
 }
@@ -57,6 +63,7 @@ const STATUS_LABELS = {
   'EM_ABERTO': 'Em Aberto',
   'EM_ANDAMENTO': 'Em Andamento',
   'CONCLUIDA': 'Concluída',
+  'CONCLUIDO': 'Concluído',
   'CANCELADA': 'Cancelada',
   'SUSPENSA': 'Suspensa'
 }
@@ -71,6 +78,16 @@ export function StudentHistoryModal({
   const [statistics, setStatistics] = useState<StudentStatistics | null>(null)
   const [loading, setLoading] = useState(false)
   const [statsLoading, setStatsLoading] = useState(false)
+  const [certificateLoading, setCertificateLoading] = useState<{ [key: string]: boolean }>({})
+  const [previewModal, setPreviewModal] = useState<{
+    isOpen: boolean
+    classId: string
+    trainingTitle: string
+  }>({
+    isOpen: false,
+    classId: '',
+    trainingTitle: ''
+  })
   const [activeTab, setActiveTab] = useState("history")
   const { toast } = useToast()
 
@@ -161,13 +178,49 @@ export function StudentHistoryModal({
     }
   }
 
+  // Função para abrir modal de prévia do certificado
+  const handleOpenCertificatePreview = (classData: StudentHistoryClassDto) => {
+    setPreviewModal({
+      isOpen: true,
+      classId: classData.id,
+      trainingTitle: classData.training.title
+    })
+  }
+
+  // Função para fechar modal de prévia
+  const handleCloseCertificatePreview = () => {
+    setPreviewModal({
+      isOpen: false,
+      classId: '',
+      trainingTitle: ''
+    })
+  }
+
+  // Verificar se é possível gerar certificado (turma concluída)
+  const canGenerateCertificate = (classData: StudentHistoryClassDto) => {
+    const canGenerate = classData.status === 'CONCLUIDA' || classData.status === 'CONCLUIDO'
+    console.log('🎓 Verificação de certificado:', {
+      classId: classData.id,
+      trainingTitle: classData.training.title,
+      status: classData.status,
+      canGenerate
+    })
+    return canGenerate
+  }
+
   // Todas as turmas (sem filtros)
   const allClasses = history?.classes || []
 
-  // Debug: log das turmas
-  console.log('🔍 Turmas do Aluno:', {
+  // Debug: log das turmas e certificados
+  console.log('🔍 Análise de Turmas do Aluno:', {
     totalClasses: history?.classes?.length || 0,
-    allClasses: history?.classes
+    allClasses: history?.classes,
+    completedClasses: allClasses.filter(cls => cls.status === 'CONCLUIDA' || cls.status === 'CONCLUIDO'),
+    completedCount: allClasses.filter(cls => cls.status === 'CONCLUIDA' || cls.status === 'CONCLUIDO').length,
+    statusDistribution: allClasses.reduce((acc, cls) => {
+      acc[cls.status] = (acc[cls.status] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
   })
 
   // Debug log de renderização
@@ -254,6 +307,24 @@ export function StudentHistoryModal({
               </div>
             ) : (
               <div className="space-y-4">
+                {/* Aviso sobre certificados (apenas para debug) */}
+                {allClasses.length > 0 && allClasses.filter(cls => cls.status === 'CONCLUIDA' || cls.status === 'CONCLUIDO').length === 0 && (
+                  <Card className="border-yellow-200 bg-yellow-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Award className="h-5 w-5 text-yellow-600" />
+                        <div>
+                          <p className="font-medium text-yellow-800">Informação sobre Certificados</p>
+                          <p className="text-sm text-yellow-700">
+                            O botão de certificado aparece apenas para turmas com status "CONCLUIDA" ou "CONCLUIDO". 
+                            Atualmente há {allClasses.length} turma(s), mas nenhuma concluída.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {allClasses.map((cls) => (
                   <Card key={cls.id}>
                     <CardHeader>
@@ -358,6 +429,31 @@ export function StudentHistoryModal({
                           <p className="text-sm">
                             <span className="font-medium">Observações:</span> {cls.observations}
                           </p>
+                        </div>
+                      )}
+
+                      {/* Ações - Certificado */}
+                      {canGenerateCertificate(cls) && (
+                        <div className="mt-4 pt-4 border-t bg-gradient-to-r from-green-50 to-blue-50 -mx-6 px-6 -mb-6 pb-6 rounded-b-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-green-100 rounded-full">
+                                <Award className="h-5 w-5 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-green-800">Certificado Disponível</p>
+                                <p className="text-sm text-green-600">Turma concluída - Certificado pronto para download</p>
+                              </div>
+                            </div>
+                            <Button
+                              className="gap-2 bg-green-600 hover:bg-green-700 text-white shadow-md"
+                              size="sm"
+                              onClick={() => handleOpenCertificatePreview(cls)}
+                            >
+                              <Award className="h-4 w-4" />
+                              Gerar Certificado
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </CardContent>
@@ -526,6 +622,16 @@ export function StudentHistoryModal({
           </Button>
         </div>
       </DialogContent>
+
+      {/* Modal de Prévia do Certificado */}
+      <CertificatePreviewModal
+        isOpen={previewModal.isOpen}
+        onClose={handleCloseCertificatePreview}
+        studentId={studentId}
+        studentName={studentName}
+        classId={previewModal.classId}
+        trainingTitle={previewModal.trainingTitle}
+      />
     </Dialog>
   )
 }

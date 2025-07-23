@@ -174,8 +174,8 @@ export function ClassTechnicalResponsibleModal({
 
   if (!turma) return null
 
-  // Permite modificação em turmas abertas, em andamento e concluídas (para fins de documentação)
-  const canModify = turma.status === "EM_ABERTO" || turma.status === "EM_ANDAMENTO" || turma.status === "CONCLUIDO"
+  // Permite modificação em turmas de qualquer status
+  const canModify = true
   const currentTechnicalResponsible = turma.technicalResponsible
 
   return (
@@ -358,9 +358,9 @@ export function ClassTechnicalResponsibleModal({
             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <AlertCircle className="h-5 w-5 text-gray-600" />
               <div className="flex-1">
-                <p className="font-medium text-gray-900">Turma Não Editável</p>
+                <p className="font-medium text-gray-900">Responsável Técnico</p>
                 <p className="text-sm text-gray-700">
-                  Apenas turmas em aberto, em andamento ou concluídas podem ter o responsável técnico modificado
+                  O responsável técnico pode ser vinculado a turmas de qualquer status
                 </p>
               </div>
             </div>

@@ -3150,3 +3150,296 @@ export async function getAvailableClassesForTechnicalResponsible(): Promise<Avai
   }
 }
 
+// ============ CERTIFICATES API ============
+
+export interface CertificateStudentData {
+  id: string
+  name: string
+  cpf: string
+  email?: string
+  canGenerateCertificate: boolean
+}
+
+export interface CertificateClassData {
+  classId: string
+  training: {
+    id: string
+    title: string
+    durationHours: number
+  }
+  instructor: {
+    name: string
+  }
+  technicalResponsible?: {
+    name: string
+    profession?: string
+  }
+  client?: {
+    name: string
+    city?: string
+    state?: string
+  }
+  startDate: string
+  endDate: string
+  location?: string
+  canGenerateCertificate: boolean
+}
+
+export interface CertificatePreviewData {
+  student: {
+    id: string
+    name: string
+    cpf: string
+  }
+  class: {
+    id: string
+    startDate: string
+    endDate: string
+    status: string
+    location?: string
+    training: {
+      title: string
+      durationHours: number
+      programContent?: string
+    }
+    instructor: {
+      name: string
+    }
+    technicalResponsible?: {
+      name: string
+      profession?: string
+    }
+    client?: {
+      name: string
+      city?: string
+      state?: string
+    }
+  }
+}
+
+export interface StudentCertificatesResponse {
+  message: string
+  totalCertificates: number
+  certificates: CertificateClassData[]
+}
+
+export interface ClassStudentsForCertificateResponse {
+  message: string
+  class: {
+    id: string
+    training: {
+      id: string
+      title: string
+      durationHours: number
+    }
+    instructor: {
+      name: string
+    }
+    technicalResponsible?: {
+      name: string
+      profession?: string
+    }
+    client?: {
+      name: string
+      city?: string
+      state?: string
+    }
+    startDate: string
+    endDate: string
+    status: string
+    location?: string
+  }
+  students: CertificateStudentData[]
+  totalStudents: number
+}
+
+// Gerar certificado PDF para um estudante - Versão POST
+export async function generateCertificatePDF(
+  studentId: string,
+  classId: string
+): Promise<Blob> {
+  try {
+    const response = await api.post('/certificado/generate', {
+      classId,
+      studentId
+    }, {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/pdf',
+        'Content-Type': 'application/json'
+      },
+    })
+    return response.data
+  } catch (error) {
+    console.error('Erro ao gerar certificado PDF:', error)
+    throw error
+  }
+}
+
+// Gerar certificado PDF para um estudante - Versão GET alternativa
+export async function generateCertificatePDFGet(
+  studentId: string,
+  classId: string
+): Promise<Blob> {
+  try {
+    const response = await api.get(`/certificado/generate/${classId}/${studentId}`, {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/pdf',
+      },
+    })
+    return response.data
+  } catch (error) {
+    console.error('Erro ao gerar certificado PDF (GET):', error)
+    throw error
+  }
+}
+
+// Visualizar preview do certificado
+export async function getCertificatePreview(
+  studentId: string,
+  classId: string
+): Promise<Blob> {
+  try {
+    const response = await api.get(`/certificado/preview/${classId}/${studentId}`, {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/pdf',
+      },
+    })
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar preview do certificado:', error)
+    throw error
+  }
+}
+
+// Interface para erro de certificado bloqueado
+export interface CertificateBlockedError {
+  message: string
+  blocked: boolean
+  reason?: string
+}
+
+// Interface para erro de validação
+export interface CertificateValidationError {
+  message: string
+  code: 'CLASS_NOT_FOUND' | 'STUDENT_NOT_FOUND' | 'STUDENT_NOT_ENROLLED' | 'CERTIFICATE_BLOCKED'
+}
+
+// Listar certificados disponíveis para um estudante (mantido para compatibilidade)
+export async function getStudentCertificates(
+  studentId: string
+): Promise<StudentCertificatesResponse> {
+  try {
+    const response = await api.get(`/certificates/student/${studentId}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar certificados do estudante:', error)
+    throw error
+  }
+}
+
+// Listar estudantes de uma turma para certificação
+export async function getClassStudentsForCertificate(
+  classId: string
+): Promise<ClassStudentsForCertificateResponse> {
+  try {
+    const response = await api.get(`/certificates/class/${classId}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar estudantes da turma para certificação:', error)
+    throw error
+  }
+}
+
+// Utilitário para fazer download do PDF gerado - usando nova API
+export async function downloadCertificatePDF(
+  studentId: string,
+  classId: string,
+  studentName?: string,
+  trainingTitle?: string
+): Promise<void> {
+  try {
+    // Usar a versão POST da nova API
+    const blob = await generateCertificatePDF(studentId, classId)
+    
+    // Criar nome do arquivo mais limpo
+    const cleanStudentName = studentName?.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'aluno'
+    const cleanTrainingTitle = trainingTitle?.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'treinamento'
+    const fileName = `certificado-${cleanStudentName}-${cleanTrainingTitle}.pdf`
+    
+    // Criar link temporário para download
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    
+    // Adicionar ao DOM temporariamente para permitir o clique
+    link.style.display = 'none'
+    document.body.appendChild(link)
+    
+    // Simular clique para iniciar o download
+    link.click()
+    
+    // Limpar recursos após um pequeno delay
+    setTimeout(() => {
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    }, 100)
+    
+    console.log('✅ Download do certificado iniciado com sucesso:', fileName)
+  } catch (error: any) {
+    console.error('❌ Erro ao fazer download do certificado:', error)
+    
+    // Tratamento específico dos erros da nova API
+    if (error?.response?.status === 400) {
+      const errorData = error.response.data
+      if (errorData?.message?.includes('bloqueado')) {
+        throw new Error(`Certificado bloqueado: ${errorData.message}`)
+      } else if (errorData?.message?.includes('não está matriculado')) {
+        throw new Error('Aluno não está matriculado nesta turma')
+      }
+    } else if (error?.response?.status === 404) {
+      const errorData = error.response.data
+      if (errorData?.message?.includes('Turma')) {
+        throw new Error('Turma não encontrada')
+      } else if (errorData?.message?.includes('Aluno')) {
+        throw new Error('Aluno não encontrado')
+      }
+    }
+    
+    throw error
+  }
+}
+
+// Utilitário para abrir preview do certificado no navegador
+export async function openCertificatePreview(
+  studentId: string,
+  classId: string
+): Promise<void> {
+  try {
+    const blob = await getCertificatePreview(studentId, classId)
+    
+    // Criar URL temporária para o blob
+    const url = window.URL.createObjectURL(blob)
+    
+    // Abrir em nova aba
+    const newWindow = window.open(url, '_blank')
+    
+    if (!newWindow) {
+      throw new Error('Popup bloqueado pelo navegador')
+    }
+    
+    // Limpar URL após um tempo para liberar memória
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url)
+    }, 5000)
+    
+    console.log('✅ Preview do certificado aberto com sucesso')
+  } catch (error: any) {
+    console.error('❌ Erro ao abrir preview do certificado:', error)
+    throw error
+  }
+}
+
