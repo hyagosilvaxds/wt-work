@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Filter, MoreHorizontal, Mail, Phone, Edit, Trash2, Loader2 } from "lucide-react"
+import { Plus, Search, Filter, MoreHorizontal, Mail, Phone, Edit, Trash2, Loader2, History } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { getStudents } from "@/lib/api/superadmin"
@@ -15,6 +15,7 @@ import { StudentEditModal } from "@/components/student-edit-modal"
 import { StudentDeleteModal } from "@/components/student-delete-modal"
 import { StudentExcelExportModal } from "@/components/student-excel-export-modal"
 import { StudentExcelImportModal } from "@/components/student-excel-import-modal"
+import { StudentHistoryModal } from "@/components/student-history-modal"
 
 interface Student {
   id: string
@@ -66,6 +67,7 @@ export function StudentsPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
 
   // Load students data
@@ -112,6 +114,11 @@ export function StudentsPage() {
   const handleDelete = (student: Student) => {
     setSelectedStudent(student)
     setDeleteModalOpen(true)
+  }
+
+  const handleHistory = (student: Student) => {
+    setSelectedStudent(student)
+    setHistoryModalOpen(true)
   }
 
   const handleSuccess = () => {
@@ -244,6 +251,10 @@ export function StudentsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleHistory(student)}>
+                            <History className="mr-2 h-4 w-4" />
+                            Histórico
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleEdit(student)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Editar
@@ -313,6 +324,15 @@ export function StudentsPage() {
         onSuccess={handleSuccess}
         student={selectedStudent}
       />
+
+      {selectedStudent && (
+        <StudentHistoryModal
+          studentId={selectedStudent.id}
+          studentName={selectedStudent.name}
+          open={historyModalOpen}
+          onOpenChange={setHistoryModalOpen}
+        />
+      )}
     </div>
   )
 }

@@ -2697,3 +2697,456 @@ export async function uploadTechnicalResponsibleSignature(
   }
 }
 
+// ===== VEÍCULOS =====
+
+// Interface para veículo
+export interface Vehicle {
+  id: string
+  instructorId: string
+  brand: string
+  model: string
+  year: number
+  licensePlate: string
+  color: string
+  renavam: string
+  chassisNumber: string
+  fuelType: string
+  category: 'A' | 'B' | 'C' | 'D' | 'E'
+  isActive: boolean
+  observations?: string
+  createdAt: string
+  updatedAt: string
+  instructor?: {
+    id: string
+    name: string
+    email: string
+  }
+}
+
+// Interface para criar veículo
+export interface CreateVehicle {
+  brand: string
+  model: string
+  year: number
+  licensePlate: string
+  color: string
+  renavam: string
+  chassisNumber: string
+  fuelType: string
+  category: 'A' | 'B' | 'C' | 'D' | 'E'
+  observations?: string
+}
+
+// Interface para atualizar veículo
+export interface UpdateVehicle {
+  brand?: string
+  model?: string
+  year?: number
+  licensePlate?: string
+  color?: string
+  renavam?: string
+  chassisNumber?: string
+  fuelType?: string
+  category?: 'A' | 'B' | 'C' | 'D' | 'E'
+  observations?: string
+}
+
+// Cadastrar veículo para um instrutor
+export async function createVehicle(instructorId: string, vehicle: CreateVehicle): Promise<Vehicle> {
+  try {
+    const response = await api.post(`/instructors/${instructorId}/vehicles`, vehicle)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao cadastrar veículo:', error)
+    throw error
+  }
+}
+
+// Listar veículos de um instrutor
+export async function getInstructorVehicles(instructorId: string): Promise<Vehicle[]> {
+  try {
+    const response = await api.get(`/instructors/${instructorId}/vehicles`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao listar veículos do instrutor:', error)
+    throw error
+  }
+}
+
+// Buscar veículo por ID
+export async function getVehicleById(vehicleId: string): Promise<Vehicle> {
+  try {
+    const response = await api.get(`/instructors/vehicles/${vehicleId}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar veículo:', error)
+    throw error
+  }
+}
+
+// Atualizar veículo
+export async function updateVehicle(vehicleId: string, updates: UpdateVehicle): Promise<Vehicle> {
+  try {
+    const response = await api.put(`/instructors/vehicles/${vehicleId}`, updates)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao atualizar veículo:', error)
+    throw error
+  }
+}
+
+// Alternar status ativo/inativo do veículo
+export async function toggleVehicleStatus(vehicleId: string): Promise<{ message: string; vehicle: Vehicle }> {
+  try {
+    const response = await api.patch(`/instructors/vehicles/${vehicleId}/toggle-status`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao alterar status do veículo:', error)
+    throw error
+  }
+}
+
+// Buscar veículos por categoria
+export async function getVehiclesByCategory(category: 'A' | 'B' | 'C' | 'D' | 'E'): Promise<Vehicle[]> {
+  try {
+    const response = await api.get(`/instructors/vehicles/category/${category}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar veículos por categoria:', error)
+    throw error
+  }
+}
+
+// Buscar veículo por placa
+export async function getVehicleByLicensePlate(plate: string): Promise<Vehicle> {
+  try {
+    const response = await api.get(`/instructors/vehicles/search/license-plate?plate=${plate}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar veículo por placa:', error)
+    throw error
+  }
+}
+
+// Deletar veículo
+export async function deleteVehicle(vehicleId: string): Promise<{ message: string }> {
+  try {
+    const response = await api.delete(`/instructors/vehicles/${vehicleId}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao deletar veículo:', error)
+    throw error
+  }
+}
+
+// Listar todos os veículos (para superadmin)
+export async function getAllVehicles(): Promise<Vehicle[]> {
+  try {
+    const response = await api.get('/instructors/vehicles')
+    return response.data
+  } catch (error) {
+    console.error('Erro ao listar todos os veículos:', error)
+    throw error
+  }
+}
+
+// ===== HISTÓRICO DO ALUNO =====
+
+// Interface para nota do aluno
+export interface StudentGrade {
+  id: string
+  practicalGrade?: number
+  theoreticalGrade?: number
+  observations?: string
+  gradedAt: string
+  gradedBy?: string
+}
+
+// Interface para presença em aula
+export interface LessonAttendance {
+  id: string
+  lessonId: string
+  status: string
+  observations?: string
+  createdAt: string
+  lesson: {
+    id: string
+    title: string
+    startDate: string
+    endDate: string
+    status: string
+    location?: string
+  }
+}
+
+// Interface para certificado
+export interface Certificate {
+  id: string
+  issueDate: string
+  validationCode: string
+}
+
+// Interface para bloqueio de certificado
+export interface CertificateBlock {
+  id: string
+  reason: string
+  blockedAt: string
+  blockedBy: string
+}
+
+// Interface para turma no histórico
+export interface StudentHistoryClassDto {
+  id: string
+  trainingId: string
+  instructorId: string
+  technicalResponsibleId?: string
+  startDate: string
+  endDate: string
+  status: string
+  type: string
+  location?: string
+  observations?: string
+  training: {
+    id: string
+    title: string
+    description?: string
+    durationHours: number
+    programContent?: string
+    validityDays?: number
+    isActive: boolean
+  }
+  instructor: {
+    id: string
+    name: string
+    email?: string
+    cpf?: string
+    mobileAreaCode?: string
+    mobileNumber?: string
+  }
+  client?: {
+    id: string
+    name: string
+    email?: string
+    corporateName?: string
+  }
+  technicalResponsible?: {
+    id: string
+    name: string
+    email: string
+    profession: string
+    professionalRegistry?: string
+  }
+  studentGrade?: StudentGrade
+  lessonAttendances: LessonAttendance[]
+  certificates: Certificate[]
+  certificateBlocks: CertificateBlock[]
+}
+
+// Interface para histórico completo do aluno
+export interface StudentHistoryResponseDto {
+  studentId: string
+  studentName: string
+  studentCpf: string
+  studentEmail?: string
+  enrollmentDate: string
+  totalClasses: number
+  completedClasses: number
+  activeClasses: number
+  totalCertificates: number
+  classes: StudentHistoryClassDto[]
+}
+
+// Interface para estatísticas do aluno
+export interface StudentStatistics {
+  studentId: string
+  studentName: string
+  enrollmentDate: string
+  totalClasses: number
+  completedClasses: number
+  totalCertificates: number
+  totalLessons: number
+  attendedLessons: number
+  attendanceRate: number
+  averageGrades: {
+    practical: number
+    theoretical: number
+  }
+  totalHoursCompleted: number
+}
+
+// Interface para filtros do histórico
+export interface StudentHistoryFilters {
+  status?: 'EM_ABERTO' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA' | 'SUSPENSA'
+  startDate?: string
+  endDate?: string
+  trainingId?: string
+  instructorId?: string
+  includeInactive?: boolean
+}
+
+// Buscar histórico completo do aluno
+export async function getStudentHistory(
+  studentId: string, 
+  filters?: StudentHistoryFilters
+): Promise<StudentHistoryResponseDto> {
+  try {
+    const queryParams = new URLSearchParams()
+    
+    if (filters?.status) queryParams.append('status', filters.status)
+    if (filters?.startDate) queryParams.append('startDate', filters.startDate)
+    if (filters?.endDate) queryParams.append('endDate', filters.endDate)
+    if (filters?.trainingId) queryParams.append('trainingId', filters.trainingId)
+    if (filters?.instructorId) queryParams.append('instructorId', filters.instructorId)
+    if (filters?.includeInactive) queryParams.append('includeInactive', filters.includeInactive.toString())
+    
+    const url = `/students/${studentId}/history${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+    const response = await api.get(url)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar histórico do aluno:', error)
+    throw error
+  }
+}
+
+// Buscar estatísticas do aluno
+export async function getStudentStatistics(studentId: string): Promise<StudentStatistics> {
+  try {
+    const response = await api.get(`/students/${studentId}/statistics`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas do aluno:', error)
+    throw error
+  }
+}
+
+// Buscar detalhes de uma turma específica do aluno
+export async function getStudentClassHistory(
+  studentId: string, 
+  classId: string
+): Promise<StudentHistoryClassDto> {
+  try {
+    const response = await api.get(`/students/${studentId}/history/class/${classId}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar detalhes da turma do aluno:', error)
+    throw error
+  }
+}
+
+// ========================================
+// VINCULAÇÃO DE RESPONSÁVEL TÉCNICO ÀS TURMAS
+// ========================================
+
+// Interface para turma com responsável técnico
+export interface ClassWithTechnicalResponsible {
+  id: string
+  training: {
+    id: string
+    title: string
+    durationHours?: number
+  }
+  instructor: {
+    id: string
+    name: string
+    email?: string
+  }
+  client?: {
+    id: string
+    name: string
+    corporateName?: string
+  }
+  technicalResponsible?: {
+    id: string
+    name: string
+    profession?: string
+    email?: string
+    professionalRegistry?: string
+  }
+  startDate: string
+  endDate: string
+  status: string
+  studentsCount?: number
+  students?: Array<{
+    id: string
+    name: string
+    email?: string
+  }>
+}
+
+// Interface para resposta de turmas do responsável técnico
+export interface TechnicalResponsibleClassesDto {
+  technicalResponsible: {
+    id: string
+    name: string
+    profession?: string
+    email?: string
+    professionalRegistry?: string
+  }
+  totalClasses: number
+  classes: ClassWithTechnicalResponsible[]
+}
+
+// Interface para turmas disponíveis
+export interface AvailableClassesDto {
+  totalAvailableClasses: number
+  classes: ClassWithTechnicalResponsible[]
+}
+
+// Vincular responsável técnico à turma
+export async function linkTechnicalResponsibleToClass(
+  technicalResponsibleId: string,
+  classId: string
+): Promise<{ message: string; class: ClassWithTechnicalResponsible }> {
+  try {
+    const response = await api.post(`/technical-responsible/${technicalResponsibleId}/link-class/${classId}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao vincular responsável técnico à turma:', error)
+    throw error
+  }
+}
+
+// Desvincular responsável técnico da turma
+export async function unlinkTechnicalResponsibleFromClass(
+  classId: string
+): Promise<{ 
+  message: string
+  class: ClassWithTechnicalResponsible
+  previousTechnicalResponsible?: {
+    id: string
+    name: string
+  }
+}> {
+  try {
+    const response = await api.delete(`/technical-responsible/unlink-class/${classId}`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao desvincular responsável técnico da turma:', error)
+    throw error
+  }
+}
+
+// Buscar turmas de um responsável técnico
+export async function getTechnicalResponsibleClasses(
+  technicalResponsibleId: string
+): Promise<TechnicalResponsibleClassesDto> {
+  try {
+    const response = await api.get(`/technical-responsible/${technicalResponsibleId}/classes`)
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar turmas do responsável técnico:', error)
+    throw error
+  }
+}
+
+// Buscar turmas disponíveis para vinculação
+export async function getAvailableClassesForTechnicalResponsible(): Promise<AvailableClassesDto> {
+  try {
+    const response = await api.get('/technical-responsible/available-classes')
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar turmas disponíveis:', error)
+    throw error
+  }
+}
+
