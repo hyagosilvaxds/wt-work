@@ -21,6 +21,35 @@ import {
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {/* Toggle para modo de elegibilidade */}
+          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+            <Button
+              size="sm"
+              variant={eligibilityMode ? "default" : "ghost"}
+              onClick={() => setEligibilityMode(true)}
+              className="text-xs"
+            >
+              📊 API Elegibilidade
+            </Button>
+            <Button
+              size="sm"
+              variant={!eligibilityMode ? "default" : "ghost"}
+              onClick={() => setEligibilityMode(false)}
+              className="text-xs"
+            >
+              📋 Modo Clássico
+            </Button>
+          </div>
+          
+          <Button variant="outline" onClick={() => loadFinishedClasses()}>
+            🔄 Atualizar
+          </Button>
+        </div>
+      }nput"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -160,11 +189,7 @@ export function CertificatesPage() {
           const response = await getClientEligibleClasses(clientId)
           classes = response.classes.map(cls => ({
             id: cls.classId,
-            training: { 
-              title: cls.trainingName,
-              durationHours: cls.trainingDurationHours,
-              validityDays: cls.certificateValidityDays
-            },
+            training: { title: cls.trainingName },
             startDate: cls.startDate,
             endDate: cls.endDate,
             status: cls.status,
@@ -173,16 +198,10 @@ export function CertificatesPage() {
               id: student.studentId,
               name: student.studentName,
               cpf: student.studentCpf,
-              email: student.studentEmail,
-              practicalGrade: student.practicalGrade,
-              theoreticalGrade: student.theoreticalGrade,
               averageGrade: student.averageGrade,
-              totalLessons: student.totalLessons,
-              attendedLessons: student.attendedLessons,
-              absences: student.absences,
               isEligible: student.isEligible,
               eligibilityReason: student.reason,
-              hasAbsences: student.absences > 0
+              hasAbsences: !student.isEligible && student.reason.includes('falta')
             }))
           }))
         } else if (!isClient) {
@@ -190,11 +209,7 @@ export function CertificatesPage() {
           const response = await getCompletedClassesWithEligibility()
           classes = response.map(cls => ({
             id: cls.classId,
-            training: { 
-              title: cls.trainingName,
-              durationHours: cls.trainingDurationHours,
-              validityDays: cls.certificateValidityDays
-            },
+            training: { title: cls.trainingName },
             startDate: cls.startDate,
             endDate: cls.endDate,
             status: cls.status,
@@ -203,16 +218,10 @@ export function CertificatesPage() {
               id: student.studentId,
               name: student.studentName,
               cpf: student.studentCpf,
-              email: student.studentEmail,
-              practicalGrade: student.practicalGrade,
-              theoreticalGrade: student.theoreticalGrade,
               averageGrade: student.averageGrade,
-              totalLessons: student.totalLessons,
-              attendedLessons: student.attendedLessons,
-              absences: student.absences,
               isEligible: student.isEligible,
               eligibilityReason: student.reason,
-              hasAbsences: student.absences > 0
+              hasAbsences: !student.isEligible && student.reason.includes('falta')
             }))
           }))
           
@@ -285,13 +294,13 @@ export function CertificatesPage() {
 
   const handleGenerateCertificate = (student: any, classData: any) => {
     if (eligibilityMode) {
-      // Nova abordagem: usar elegibilidade da API, mas permitir geração mesmo se não elegível
+      // Nova abordagem: usar elegibilidade da API
       if (!student.isEligible) {
-        // Mostrar toast informativo mas permitir continuar
-        toast.warning(`Atenção: ${student.eligibilityReason}. Gerando certificado mesmo assim.`)
+        toast.error(`Não é possível gerar certificado: ${student.eligibilityReason}`)
+        return
       }
       
-      // Abrir modal de preview do certificado (sempre permitir)
+      // Abrir modal de preview do certificado
       setPreviewModal({
         isOpen: true,
         classId: classData.id,
@@ -351,17 +360,6 @@ export function CertificatesPage() {
   }
 
   const getAttendanceInfo = (student: any) => {
-    // Usar dados da nova API de elegibilidade se disponível
-    if (eligibilityMode && student.totalLessons !== undefined) {
-      return {
-        totalLessons: student.totalLessons,
-        presentCount: student.attendedLessons,
-        absentCount: student.absences,
-        hasAbsences: student.absences > 0
-      }
-    }
-    
-    // Fallback para API antiga
     const totalLessons = student.attendances ? student.attendances.length : 0
     const presentCount = student.attendances ? student.attendances.filter((att: any) => att.status === 'PRESENTE').length : 0
     const absentCount = student.totalAbsences || 0
@@ -382,104 +380,18 @@ export function CertificatesPage() {
     return hasAbsences ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />
   }
 
-  // Nova função para obter informações de notas (conforme nova API)
-  const getGradesInfo = (student: any) => {
-    if (!eligibilityMode) return null
-    
-    // Verificar se pelo menos uma nota existe e é um número válido
-    const hasPracticalGrade = student.practicalGrade !== null && student.practicalGrade !== undefined && !isNaN(Number(student.practicalGrade))
-    const hasTheoreticalGrade = student.theoreticalGrade !== null && student.theoreticalGrade !== undefined && !isNaN(Number(student.theoreticalGrade))
-    const hasAverageGrade = student.averageGrade !== null && student.averageGrade !== undefined && !isNaN(Number(student.averageGrade))
-    
-    if (!hasPracticalGrade && !hasTheoreticalGrade && !hasAverageGrade) return null
-    
-    return {
-      practicalGrade: hasPracticalGrade ? Number(student.practicalGrade) : null,
-      theoreticalGrade: hasTheoreticalGrade ? Number(student.theoreticalGrade) : null,
-      averageGrade: hasAverageGrade ? Number(student.averageGrade) : null,
-      hasFailingGrade: (hasPracticalGrade && Number(student.practicalGrade) < 5.0) || 
-                       (hasTheoreticalGrade && Number(student.theoreticalGrade) < 5.0)
-    }
-  }
-
-  // Função para determinar o status de elegibilidade baseado no motivo
-  const getEligibilityStatus = (student: any) => {
-    if (!eligibilityMode || student.isEligible) {
-      return {
-        type: 'eligible',
-        label: 'Apto para certificado',
-        color: 'text-green-600',
-        bgColor: 'bg-green-100',
-        icon: <CheckCircle className="h-4 w-4" />
-      }
-    }
-    
-    const reason = student.eligibilityReason.toLowerCase()
-    
-    if (reason.includes('nota')) {
-      return {
-        type: 'failed_grade',
-        label: 'Reprovado por Nota',
-        color: 'text-red-600',
-        bgColor: 'bg-red-100',
-        icon: <XCircle className="h-4 w-4" />
-      }
-    }
-    
-    if (reason.includes('falta')) {
-      return {
-        type: 'absences',
-        label: 'Reprovado por Faltas',
-        color: 'text-yellow-600',
-        bgColor: 'bg-yellow-100',
-        icon: <AlertTriangle className="h-4 w-4" />
-      }
-    }
-    
-    if (reason.includes('bloqueado')) {
-      return {
-        type: 'blocked',
-        label: 'Certificado Bloqueado',
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-100',
-        icon: <XCircle className="h-4 w-4" />
-      }
-    }
-    
-    return {
-      type: 'not_eligible',
-      label: 'Não Elegível',
-      color: 'text-gray-600',
-      bgColor: 'bg-gray-100',
-      icon: <XCircle className="h-4 w-4" />
-    }
-  }
-
   const handleBatchGenerate = async (classItem: any) => {
     try {
       setBatchGenerating(true)
       
-      let eligibleStudents
-      
-      if (eligibilityMode) {
-        // Nova lógica: incluir todos os estudantes (permitir gerar mesmo para não elegíveis)
-        eligibleStudents = classItem.students || []
-        
-        // Mostrar aviso se há estudantes não elegíveis
-        const notEligibleCount = eligibleStudents.filter((student: any) => !student.isEligible).length
-        if (notEligibleCount > 0) {
-          toast.warning(`Atenção: ${notEligibleCount} estudante(s) não elegível(is) será(ão) incluído(s) na geração.`)
-        }
-      } else {
-        // Lógica antiga: apenas estudantes sem faltas
-        eligibleStudents = classItem.students?.filter((student: any) => {
-          const attendanceInfo = getAttendanceInfo(student)
-          return !attendanceInfo.hasAbsences
-        }) || []
-      }
+      // Filtrar apenas estudantes sem faltas
+      const eligibleStudents = classItem.students?.filter((student: any) => {
+        const attendanceInfo = getAttendanceInfo(student)
+        return !attendanceInfo.hasAbsences
+      }) || []
 
       if (eligibleStudents.length === 0) {
-        toast.error('Nenhum estudante encontrado para gerar certificados')
+        toast.error('Nenhum estudante sem faltas encontrado para gerar certificados')
         return
       }
 
@@ -600,32 +512,6 @@ export function CertificatesPage() {
             }
           </p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          {/* Toggle para modo de elegibilidade */}
-          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-            <Button
-              size="sm"
-              variant={eligibilityMode ? "default" : "ghost"}
-              onClick={() => setEligibilityMode(true)}
-              className="text-xs"
-            >
-              📊 API Elegibilidade
-            </Button>
-            <Button
-              size="sm"
-              variant={!eligibilityMode ? "default" : "ghost"}
-              onClick={() => setEligibilityMode(false)}
-              className="text-xs"
-            >
-              📋 Modo Clássico
-            </Button>
-          </div>
-          
-          <Button variant="outline" onClick={() => loadFinishedClasses()}>
-            🔄 Atualizar
-          </Button>
-        </div>
       </div>
 
       {/* Estatísticas */}
@@ -708,65 +594,29 @@ export function CertificatesPage() {
                   
                   {/* Botão de geração em lote */}
                   {(() => {
-                    let eligibleStudents
-                    let buttonText
-                    let buttonColor = "outline"
+                    const eligibleStudents = classItem.students?.filter((student: any) => {
+                      const attendanceInfo = getAttendanceInfo(student)
+                      return !attendanceInfo.hasAbsences
+                    }) || []
                     
-                    if (eligibilityMode) {
-                      // Nova lógica: incluir todos os estudantes, mas distinguir elegíveis
-                      const allStudents = classItem.students || []
-                      const trulyEligible = allStudents.filter((student: any) => student.isEligible)
-                      const notEligible = allStudents.filter((student: any) => !student.isEligible)
-                      
-                      if (allStudents.length > 0) {
-                        if (trulyEligible.length === allStudents.length) {
-                          // Todos elegíveis
-                          eligibleStudents = allStudents
-                          buttonText = `Gerar Lote (${allStudents.length})`
-                        } else if (trulyEligible.length > 0) {
-                          // Misturado: alguns elegíveis, alguns não
-                          eligibleStudents = allStudents
-                          buttonText = `Gerar Lote (${trulyEligible.length} elegíveis + ${notEligible.length} não elegíveis)`
-                          buttonColor = "yellow"
-                        } else {
-                          // Nenhum elegível
-                          eligibleStudents = allStudents
-                          buttonText = `Gerar Lote (${allStudents.length} não elegíveis)`
-                          buttonColor = "yellow"
-                        }
-                      }
-                    } else {
-                      // Lógica antiga: verificar faltas
-                      eligibleStudents = classItem.students?.filter((student: any) => {
-                        const attendanceInfo = getAttendanceInfo(student)
-                        return !attendanceInfo.hasAbsences
-                      }) || []
-                      
-                      if (eligibleStudents.length > 0) {
-                        buttonText = `Gerar Lote (${eligibleStudents.length})`
-                      }
-                    }
-                    
-                    if (eligibleStudents && eligibleStudents.length > 0) {
+                    if (eligibleStudents.length > 0) {
                       return (
                         <Button
-                          variant={buttonColor === "yellow" ? "default" : "outline"}
+                          variant="outline"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleBatchGenerate(classItem)
                           }}
                           disabled={batchGenerating}
-                          className={`gap-2 ${buttonColor === "yellow" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}`}
+                          className="gap-2"
                         >
                           {batchGenerating ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : buttonColor === "yellow" ? (
-                            <AlertTriangle className="h-4 w-4" />
                           ) : (
                             <Package className="h-4 w-4" />
                           )}
-                          {buttonText}
+                          Gerar Lote ({eligibleStudents.length})
                         </Button>
                       )
                     }
@@ -798,12 +648,7 @@ export function CertificatesPage() {
                       <Users className="h-4 w-4 text-gray-500" />
                       <div>
                         <p className="text-sm font-medium">Alunos</p>
-                        <p className="text-sm text-gray-600">
-                          {eligibilityMode && classItem.totalStudents 
-                            ? `${classItem.totalStudents} participantes`
-                            : `${classItem.students?.length || 0} participantes`
-                          }
-                        </p>
+                        <p className="text-sm text-gray-600">{classItem.students?.length || 0} participantes</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -820,12 +665,7 @@ export function CertificatesPage() {
                       <FileText className="h-4 w-4 text-gray-500" />
                       <div>
                         <p className="text-sm font-medium">Carga Horária</p>
-                        <p className="text-sm text-gray-600">
-                          {eligibilityMode && classItem.training?.durationHours 
-                            ? `${classItem.training.durationHours}h`
-                            : `${classItem.training?.durationHours || 0}h`
-                          }
-                        </p>
+                        <p className="text-sm text-gray-600">{classItem.training?.durationHours || 0}h</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -847,21 +687,14 @@ export function CertificatesPage() {
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="h-4 w-4 text-green-500" />
                       <div>
-                        <p className="text-sm font-medium">
-                          {eligibilityMode ? 'Alunos Elegíveis' : 'Sem Faltas'}
-                        </p>
+                        <p className="text-sm font-medium">Sem Faltas</p>
                         <p className="text-sm text-green-600">
                           {(() => {
-                            if (eligibilityMode) {
-                              const eligibleStudents = classItem.students?.filter((student: any) => student.isEligible) || []
-                              return `${eligibleStudents.length} estudante${eligibleStudents.length !== 1 ? 's' : ''}`
-                            } else {
-                              const eligibleStudents = classItem.students?.filter((student: any) => {
-                                const attendanceInfo = getAttendanceInfo(student)
-                                return !attendanceInfo.hasAbsences
-                              }) || []
-                              return `${eligibleStudents.length} estudante${eligibleStudents.length !== 1 ? 's' : ''}`
-                            }
+                            const eligibleStudents = classItem.students?.filter((student: any) => {
+                              const attendanceInfo = getAttendanceInfo(student)
+                              return !attendanceInfo.hasAbsences
+                            }) || []
+                            return `${eligibleStudents.length} estudante${eligibleStudents.length !== 1 ? 's' : ''}`
                           })()}
                         </p>
                       </div>
@@ -869,21 +702,14 @@ export function CertificatesPage() {
                     <div className="flex items-center space-x-2">
                       <XCircle className="h-4 w-4 text-red-500" />
                       <div>
-                        <p className="text-sm font-medium">
-                          {eligibilityMode ? 'Não Elegíveis' : 'Com Faltas'}
-                        </p>
+                        <p className="text-sm font-medium">Com Faltas</p>
                         <p className="text-sm text-red-600">
                           {(() => {
-                            if (eligibilityMode) {
-                              const ineligibleStudents = classItem.students?.filter((student: any) => !student.isEligible) || []
-                              return `${ineligibleStudents.length} estudante${ineligibleStudents.length !== 1 ? 's' : ''}`
-                            } else {
-                              const studentsWithAbsences = classItem.students?.filter((student: any) => {
-                                const attendanceInfo = getAttendanceInfo(student)
-                                return attendanceInfo.hasAbsences
-                              }) || []
-                              return `${studentsWithAbsences.length} estudante${studentsWithAbsences.length !== 1 ? 's' : ''}`
-                            }
+                            const studentsWithAbsences = classItem.students?.filter((student: any) => {
+                              const attendanceInfo = getAttendanceInfo(student)
+                              return attendanceInfo.hasAbsences
+                            }) || []
+                            return `${studentsWithAbsences.length} estudante${studentsWithAbsences.length !== 1 ? 's' : ''}`
                           })()}
                         </p>
                       </div>
@@ -935,50 +761,10 @@ export function CertificatesPage() {
                                   <span className="text-gray-600">CPF:</span>
                                   <span className="font-medium">{student.cpf || 'N/A'}</span>
                                 </div>
-                                {student.email && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Email:</span>
-                                    <span>{student.email}</span>
-                                  </div>
-                                )}
-                                
-                                {/* Informações de Notas (apenas no modo elegibilidade) */}
-                                {(() => {
-                                  const gradesInfo = getGradesInfo(student)
-                                  if (gradesInfo) {
-                                    return (
-                                      <div className="border-t pt-2 mt-2">
-                                        {gradesInfo.practicalGrade !== null && gradesInfo.practicalGrade !== undefined && (
-                                          <div className="flex justify-between">
-                                            <span className="text-gray-600">Nota Prática:</span>
-                                            <span className={`font-medium ${gradesInfo.practicalGrade >= 5.0 ? 'text-green-600' : 'text-red-600'}`}>
-                                              {Number(gradesInfo.practicalGrade).toFixed(1)}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {gradesInfo.theoreticalGrade !== null && gradesInfo.theoreticalGrade !== undefined && (
-                                          <div className="flex justify-between">
-                                            <span className="text-gray-600">Nota Teórica:</span>
-                                            <span className={`font-medium ${gradesInfo.theoreticalGrade >= 5.0 ? 'text-green-600' : 'text-red-600'}`}>
-                                              {Number(gradesInfo.theoreticalGrade).toFixed(1)}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {gradesInfo.averageGrade !== null && gradesInfo.averageGrade !== undefined && (
-                                          <div className="flex justify-between">
-                                            <span className="text-gray-600">Média:</span>
-                                            <span className={`font-medium ${gradesInfo.averageGrade >= 5.0 ? 'text-green-600' : 'text-red-600'}`}>
-                                              {Number(gradesInfo.averageGrade).toFixed(1)}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )
-                                  }
-                                  return null
-                                })()}
-                                
-                                {/* Informações de Presença */}
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Email:</span>
+                                  <span>{student.email || 'N/A'}</span>
+                                </div>
                                 {(() => {
                                   const attendanceInfo = getAttendanceInfo(student)
                                   return (
@@ -989,28 +775,12 @@ export function CertificatesPage() {
                                       </div>
                                       <div className="flex justify-between items-center">
                                         <span className="text-gray-600">Status:</span>
-                                        {eligibilityMode ? (
-                                          <div className={`flex items-center gap-1`}>
-                                            {(() => {
-                                              const eligibilityStatus = getEligibilityStatus(student)
-                                              return (
-                                                <div className={`flex items-center gap-1 ${eligibilityStatus.color}`}>
-                                                  {eligibilityStatus.icon}
-                                                  <span className="font-medium text-xs">
-                                                    {eligibilityStatus.label}
-                                                  </span>
-                                                </div>
-                                              )
-                                            })()}
-                                          </div>
-                                        ) : (
-                                          <div className={`flex items-center gap-1 ${getAttendanceStatusColor(attendanceInfo.hasAbsences)}`}>
-                                            {getAttendanceStatusIcon(attendanceInfo.hasAbsences)}
-                                            <span className="font-medium">
-                                              {attendanceInfo.hasAbsences ? `${attendanceInfo.absentCount} falta(s)` : 'Sem faltas'}
-                                            </span>
-                                          </div>
-                                        )}
+                                        <div className={`flex items-center gap-1 ${getAttendanceStatusColor(attendanceInfo.hasAbsences)}`}>
+                                          {getAttendanceStatusIcon(attendanceInfo.hasAbsences)}
+                                          <span className="font-medium">
+                                            {attendanceInfo.hasAbsences ? `${attendanceInfo.absentCount} falta(s)` : 'Sem faltas'}
+                                          </span>
+                                        </div>
                                       </div>
                                     </>
                                   )
@@ -1021,20 +791,18 @@ export function CertificatesPage() {
                                 {(() => {
                                   if (eligibilityMode) {
                                     // Nova lógica: usar elegibilidade da API
-                                    const eligibilityStatus = getEligibilityStatus(student)
-                                    
                                     if (!student.isEligible) {
                                       return (
                                         <Button 
                                           size="sm" 
-                                          className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white"
-                                          onClick={() => handleGenerateCertificate(student, classItem)}
-                                          title={`Clique para gerar mesmo assim. Motivo: ${student.eligibilityReason}`}
+                                          className="flex-1 bg-gray-400 cursor-not-allowed"
+                                          disabled
+                                          title={student.eligibilityReason}
                                         >
-                                          <AlertTriangle className="mr-1 h-3 w-3" />
-                                          <span className="text-xs">
-                                            Não Apto - Gerar Assim Mesmo
-                                          </span>
+                                          <XCircle className="mr-1 h-3 w-3" />
+                                          {student.eligibilityReason.includes('nota') ? 'Reprovado' : 
+                                           student.eligibilityReason.includes('bloqueado') ? 'Bloqueado' : 
+                                           'Não Elegível'}
                                         </Button>
                                       )
                                     }

@@ -3327,6 +3327,112 @@ export interface CertificateValidationError {
   code: 'CLASS_NOT_FOUND' | 'STUDENT_NOT_FOUND' | 'STUDENT_NOT_ENROLLED' | 'CERTIFICATE_BLOCKED'
 }
 
+// Interface para dados de elegibilidade de certificado - ATUALIZADA conforme nova API
+export interface CertificateEligibilityStudent {
+  studentId: string
+  studentName: string
+  studentCpf: string
+  studentEmail?: string
+  practicalGrade?: number | null
+  theoreticalGrade?: number | null
+  averageGrade?: number | null
+  totalLessons: number
+  attendedLessons: number
+  absences: number
+  isEligible: boolean
+  reason: string
+}
+
+// Interface para turma com elegibilidade de certificados - ATUALIZADA conforme nova API
+export interface CompletedClassWithEligibility {
+  classId: string
+  trainingName: string
+  startDate: string
+  endDate: string
+  status: string
+  location?: string
+  trainingDurationHours?: number
+  certificateValidityDays?: number
+  totalStudents?: number
+  studentsWithoutAbsences?: number
+  studentsWithAbsences?: number
+  totalLessons?: number
+  students: CertificateEligibilityStudent[]
+}
+
+// Interface para resposta de turmas elegíveis por cliente - ATUALIZADA conforme nova API
+export interface ClientEligibleClassesResponse {
+  clientId: string
+  clientName: string
+  totalClasses: number
+  eligibleClasses: number
+  classes: CompletedClassWithEligibility[]
+}
+
+// Verificar elegibilidade de certificados - Turma específica
+// Endpoint: GET /certificado/eligibility/{classId}
+export async function getCertificateEligibility(classId: string): Promise<CertificateEligibilityStudent[]> {
+  try {
+    console.log('🔍 Buscando elegibilidade de certificados para turma:', classId)
+    const response = await api.get(`/certificado/eligibility/${classId}`)
+    console.log('✅ Elegibilidade obtida:', response.data?.length, 'estudantes')
+    return response.data
+  } catch (error: any) {
+    console.error('❌ Erro ao buscar elegibilidade de certificados:', error)
+    
+    // Tratamento específico de erros da nova API
+    if (error?.response?.status === 404) {
+      throw new Error('Turma não encontrada')
+    }
+    if (error?.response?.status === 400) {
+      throw new Error(`Erro ao verificar elegibilidade: ${error.response.data?.message || 'Dados inválidos'}`)
+    }
+    
+    throw error
+  }
+}
+
+// Listar turmas concluídas com status de certificados
+// Endpoint: GET /certificado/completed-classes
+export async function getCompletedClassesWithEligibility(): Promise<CompletedClassWithEligibility[]> {
+  try {
+    console.log('🔍 Buscando todas as turmas concluídas com elegibilidade')
+    const response = await api.get('/certificado/completed-classes')
+    console.log('✅ Turmas concluídas obtidas:', response.data?.length, 'turmas')
+    return response.data
+  } catch (error: any) {
+    console.error('❌ Erro ao buscar turmas concluídas com elegibilidade:', error)
+    
+    if (error?.response?.status === 400) {
+      throw new Error(`Erro ao buscar turmas: ${error.response.data?.message || 'Erro interno do servidor'}`)
+    }
+    
+    throw error
+  }
+}
+
+// Buscar turmas elegíveis por cliente
+// Endpoint: GET /certificado/client/{clientId}/eligible-classes
+export async function getClientEligibleClasses(clientId: string): Promise<ClientEligibleClassesResponse> {
+  try {
+    console.log('🔍 Buscando turmas elegíveis para cliente:', clientId)
+    const response = await api.get(`/certificado/client/${clientId}/eligible-classes`)
+    console.log('✅ Turmas do cliente obtidas:', response.data?.totalClasses, 'total,', response.data?.eligibleClasses, 'elegíveis')
+    return response.data
+  } catch (error: any) {
+    console.error('❌ Erro ao buscar turmas elegíveis do cliente:', error)
+    
+    if (error?.response?.status === 404) {
+      throw new Error('Cliente não encontrado')
+    }
+    if (error?.response?.status === 400) {
+      throw new Error(`Erro ao buscar dados do cliente: ${error.response.data?.message || 'Dados inválidos'}`)
+    }
+    
+    throw error
+  }
+}
+
 // Listar certificados disponíveis para um estudante (mantido para compatibilidade)
 export async function getStudentCertificates(
   studentId: string
