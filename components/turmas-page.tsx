@@ -23,7 +23,8 @@ import {
   UserMinus,
   ClipboardList,
   Star,
-  Camera
+  Camera,
+  UserCog
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -38,6 +39,7 @@ import { ClassGradesModal } from "@/components/class-grades-modal"
 import { LessonScheduleModal } from "@/components/lesson-schedule-modal"
 import { LessonEditModal } from "@/components/lesson-edit-modal"
 import { ClassPhotosModal } from "@/components/class-photos-modal"
+import { ClassTechnicalResponsibleModal } from "@/components/class-technical-responsible-modal"
 
 interface TurmaData {
   id: string
@@ -78,6 +80,13 @@ interface TurmaData {
     personType: string
     isActive: boolean
   }
+  technicalResponsible?: {
+    id: string
+    name: string
+    profession?: string
+    email?: string
+    professionalRegistry?: string
+  }
   students: any[]
   lessons: any[]
 }
@@ -108,6 +117,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
   const [attendanceTurma, setAttendanceTurma] = useState<TurmaData | null>(null)
   const [gradesTurma, setGradesTurma] = useState<TurmaData | null>(null)
   const [photosTurma, setPhotosTurma] = useState<TurmaData | null>(null)
+  const [technicalResponsibleTurma, setTechnicalResponsibleTurma] = useState<TurmaData | null>(null)
 
   // Carregar dados das turmas
   const loadTurmas = async (resetPage = false) => {
@@ -293,6 +303,11 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setPhotosTurma(turma)
   }
 
+  // Função para abrir modal de responsável técnico
+  const handleManageTechnicalResponsible = (turma: TurmaData) => {
+    setTechnicalResponsibleTurma(turma)
+  }
+
   // Função para fechar modais
   const handleCloseModal = () => {
     setCreateModalOpen(false)
@@ -304,6 +319,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setAttendanceTurma(null)
     setGradesTurma(null)
     setPhotosTurma(null)
+    setTechnicalResponsibleTurma(null)
   }
 
   // Função para fechar apenas o modal de gerenciamento de alunos
@@ -622,6 +638,17 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                           </DropdownMenuItem>
                         )}
                         
+                        {/* Responsável Técnico - Apenas para não-CLIENTE */}
+                        {!isClientView && (
+                          <DropdownMenuItem 
+                            className="gap-2"
+                            onClick={() => handleManageTechnicalResponsible(turma)}
+                          >
+                            <UserCog className="h-4 w-4" />
+                            Responsável Técnico
+                          </DropdownMenuItem>
+                        )}
+                        
                         {/* Agendar Aula - Apenas para não-CLIENTE */}
                         {!isClientView && (
                           <DropdownMenuItem 
@@ -710,8 +737,22 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                   </div>
 
                   {/* Informações Adicionais */}
-                  {(turma.location || turma.recycling !== "NÃO" || turma.observations) && (
+                  {(turma.technicalResponsible || turma.location || turma.recycling !== "NÃO" || turma.observations) && (
                     <div className="mt-6 pt-6 border-t">
+                      {/* Responsável Técnico */}
+                      {turma.technicalResponsible && (
+                        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <UserCog className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm font-medium text-blue-900">Responsável Técnico</span>
+                          </div>
+                          <p className="font-medium text-blue-900">{turma.technicalResponsible.name}</p>
+                          {turma.technicalResponsible.profession && (
+                            <p className="text-sm text-blue-700">{turma.technicalResponsible.profession}</p>
+                          )}
+                        </div>
+                      )}
+                      
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         {turma.location && (
                           <div>
@@ -793,6 +834,18 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                       >
                         <Camera className="h-4 w-4" />
                         Fotos
+                      </Button>
+                    )}
+                    
+                    {!isClientView && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2"
+                        onClick={() => handleManageTechnicalResponsible(turma)}
+                      >
+                        <UserCog className="h-4 w-4" />
+                        Resp. Técnico
                       </Button>
                     )}
                     
@@ -971,6 +1024,25 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
             training: {
               title: photosTurma.training.title
             }
+          } : null}
+        />
+      )}
+
+      {/* Modal de Responsável Técnico - Não disponível para clientes */}
+      {!isClientView && (
+        <ClassTechnicalResponsibleModal
+          isOpen={!!technicalResponsibleTurma}
+          onClose={handleCloseModal}
+          onSuccess={handleSuccess}
+          turma={technicalResponsibleTurma ? {
+            id: technicalResponsibleTurma.id,
+            training: {
+              title: technicalResponsibleTurma.training.title
+            },
+            technicalResponsible: technicalResponsibleTurma.technicalResponsible,
+            status: technicalResponsibleTurma.status,
+            startDate: technicalResponsibleTurma.startDate,
+            endDate: technicalResponsibleTurma.endDate
           } : null}
         />
       )}

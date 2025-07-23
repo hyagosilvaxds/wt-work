@@ -3139,7 +3139,7 @@ export async function getTechnicalResponsibleClasses(
   }
 }
 
-// Buscar turmas disponíveis para vinculação
+// Buscar turmas disponíveis para vinculação (incluindo concluídas)
 export async function getAvailableClassesForTechnicalResponsible(): Promise<AvailableClassesDto> {
   try {
     const response = await api.get('/technical-responsible/available-classes')
