@@ -43,6 +43,7 @@ import {
   getCompletedClassesWithEligibility,
   getClientEligibleClasses,
   downloadCertificatePDF,
+  downloadBatchCertificates,
   type CertificateEligibilityStudent,
   type CompletedClassWithEligibility,
   type ClientEligibleClassesResponse
@@ -459,77 +460,39 @@ export function CertificatesPage() {
     try {
       setBatchGenerating(true)
       
-      let eligibleStudents
+      console.log('🔄 Iniciando geração de certificados em lote...')
       
-      if (eligibilityMode) {
-        // Nova lógica: incluir todos os estudantes (permitir gerar mesmo para não elegíveis)
-        eligibleStudents = classItem.students || []
-        
-        // Mostrar aviso se há estudantes não elegíveis
-        const notEligibleCount = eligibleStudents.filter((student: any) => !student.isEligible).length
-        if (notEligibleCount > 0) {
-          toast.warning(`Atenção: ${notEligibleCount} estudante(s) não elegível(is) será(ão) incluído(s) na geração.`)
-        }
-      } else {
-        // Lógica antiga: apenas estudantes sem faltas
-        eligibleStudents = classItem.students?.filter((student: any) => {
-          const attendanceInfo = getAttendanceInfo(student)
-          return !attendanceInfo.hasAbsences
-        }) || []
-      }
-
-      if (eligibleStudents.length === 0) {
-        toast.error('Nenhum estudante encontrado para gerar certificados')
-        return
-      }
-
-      // Preparar dados dos certificados
-      const certificates: CertificateData[] = eligibleStudents.map((student: any) => {
-        const startDate = classItem.startDate ? new Date(classItem.startDate).toLocaleDateString('pt-BR') : ''
-        const endDate = classItem.endDate ? new Date(classItem.endDate).toLocaleDateString('pt-BR') : ''
-        
-        return {
-          studentName: student.name,
-          trainingName: classItem.training?.title || 'Treinamento',
-          instructorName: classItem.instructor?.name || 'Instrutor',
-          issueDate: new Date().toLocaleDateString('pt-BR'),
-          validationCode: `${classItem.id}-${student.id}`.slice(-12).toUpperCase(),
-          workload: `${classItem.training?.durationHours || 0} horas`,
-          company: classItem.client?.name,
-          location: classItem.location,
-          startDate,
-          endDate
-        }
-      })
-
-      // Gerar PDF em lote
-      await generateBatchCertificatesPDFWithSignature(
-        certificates,
-        classItem.instructor?.id,
+      // Usar a nova API de geração em lote
+      const result = await downloadBatchCertificates(
+        classItem.id,
         classItem.training?.title
       )
-
-      // Salvar certificados no banco de dados
-      const savePromises = eligibleStudents.map(async (student: any) => {
-        try {
-          await createCertificate({
-            studentId: student.id,
-            trainingId: classItem.training.id,
-            instructorId: classItem.instructor.id,
-            classId: classItem.id
-          })
-        } catch (error) {
-          console.error(`Erro ao salvar certificado para ${student.name}:`, error)
-        }
-      })
-
-      await Promise.all(savePromises)
-
-      toast.success(`${eligibleStudents.length} certificados gerados com sucesso!`)
       
-    } catch (error) {
+      // Mostrar feedback detalhado para o usuário
+      const { eligibleStudents, totalStudents, fileName } = result
+      
+      if (eligibleStudents < totalStudents) {
+        toast.warning(
+          `Certificados gerados: ${eligibleStudents}/${totalStudents} estudantes elegíveis. ` +
+          `${totalStudents - eligibleStudents} estudante(s) não elegível(is) foram incluídos.`
+        )
+      } else {
+        toast.success(`${eligibleStudents} certificados gerados com sucesso!`)
+      }
+      
+      console.log(`✅ Download completado: ${fileName}`)
+      
+    } catch (error: any) {
       console.error('Erro ao gerar certificados em lote:', error)
-      toast.error('Erro ao gerar certificados em lote')
+      
+      // Tratamento específico de erros
+      if (error.message?.includes('Nenhum aluno elegível')) {
+        toast.error('Nenhum aluno elegível encontrado nesta turma')
+      } else if (error.message?.includes('Turma não encontrada')) {
+        toast.error('Turma não encontrada')
+      } else {
+        toast.error('Erro ao gerar certificados em lote. Tente novamente.')
+      }
     } finally {
       setBatchGenerating(false)
     }

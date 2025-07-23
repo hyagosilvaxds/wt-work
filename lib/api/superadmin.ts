@@ -1776,17 +1776,6 @@ export const deleteCertificate = async (id: string) => {
   }
 }
 
-// Gerar certificado em lote para uma turma
-export const generateBatchCertificates = async (classId: string) => {
-  try {
-    const response = await api.post(`/superadmin/classes/${classId}/certificates/batch`)
-    return response.data
-  } catch (error) {
-    console.error('Erro ao gerar certificados em lote:', error)
-    throw error
-  }
-}
-
 // Buscar certificados por turma
 export const getCertificatesByClass = async (classId: string) => {
   try {
@@ -3545,6 +3534,114 @@ export async function openCertificatePreview(
     console.log('✅ Preview do certificado aberto com sucesso')
   } catch (error: any) {
     console.error('❌ Erro ao abrir preview do certificado:', error)
+    throw error
+  }
+}
+
+// Geração de certificados em lote usando nova API
+export async function generateBatchCertificates(classId: string): Promise<{
+  blob: Blob
+  totalStudents: number
+  eligibleStudents: number
+}> {
+  try {
+    console.log('🔄 Iniciando geração de certificados em lote para turma:', classId)
+    
+    // Primeiro verificar quantos alunos são elegíveis
+    const eligibilityResponse = await getCertificateEligibility(classId)
+    const eligibleCount = eligibilityResponse.filter(s => s.isEligible).length
+    const totalCount = eligibilityResponse.length
+    
+    console.log(`📊 Elegibilidade verificada: ${eligibleCount}/${totalCount} alunos elegíveis`)
+    
+    if (eligibleCount === 0) {
+      throw new Error('Nenhum aluno apto para certificado nesta turma')
+    }
+    
+    // Gerar certificados em lote via API
+    const response = await api.post('/certificado/generate-batch', {
+      classId
+    }, {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/pdf',
+      },
+    })
+    
+    // Extrair informações dos headers
+    const totalStudents = parseInt(response.headers['x-total-students'] || '0')
+    const eligibleStudents = parseInt(response.headers['x-eligible-students'] || '0')
+    
+    console.log(`✅ Certificados gerados: ${eligibleStudents}/${totalStudents} alunos`)
+    
+    return {
+      blob: response.data,
+      totalStudents,
+      eligibleStudents
+    }
+  } catch (error: any) {
+    console.error('❌ Erro ao gerar certificados em lote:', error)
+    
+    // Tratamento específico de erros
+    if (error?.response?.status === 400) {
+      const errorData = error.response.data
+      if (typeof errorData === 'string' && errorData.includes('Nenhum aluno')) {
+        throw new Error('Nenhum aluno elegível encontrado nesta turma')
+      }
+    } else if (error?.response?.status === 404) {
+      throw new Error('Turma não encontrada')
+    }
+    
+    throw error
+  }
+}
+
+// Utilitário para download automático do PDF de lote
+export async function downloadBatchCertificates(
+  classId: string,
+  trainingTitle?: string
+): Promise<{
+  eligibleStudents: number
+  totalStudents: number
+  fileName: string
+}> {
+  try {
+    console.log('🔄 Iniciando download de certificados em lote...')
+    
+    const result = await generateBatchCertificates(classId)
+    
+    // Criar nome do arquivo mais limpo
+    const cleanTrainingTitle = trainingTitle?.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'treinamento'
+    const fileName = `certificados-lote-${cleanTrainingTitle}.pdf`
+    
+    // Criar link temporário para download
+    const url = window.URL.createObjectURL(result.blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    
+    // Adicionar ao DOM temporariamente para permitir o clique
+    link.style.display = 'none'
+    document.body.appendChild(link)
+    
+    // Simular clique para iniciar o download
+    link.click()
+    
+    // Limpar recursos após um pequeno delay
+    setTimeout(() => {
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    }, 100)
+    
+    console.log(`✅ Download iniciado: ${result.eligibleStudents}/${result.totalStudents} certificados - ${fileName}`)
+    
+    return {
+      eligibleStudents: result.eligibleStudents,
+      totalStudents: result.totalStudents,
+      fileName
+    }
+  } catch (error: any) {
+    console.error('❌ Erro no download de certificados em lote:', error)
     throw error
   }
 }
