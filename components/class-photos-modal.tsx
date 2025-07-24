@@ -39,9 +39,10 @@ interface ClassPhotosModalProps {
       title: string
     }
   } | null
+  readOnly?: boolean
 }
 
-export function ClassPhotosModal({ isOpen, onClose, turma }: ClassPhotosModalProps) {
+export function ClassPhotosModal({ isOpen, onClose, turma, readOnly = false }: ClassPhotosModalProps) {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -239,19 +240,20 @@ export function ClassPhotosModal({ isOpen, onClose, turma }: ClassPhotosModalPro
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
           {/* Área de Upload */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <div className="space-y-4">
-                <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Upload className="h-6 w-6 text-blue-600" />
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium">Adicionar Foto</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    JPG, PNG, GIF até 5MB
-                  </p>
-                </div>
+          {!readOnly && (
+            <div className="lg:col-span-1 space-y-4">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <div className="space-y-4">
+                  <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Upload className="h-6 w-6 text-blue-600" />
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium">Adicionar Foto</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      JPG, PNG, GIF até 5MB
+                    </p>
+                  </div>
                 
                 <div className="space-y-4">
                   <input
@@ -356,9 +358,10 @@ export function ClassPhotosModal({ isOpen, onClose, turma }: ClassPhotosModalPro
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Galeria de Fotos */}
-          <div className="lg:col-span-2">
+          <div className={readOnly ? "col-span-1" : "lg:col-span-2"}>
             <div className="mb-4">
               <h3 className="text-lg font-medium">Galeria de Fotos</h3>
               <p className="text-sm text-gray-500">
@@ -408,7 +411,7 @@ export function ClassPhotosModal({ isOpen, onClose, turma }: ClassPhotosModalPro
                       
                       <CardContent className="p-3">
                         <div className="space-y-2">
-                          {editingPhoto === photo.id ? (
+                          {!readOnly && editingPhoto === photo.id ? (
                             <div className="space-y-2">
                               <select
                                 value={editingCaption}
@@ -455,23 +458,27 @@ export function ClassPhotosModal({ isOpen, onClose, turma }: ClassPhotosModalPro
                             >
                               <Download className="h-3 w-3" />
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditCaption(photo)}
-                              disabled={editingPhoto === photo.id}
-                              className="flex-1"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeletePhoto(photo.id)}
-                              className="text-red-600 hover:text-red-700 flex-1"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                            {!readOnly && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditCaption(photo)}
+                                  disabled={editingPhoto === photo.id}
+                                  className="flex-1"
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeletePhoto(photo.id)}
+                                  className="text-red-600 hover:text-red-700 flex-1"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
                       </CardContent>

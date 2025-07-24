@@ -29,17 +29,21 @@ import {
   TrendingUp,
   Download,
   Award,
-  Eye
+  Eye,
+  AlertTriangle
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 import { 
   getStudentHistory, 
   getStudentStatistics,
   downloadCertificatePDF,
+  checkStudentEligibilityForCertificate,
   type StudentHistoryResponseDto, 
   type StudentStatistics,
   type StudentHistoryFilters,
-  type StudentHistoryClassDto
+  type StudentHistoryClassDto,
+  type StudentEligibilityResultDto
 } from "@/lib/api/superadmin"
 import { CertificatePreviewModal } from "@/components/certificate-preview-modal"
 
@@ -68,6 +72,193 @@ const STATUS_LABELS = {
   'SUSPENSA': 'Suspensa'
 }
 
+// Componente para renderizar as ações do certificado
+function CertificateActions({ 
+  classData, 
+  studentId, 
+  isClient, 
+  isInstructor, 
+  onGenerateCertificate 
+}: {
+  classData: StudentHistoryClassDto
+  studentId: string
+  isClient: boolean
+  isInstructor: boolean
+  onGenerateCertificate: (classData: StudentHistoryClassDto) => Promise<void>
+}) {
+  const [impediments, setImpediments] = useState<{
+    hasAbsences: boolean
+    hasInsufficientGrades: boolean
+    hasAnyImpediment: boolean
+    apiResult: StudentEligibilityResultDto | null
+  } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const checkImpediments = async () => {
+      try {
+        // Tentar usar a nova API
+        const eligibility = await checkStudentEligibilityForCertificate(classData.id, studentId)
+        
+        setImpediments({
+          hasAbsences: eligibility.absences > 0,
+          hasInsufficientGrades: eligibility.reason.toLowerCase().includes('nota'),
+          hasAnyImpediment: !eligibility.isEligible,
+          apiResult: eligibility
+        })
+      } catch (error) {
+        console.error('❌ Erro ao verificar elegibilidade, usando lógica local:', error)
+        
+        // Fallback para lógica local
+        const hasAbsencesLocal = classData.lessonAttendances.filter(
+          attendance => attendance.status === 'AUSENTE'
+        ).length > 0
+        
+        let hasInsufficientGradesLocal = false
+        if (classData.studentGrade) {
+          const practicalGrade = classData.studentGrade.practicalGrade
+          const theoreticalGrade = classData.studentGrade.theoreticalGrade
+          
+          const hasBadPractical = (practicalGrade !== null && practicalGrade !== undefined) && practicalGrade < 5
+          const hasBadTheoretical = (theoreticalGrade !== null && theoreticalGrade !== undefined) && theoreticalGrade < 5
+          
+          hasInsufficientGradesLocal = hasBadPractical || hasBadTheoretical
+        }
+        
+        setImpediments({
+          hasAbsences: hasAbsencesLocal,
+          hasInsufficientGrades: hasInsufficientGradesLocal,
+          hasAnyImpediment: hasAbsencesLocal || hasInsufficientGradesLocal,
+          apiResult: null
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    checkImpediments()
+  }, [classData.id, studentId])
+
+  if (loading) {
+    return (
+      <div className="mt-4 pt-4 border-t bg-gradient-to-r from-gray-50 to-gray-50 -mx-6 px-6 -mb-6 pb-6 rounded-b-lg">
+        <div className="flex items-center justify-center py-4">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+          <span className="ml-2 text-sm text-gray-600">Verificando elegibilidade...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!impediments) return null
+
+  // Se for cliente e o estudante tiver impedimentos, mostrar aviso e desabilitar
+  if (isClient && impediments.hasAnyImpediment) {
+    let reasons = []
+    if (impediments.hasAbsences) reasons.push("faltas")
+    if (impediments.hasInsufficientGrades) reasons.push("notas insuficientes")
+    
+    return (
+      <div className="mt-4 pt-4 border-t bg-gradient-to-r from-red-50 to-red-50 -mx-6 px-6 -mb-6 pb-6 rounded-b-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-100 rounded-full">
+              <XCircle className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <p className="font-medium text-red-800">Certificado Não Disponível</p>
+              <p className="text-sm text-red-600">
+                Aluno possui {reasons.join(" e ")} - Certificado não pode ser gerado
+              </p>
+              {impediments.apiResult && (
+                <p className="text-xs text-red-500 mt-1">
+                  Motivo: {impediments.apiResult.reason}
+                </p>
+              )}
+            </div>
+          </div>
+          <Button
+            className="gap-2 bg-gray-400 cursor-not-allowed"
+            size="sm"
+            disabled
+          >
+            <XCircle className="h-4 w-4" />
+            Não Disponível
+          </Button>
+        </div>
+      </div>
+    )
+  }
+  
+  // Se for instrutor/admin e o estudante tiver impedimentos, mostrar aviso mas permitir
+  if ((isInstructor || (!isClient && !isInstructor)) && impediments.hasAnyImpediment) {
+    let reasons = []
+    if (impediments.hasAbsences) reasons.push("faltas")
+    if (impediments.hasInsufficientGrades) reasons.push("notas baixas")
+    
+    return (
+      <div className="mt-4 pt-4 border-t bg-gradient-to-r from-yellow-50 to-orange-50 -mx-6 px-6 -mb-6 pb-6 rounded-b-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-yellow-100 rounded-full">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="font-medium text-yellow-800">Certificado com Ressalvas</p>
+              <p className="text-sm text-yellow-600">
+                Aluno possui {reasons.join(" e ")} - Gerar mesmo assim?
+              </p>
+              {impediments.apiResult && (
+                <p className="text-xs text-yellow-600 mt-1">
+                  Motivo: {impediments.apiResult.reason}
+                </p>
+              )}
+            </div>
+          </div>
+          <Button
+            className="gap-2 bg-yellow-500 hover:bg-yellow-600 text-white shadow-md"
+            size="sm"
+            onClick={() => onGenerateCertificate(classData)}
+          >
+            <AlertTriangle className="h-4 w-4" />
+            Gerar com Ressalvas
+          </Button>
+        </div>
+      </div>
+    )
+  }
+  
+  // Caso padrão - sem impedimentos
+  return (
+    <div className="mt-4 pt-4 border-t bg-gradient-to-r from-green-50 to-blue-50 -mx-6 px-6 -mb-6 pb-6 rounded-b-lg">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-green-100 rounded-full">
+            <Award className="h-5 w-5 text-green-600" />
+          </div>
+          <div>
+            <p className="font-medium text-green-800">Certificado Disponível</p>
+            <p className="text-sm text-green-600">Turma concluída - Certificado pronto para download</p>
+            {impediments.apiResult && (
+              <p className="text-xs text-green-600 mt-1">
+                ✅ Verificado via API: {impediments.apiResult.reason}
+              </p>
+            )}
+          </div>
+        </div>
+        <Button
+          className="gap-2 bg-green-600 hover:bg-green-700 text-white shadow-md"
+          size="sm"
+          onClick={() => onGenerateCertificate(classData)}
+        >
+          <Award className="h-4 w-4" />
+          Gerar Certificado
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function StudentHistoryModal({ 
   studentId, 
   studentName, 
@@ -89,7 +280,9 @@ export function StudentHistoryModal({
     trainingTitle: ''
   })
   const [activeTab, setActiveTab] = useState("history")
+  const [eligibilityCache, setEligibilityCache] = useState<{ [key: string]: StudentEligibilityResultDto }>({})
   const { toast } = useToast()
+  const { user, isClient, isInstructor } = useAuth()
 
   useEffect(() => {
     if (open && studentId) {
@@ -196,6 +389,60 @@ export function StudentHistoryModal({
     })
   }
 
+  // Função para verificar elegibilidade usando a nova API
+  const checkEligibilityFromAPI = async (classData: StudentHistoryClassDto): Promise<StudentEligibilityResultDto | null> => {
+    const cacheKey = `${classData.id}-${studentId}`
+    
+    // Verificar cache primeiro
+    if (eligibilityCache[cacheKey]) {
+      console.log('🎯 Usando elegibilidade do cache:', eligibilityCache[cacheKey])
+      return eligibilityCache[cacheKey]
+    }
+    
+    try {
+      console.log('🔍 Verificando elegibilidade via API:', {
+        classId: classData.id,
+        studentId,
+        trainingTitle: classData.training.title
+      })
+      
+      const eligibility = await checkStudentEligibilityForCertificate(classData.id, studentId)
+      
+      // Armazenar no cache
+      setEligibilityCache(prev => ({
+        ...prev,
+        [cacheKey]: eligibility
+      }))
+      
+      console.log('✅ Elegibilidade obtida da API:', eligibility)
+      return eligibility
+    } catch (error) {
+      console.error('❌ Erro ao verificar elegibilidade via API:', error)
+      return null
+    }
+  }
+
+  // Função para obter informações de notas (baseada no certificates-page)
+  const getGradesInfo = (classData: StudentHistoryClassDto) => {
+    if (!classData.studentGrade) return null
+    
+    const practicalGrade = classData.studentGrade.practicalGrade
+    const theoreticalGrade = classData.studentGrade.theoreticalGrade
+    
+    // Verificar se pelo menos uma nota existe e é um número válido
+    const hasPracticalGrade = practicalGrade !== null && practicalGrade !== undefined && !isNaN(Number(practicalGrade))
+    const hasTheoreticalGrade = theoreticalGrade !== null && theoreticalGrade !== undefined && !isNaN(Number(theoreticalGrade))
+    
+    if (!hasPracticalGrade && !hasTheoreticalGrade) return null
+    
+    return {
+      practicalGrade: hasPracticalGrade ? Number(practicalGrade) : null,
+      theoreticalGrade: hasTheoreticalGrade ? Number(theoreticalGrade) : null,
+      hasFailingGrade: (hasPracticalGrade && Number(practicalGrade) < 5.0) || 
+                       (hasTheoreticalGrade && Number(theoreticalGrade) < 5.0)
+    }
+  }
+
   // Verificar se é possível gerar certificado (turma concluída)
   const canGenerateCertificate = (classData: StudentHistoryClassDto) => {
     const canGenerate = classData.status === 'CONCLUIDA' || classData.status === 'CONCLUIDO'
@@ -206,6 +453,106 @@ export function StudentHistoryModal({
       canGenerate
     })
     return canGenerate
+  }
+
+  // Verificar se o aluno tem faltas na turma
+  const hasAbsences = (classData: StudentHistoryClassDto) => {
+    const absenceCount = classData.lessonAttendances.filter(
+      attendance => attendance.status === 'AUSENTE'
+    ).length
+    return absenceCount > 0
+  }
+
+  // Verificar se o aluno tem notas insuficientes (menor que 5) - atualizada
+  const hasInsufficientGrades = (classData: StudentHistoryClassDto) => {
+    const gradesInfo = getGradesInfo(classData)
+    
+    console.log('🎓 Verificação de notas detalhada:', {
+      classId: classData.id,
+      trainingTitle: classData.training.title,
+      gradesInfo,
+      hasFailingGrade: gradesInfo?.hasFailingGrade || false
+    })
+    
+    return gradesInfo?.hasFailingGrade || false
+  }
+
+  // Verificar se há impedimentos para gerar certificado (usando API quando possível)
+  const hasImpediments = async (classData: StudentHistoryClassDto) => {
+    // Tentar usar a nova API primeiro
+    const apiEligibility = await checkEligibilityFromAPI(classData)
+    
+    if (apiEligibility) {
+      console.log('🎯 Usando resultado da API de elegibilidade:', {
+        classId: classData.id,
+        studentId,
+        isEligible: apiEligibility.isEligible,
+        reason: apiEligibility.reason
+      })
+      
+      // Converter resultado da API para formato esperado
+      return {
+        hasAbsences: apiEligibility.absences > 0,
+        hasInsufficientGrades: apiEligibility.reason.toLowerCase().includes('nota'),
+        hasAnyImpediment: !apiEligibility.isEligible,
+        apiResult: apiEligibility
+      }
+    }
+    
+    // Fallback para lógica local se API não estiver disponível
+    console.log('⚠️ API não disponível, usando verificação local')
+    const studentHasAbsences = hasAbsences(classData)
+    const studentHasInsufficientGrades = hasInsufficientGrades(classData)
+    
+    return {
+      hasAbsences: studentHasAbsences,
+      hasInsufficientGrades: studentHasInsufficientGrades,
+      hasAnyImpediment: studentHasAbsences || studentHasInsufficientGrades,
+      apiResult: null
+    }
+  }
+
+  // Função para lidar com geração de certificado considerando faltas e notas
+  const handleCertificateGeneration = async (classData: StudentHistoryClassDto) => {
+    const impediments = await hasImpediments(classData)
+    
+    console.log('🔍 Verificação de impedimentos:', {
+      classId: classData.id,
+      trainingTitle: classData.training.title,
+      hasAbsences: impediments.hasAbsences,
+      hasInsufficientGrades: impediments.hasInsufficientGrades,
+      hasAnyImpediment: impediments.hasAnyImpediment,
+      userType: { isClient, isInstructor, isAdmin: !isClient && !isInstructor },
+      apiResult: impediments.apiResult
+    })
+
+    // Se for cliente e o estudante tiver qualquer impedimento, não permitir geração
+    if (isClient && impediments.hasAnyImpediment) {
+      let description = "Não é possível gerar certificado:"
+      if (impediments.hasAbsences) description += " aluno possui faltas"
+      if (impediments.hasInsufficientGrades) {
+        if (impediments.hasAbsences) description += " e"
+        description += " notas insuficientes (< 5.0)"
+      }
+      
+      toast({
+        title: "Certificado não disponível",
+        description,
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Se for instrutor ou admin e o estudante tiver impedimentos, permitir mas com aviso
+    if ((isInstructor || (!isClient && !isInstructor)) && impediments.hasAnyImpediment) {
+      let warningType = []
+      if (impediments.hasAbsences) warningType.push("faltas")
+      if (impediments.hasInsufficientGrades) warningType.push("notas baixas")
+      console.log(`⚠️ Admin/Instrutor gerando certificado com ${warningType.join(" e ")}`)
+    }
+
+    // Proceder com a geração do certificado
+    handleOpenCertificatePreview(classData)
   }
 
   // Todas as turmas (sem filtros)
@@ -307,7 +654,7 @@ export function StudentHistoryModal({
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Aviso sobre certificados (apenas para debug) */}
+                {/* Aviso sobre certificados para debug */}
                 {allClasses.length > 0 && allClasses.filter(cls => cls.status === 'CONCLUIDA' || cls.status === 'CONCLUIDO').length === 0 && (
                   <Card className="border-yellow-200 bg-yellow-50">
                     <CardContent className="p-4">
@@ -384,11 +731,23 @@ export function StudentHistoryModal({
                               Notas
                             </h4>
                             <div className="text-sm space-y-1">
-                              {cls.studentGrade.practicalGrade && (
-                                <p><span className="font-medium">Prática:</span> {cls.studentGrade.practicalGrade.toFixed(1)}</p>
+                              {cls.studentGrade.practicalGrade !== null && cls.studentGrade.practicalGrade !== undefined && (
+                                <p>
+                                  <span className="font-medium">Prática:</span> 
+                                  <span className={cls.studentGrade.practicalGrade < 5 ? 'text-red-600 font-bold' : 'text-green-600'}>
+                                    {cls.studentGrade.practicalGrade.toFixed(1)}
+                                  </span>
+                                  {cls.studentGrade.practicalGrade < 5 && <span className="text-red-500 ml-1">⚠️ Insuficiente</span>}
+                                </p>
                               )}
-                              {cls.studentGrade.theoreticalGrade && (
-                                <p><span className="font-medium">Teórica:</span> {cls.studentGrade.theoreticalGrade.toFixed(1)}</p>
+                              {cls.studentGrade.theoreticalGrade !== null && cls.studentGrade.theoreticalGrade !== undefined && (
+                                <p>
+                                  <span className="font-medium">Teórica:</span> 
+                                  <span className={cls.studentGrade.theoreticalGrade < 5 ? 'text-red-600 font-bold' : 'text-green-600'}>
+                                    {cls.studentGrade.theoreticalGrade.toFixed(1)}
+                                  </span>
+                                  {cls.studentGrade.theoreticalGrade < 5 && <span className="text-red-500 ml-1">⚠️ Insuficiente</span>}
+                                </p>
                               )}
                               {cls.studentGrade.observations && (
                                 <p><span className="font-medium">Obs:</span> {cls.studentGrade.observations}</p>
@@ -435,25 +794,13 @@ export function StudentHistoryModal({
                       {/* Ações - Certificado */}
                       {canGenerateCertificate(cls) && (
                         <div className="mt-4 pt-4 border-t bg-gradient-to-r from-green-50 to-blue-50 -mx-6 px-6 -mb-6 pb-6 rounded-b-lg">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-green-100 rounded-full">
-                                <Award className="h-5 w-5 text-green-600" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-green-800">Certificado Disponível</p>
-                                <p className="text-sm text-green-600">Turma concluída - Certificado pronto para download</p>
-                              </div>
-                            </div>
-                            <Button
-                              className="gap-2 bg-green-600 hover:bg-green-700 text-white shadow-md"
-                              size="sm"
-                              onClick={() => handleOpenCertificatePreview(cls)}
-                            >
-                              <Award className="h-4 w-4" />
-                              Gerar Certificado
-                            </Button>
-                          </div>
+                          <CertificateActions 
+                            classData={cls} 
+                            studentId={studentId}
+                            isClient={isClient}
+                            isInstructor={isInstructor}
+                            onGenerateCertificate={handleCertificateGeneration}
+                          />
                         </div>
                       )}
                     </CardContent>

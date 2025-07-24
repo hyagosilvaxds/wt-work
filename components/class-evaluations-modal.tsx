@@ -50,6 +50,7 @@ interface ClassEvaluationsModalProps {
       cpf: string
     }>
   } | null
+  readOnly?: boolean
 }
 
 interface EvaluationFormData {
@@ -80,7 +81,7 @@ interface EvaluationFormData {
   observations?: string
 }
 
-export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluationsModalProps) {
+export function ClassEvaluationsModal({ isOpen, onClose, turma, readOnly = false }: ClassEvaluationsModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [evaluations, setEvaluations] = useState<ClassEvaluations | null>(null)
@@ -297,16 +298,23 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
         <Label className="text-sm font-medium">{label}</Label>
         <div className="flex items-center gap-1">
           {Array.from({ length: 5 }, (_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setFormData(prev => ({ ...prev, [field]: i + 1 }))}
-              className="p-1 rounded hover:bg-gray-100 transition-colors"
-            >
+            readOnly ? (
               <Star 
-                className={`h-5 w-5 ${i < value ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`} 
+                key={i}
+                className={`h-5 w-5 ${i < value ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
               />
-            </button>
+            ) : (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, [field]: i + 1 }))}
+                className="p-1 rounded hover:bg-gray-100 transition-colors"
+              >
+                <Star 
+                  className={`h-5 w-5 ${i < value ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`} 
+                />
+              </button>
+            )
           ))}
           <span className="ml-2 text-sm text-gray-600">
             {value > 0 ? value : 'Não avaliado'}
@@ -388,22 +396,58 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
                                   <UserCheck className="h-3 w-3 mr-1" />
                                   Avaliado
                                 </Badge>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditEvaluation(evaluation)}
-                                >
-                                  <Edit className="h-4 w-4 mr-1" />
-                                  Editar
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteEvaluation(student.id)}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {!readOnly && (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditEvaluation(evaluation)}
+                                    >
+                                      <Edit className="h-4 w-4 mr-1" />
+                                      Editar
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteEvaluation(student.id)}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                                {readOnly && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedStudent(evaluation.studentId)
+                                      setEditingEvaluation(evaluation)
+                                      setFormData({
+                                        contentAdequacy: evaluation.contentAdequacy,
+                                        contentApplicability: evaluation.contentApplicability,
+                                        contentTheoryPracticeBalance: evaluation.contentTheoryPracticeBalance,
+                                        contentNewKnowledge: evaluation.contentNewKnowledge,
+                                        instructorKnowledge: evaluation.instructorKnowledge,
+                                        instructorDidactic: evaluation.instructorDidactic,
+                                        instructorCommunication: evaluation.instructorCommunication,
+                                        instructorAssimilation: evaluation.instructorAssimilation,
+                                        instructorPracticalApps: evaluation.instructorPracticalApps,
+                                        infrastructureFacilities: evaluation.infrastructureFacilities,
+                                        infrastructureClassrooms: evaluation.infrastructureClassrooms,
+                                        infrastructureSchedule: evaluation.infrastructureSchedule,
+                                        participantsUnderstanding: evaluation.participantsUnderstanding,
+                                        participantsRelationship: evaluation.participantsRelationship,
+                                        participantsConsideration: evaluation.participantsConsideration,
+                                        participantsInstructorRel: evaluation.participantsInstructorRel,
+                                        observations: evaluation.observations || ""
+                                      })
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    Visualizar
+                                  </Button>
+                                )}
                               </>
                             ) : (
                               <>
@@ -411,14 +455,16 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
                                   <UserX className="h-3 w-3 mr-1" />
                                   Não avaliado
                                 </Badge>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleCreateEvaluation(student.id)}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Avaliar
-                                </Button>
+                                {!readOnly && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleCreateEvaluation(student.id)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Avaliar
+                                  </Button>
+                                )}
                               </>
                             )}
                           </div>
@@ -590,7 +636,7 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {editingEvaluation ? 'Editar Avaliação' : 'Nova Avaliação'}
+                {readOnly ? 'Visualizar Avaliação' : editingEvaluation ? 'Editar Avaliação' : 'Nova Avaliação'}
               </DialogTitle>
             </DialogHeader>
 
@@ -655,6 +701,8 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
                   value={formData.observations || ""}
                   onChange={(e) => setFormData(prev => ({ ...prev, observations: e.target.value }))}
                   rows={4}
+                  readOnly={readOnly}
+                  className={readOnly ? "bg-gray-50" : ""}
                 />
               </div>
 
@@ -664,15 +712,17 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
                   variant="outline"
                   onClick={() => setSelectedStudent(null)}
                 >
-                  Cancelar
+                  {readOnly ? 'Fechar' : 'Cancelar'}
                 </Button>
-                <Button
-                  onClick={handleSaveEvaluation}
-                  disabled={loading}
-                >
-                  {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {editingEvaluation ? 'Atualizar' : 'Salvar'} Avaliação
-                </Button>
+                {!readOnly && (
+                  <Button
+                    onClick={handleSaveEvaluation}
+                    disabled={loading}
+                  >
+                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {editingEvaluation ? 'Atualizar' : 'Salvar'} Avaliação
+                  </Button>
+                )}
               </div>
             </div>
           </DialogContent>

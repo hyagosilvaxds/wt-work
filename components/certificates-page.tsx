@@ -285,13 +285,19 @@ export function CertificatesPage() {
 
   const handleGenerateCertificate = (student: any, classData: any) => {
     if (eligibilityMode) {
-      // Nova abordagem: usar elegibilidade da API, mas permitir geração mesmo se não elegível
+      // Nova abordagem: usar elegibilidade da API
       if (!student.isEligible) {
-        // Mostrar toast informativo mas permitir continuar
+        // Se for cliente, não permitir geração para alunos não elegíveis
+        if (isClient) {
+          toast.error(`Não é possível gerar certificado: ${student.eligibilityReason}`)
+          return
+        }
+        
+        // Para admin/instrutor, mostrar toast informativo mas permitir continuar
         toast.warning(`Atenção: ${student.eligibilityReason}. Gerando certificado mesmo assim.`)
       }
       
-      // Abrir modal de preview do certificado (sempre permitir)
+      // Abrir modal de preview do certificado
       setPreviewModal({
         isOpen: true,
         classId: classData.id,
@@ -653,6 +659,7 @@ export function CertificatesPage() {
                     let eligibleStudents
                     let buttonText
                     let buttonColor = "outline"
+                    let shouldShowButton = true
                     
                     if (eligibilityMode) {
                       // Nova lógica: incluir todos os estudantes, mas distinguir elegíveis
@@ -667,14 +674,30 @@ export function CertificatesPage() {
                           buttonText = `Gerar Lote (${allStudents.length})`
                         } else if (trulyEligible.length > 0) {
                           // Misturado: alguns elegíveis, alguns não
-                          eligibleStudents = allStudents
-                          buttonText = `Gerar Lote (${trulyEligible.length} elegíveis + ${notEligible.length} não elegíveis)`
-                          buttonColor = "yellow"
+                          if (isClient) {
+                            // Para clientes, só mostrar os elegíveis
+                            eligibleStudents = trulyEligible
+                            buttonText = `Gerar Lote (${trulyEligible.length} elegíveis)`
+                            if (trulyEligible.length === 0) {
+                              shouldShowButton = false
+                            }
+                          } else {
+                            // Para admin/instrutor, incluir todos
+                            eligibleStudents = allStudents
+                            buttonText = `Gerar Lote (${trulyEligible.length} elegíveis + ${notEligible.length} não elegíveis)`
+                            buttonColor = "yellow"
+                          }
                         } else {
                           // Nenhum elegível
-                          eligibleStudents = allStudents
-                          buttonText = `Gerar Lote (${allStudents.length} não elegíveis)`
-                          buttonColor = "yellow"
+                          if (isClient) {
+                            // Para clientes, não mostrar o botão se nenhum for elegível
+                            shouldShowButton = false
+                          } else {
+                            // Para admin/instrutor, permitir geração mesmo assim
+                            eligibleStudents = allStudents
+                            buttonText = `Gerar Lote (${allStudents.length} não elegíveis)`
+                            buttonColor = "yellow"
+                          }
                         }
                       }
                     } else {
@@ -689,7 +712,7 @@ export function CertificatesPage() {
                       }
                     }
                     
-                    if (eligibleStudents && eligibleStudents.length > 0) {
+                    if (eligibleStudents && eligibleStudents.length > 0 && shouldShowButton) {
                       return (
                         <Button
                           variant={buttonColor === "yellow" ? "default" : "outline"}
@@ -966,6 +989,24 @@ export function CertificatesPage() {
                                     const eligibilityStatus = getEligibilityStatus(student)
                                     
                                     if (!student.isEligible) {
+                                      // Se for cliente, mostrar botão desabilitado
+                                      if (isClient) {
+                                        return (
+                                          <Button 
+                                            size="sm" 
+                                            className="flex-1 bg-gray-400 cursor-not-allowed"
+                                            disabled
+                                            title={`Não é possível gerar certificado: ${student.eligibilityReason}`}
+                                          >
+                                            <XCircle className="mr-1 h-3 w-3" />
+                                            <span className="text-xs">
+                                              Não Disponível
+                                            </span>
+                                          </Button>
+                                        )
+                                      }
+                                      
+                                      // Para admin/instrutor, permitir geração com aviso
                                       return (
                                         <Button 
                                           size="sm" 

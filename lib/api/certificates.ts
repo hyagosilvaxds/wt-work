@@ -72,3 +72,62 @@ export const deleteCertificate = async (id: string): Promise<void> => {
   // TODO: Implementar exclusão real na API
   return
 }
+
+// Função para gerar relatório de evidências
+export const generateEvidenceReport = async (classId: string): Promise<void> => {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.worktreinamentos.com.br'}/certificado/evidence-report`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ classId })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Erro ao gerar relatório' }))
+      throw new Error(errorData.message || 'Erro ao gerar relatório de evidências')
+    }
+
+    // Fazer download do PDF
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `relatorio-evidencias-${classId}-${new Date().toISOString().split('T')[0]}.pdf`
+    a.style.display = 'none'
+    
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    
+    // Limpar memória
+    window.URL.revokeObjectURL(url)
+    
+  } catch (error) {
+    console.error('Erro ao gerar relatório de evidências:', error)
+    throw error
+  }
+}
+
+// Função para verificar se uma turma está apta para gerar relatório
+export const checkClassEligibility = async (classId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.worktreinamentos.com.br'}/certificado/eligibility/${classId}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+
+    if (response.ok) {
+      const eligibility = await response.json()
+      return eligibility.length > 0 // Se há alunos elegíveis, pode gerar relatório
+    }
+    
+    return false
+  } catch (error) {
+    console.warn('Erro ao verificar elegibilidade da turma:', error)
+    return false
+  }
+}

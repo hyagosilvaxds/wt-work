@@ -59,13 +59,15 @@ interface ClassTechnicalResponsibleModalProps {
     startDate: string
     endDate: string
   } | null
+  readOnly?: boolean
 }
 
 export function ClassTechnicalResponsibleModal({
   isOpen,
   onClose,
   onSuccess,
-  turma
+  turma,
+  readOnly = false
 }: ClassTechnicalResponsibleModalProps) {
   const [technicalResponsibles, setTechnicalResponsibles] = useState<TechnicalResponsible[]>([])
   const [selectedTechnicalResponsibleId, setSelectedTechnicalResponsibleId] = useState<string>("")
@@ -175,7 +177,7 @@ export function ClassTechnicalResponsibleModal({
   if (!turma) return null
 
   // Permite modificação em turmas de qualquer status
-  const canModify = true
+  const canModify = !readOnly
   const currentTechnicalResponsible = turma.technicalResponsible
 
   return (
@@ -184,10 +186,10 @@ export function ClassTechnicalResponsibleModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <UserCog className="h-6 w-6" />
-            Responsável Técnico
+            {readOnly ? 'Visualizar' : ''} Responsável Técnico
           </DialogTitle>
           <DialogDescription>
-            Gerencie o responsável técnico da turma
+            {readOnly ? 'Visualize o responsável técnico da turma' : 'Gerencie o responsável técnico da turma'}
           </DialogDescription>
         </DialogHeader>
 
@@ -358,9 +360,9 @@ export function ClassTechnicalResponsibleModal({
             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <AlertCircle className="h-5 w-5 text-gray-600" />
               <div className="flex-1">
-                <p className="font-medium text-gray-900">Responsável Técnico</p>
+                <p className="font-medium text-gray-900">Modo Visualização</p>
                 <p className="text-sm text-gray-700">
-                  O responsável técnico pode ser vinculado a turmas de qualquer status
+                  {readOnly ? 'Você pode apenas visualizar as informações do responsável técnico' : 'O responsável técnico pode ser vinculado a turmas de qualquer status'}
                 </p>
               </div>
             </div>

@@ -53,6 +53,7 @@ interface ClassGradesModalProps {
   onClose: () => void
   turma: TurmaData | null
   onSuccess?: () => void
+  readOnly?: boolean
 }
 
 interface StudentGradeForm {
@@ -62,7 +63,7 @@ interface StudentGradeForm {
   observations: string
 }
 
-export function ClassGradesModal({ isOpen, onClose, turma, onSuccess }: ClassGradesModalProps) {
+export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly = false }: ClassGradesModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [gradesLoading, setGradesLoading] = useState(false)
@@ -280,7 +281,7 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess }: ClassGra
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GraduationCap className="h-5 w-5" />
-            Avaliações - {turma.training.title}
+            {readOnly ? 'Visualizar' : ''} Avaliações - {turma.training.title}
           </DialogTitle>
         </DialogHeader>
 
@@ -327,7 +328,7 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess }: ClassGra
                       return (
                         <Card key={student.id}>
                           <CardContent className="p-4">
-                            {isEditing ? (
+                            {!readOnly && isEditing ? (
                               <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                   <div>
@@ -438,33 +439,37 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess }: ClassGra
                                 </div>
 
                                 <div className="flex gap-2">
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    onClick={() => handleEditGrade(student.id)}
-                                    disabled={loading}
-                                  >
-                                    {grade ? (
-                                      <>
-                                        <Edit className="h-4 w-4 mr-2" />
-                                        Editar
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Avaliar
-                                      </>
-                                    )}
-                                  </Button>
-                                  {grade && (
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline" 
-                                      onClick={() => handleDeleteGrade(student.id)}
-                                      disabled={loading}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                  {!readOnly && (
+                                    <>
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        onClick={() => handleEditGrade(student.id)}
+                                        disabled={loading}
+                                      >
+                                        {grade ? (
+                                          <>
+                                            <Edit className="h-4 w-4 mr-2" />
+                                            Editar
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Avaliar
+                                          </>
+                                        )}
+                                      </Button>
+                                      {grade && (
+                                        <Button 
+                                          size="sm" 
+                                          variant="outline" 
+                                          onClick={() => handleDeleteGrade(student.id)}
+                                          disabled={loading}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               </div>

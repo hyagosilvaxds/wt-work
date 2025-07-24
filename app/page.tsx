@@ -15,7 +15,7 @@ import { GroupsPage } from "@/components/groups-page"
 import { RoomsPage } from "@/components/rooms-page"
 import { CertificatesPage } from "@/components/certificates-page"
 import { ReportsPage } from "@/components/reports-page"
-import { FinancialModule } from "@/components/financial/financial-module"
+// import { FinancialModule } from "@/components/financial/financial-module"
 import { SettingsPage } from "@/components/settings-page-simple"
 import { InstructorClassesPage } from "@/components/instructor-classes-page"
 import ProtectedRoute from "@/components/protected-route"
@@ -94,8 +94,8 @@ export default function Home() {
             </div>
           </div>
         )
-      case "financial":
-        return <FinancialModule />
+      // case "financial":
+      //   return <FinancialModule />
       case "reports":
         return <ReportsPage />
       case "settings":

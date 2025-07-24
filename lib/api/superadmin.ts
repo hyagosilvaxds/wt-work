@@ -3293,6 +3293,21 @@ export interface CertificateValidationError {
   code: 'CLASS_NOT_FOUND' | 'STUDENT_NOT_FOUND' | 'STUDENT_NOT_ENROLLED' | 'CERTIFICATE_BLOCKED'
 }
 
+// Interface para resultado de elegibilidade individual
+export interface StudentEligibilityResultDto {
+  studentId: string
+  studentName: string
+  classId: string
+  isEligible: boolean
+  reason: string
+  practicalGrade?: number | null
+  theoreticalGrade?: number | null
+  averageGrade?: number | null
+  totalLessons: number
+  attendedLessons: number
+  absences: number
+}
+
 // Interface para dados de elegibilidade de certificado - ATUALIZADA conforme nova API
 export interface CertificateEligibilityStudent {
   studentId: string
@@ -3352,6 +3367,30 @@ export async function getCertificateEligibility(classId: string): Promise<Certif
     }
     if (error?.response?.status === 400) {
       throw new Error(`Erro ao verificar elegibilidade: ${error.response.data?.message || 'Dados inválidos'}`)
+    }
+    
+    throw error
+  }
+}
+
+// Verificar elegibilidade individual de certificado - Aluno específico
+// Endpoint: GET /certificado/eligibility/{classId}/{studentId}
+export async function checkStudentEligibilityForCertificate(classId: string, studentId: string): Promise<StudentEligibilityResultDto> {
+  try {
+    console.log('🔍 Verificando elegibilidade individual:', { classId, studentId })
+    const response = await api.get(`/certificado/eligibility/${classId}/${studentId}`)
+    console.log('✅ Elegibilidade individual obtida:', response.data)
+    return response.data
+  } catch (error: any) {
+    console.error('❌ Erro ao verificar elegibilidade individual:', error)
+    
+    // Tratamento específico de erros da nova API
+    if (error?.response?.status === 404) {
+      const message = error.response.data?.message || 'Turma ou aluno não encontrado'
+      throw new Error(message)
+    }
+    if (error?.response?.status === 400) {
+      throw new Error(`Erro de validação: ${error.response.data?.message || 'Dados inválidos'}`)
     }
     
     throw error

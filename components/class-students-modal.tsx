@@ -33,9 +33,10 @@ interface ClassStudentsModalProps {
   onClose: () => void
   onSuccess: () => void
   turma: TurmaData | null
+  readOnly?: boolean
 }
 
-export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma }: ClassStudentsModalProps) {
+export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma, readOnly = false }: ClassStudentsModalProps) {
   const { toast } = useToast()
   const { isClient } = useAuth()
   const [loading, setLoading] = useState(false)
@@ -240,7 +241,9 @@ export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma }: ClassS
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Gerenciar Alunos - {turma.training.title}</DialogTitle>
+          <DialogTitle>
+            {readOnly ? `Alunos - ${turma.training.title}` : `Gerenciar Alunos - ${turma.training.title}`}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -274,7 +277,7 @@ export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma }: ClassS
                           {student.email} • CPF: {student.cpf}
                         </p>
                       </div>
-                      {!isClient && (
+                      {!readOnly && (
                         <Button
                           variant={studentsToRemove.includes(student.id) ? "destructive" : "outline"}
                           size="sm"
@@ -296,7 +299,7 @@ export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma }: ClassS
                     </div>
                   ))}
                   
-                  {studentsToRemove.length > 0 && (
+                  {studentsToRemove.length > 0 && !readOnly && (
                     <div className="flex justify-end pt-4">
                       <Button
                         variant="destructive"
@@ -317,129 +320,131 @@ export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma }: ClassS
             </CardContent>
           </Card>
 
-          {/* Adicionar Novos Alunos */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserPlus className="h-5 w-5" />
-                Adicionar Alunos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="student-search">Selecionar Alunos</Label>
-                  <div className="space-y-2">
-                    {/* Campo de busca */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <Input
-                        placeholder="Digite pelo menos 2 caracteres (nome, email ou CPF)..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                      {searchLoading && (
-                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
-                      )}
-                    </div>
-
-                    {/* Resultados da busca */}
-                    {searchTerm.trim() !== "" ? (
-                      <div className="border rounded-lg max-h-60 overflow-y-auto">
-                        {searchLoading ? (
-                          <div className="p-4 text-center text-gray-500">
-                            <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
-                            Buscando...
-                          </div>
-                        ) : searchTerm.trim().length < 2 ? (
-                          <div className="p-4 text-center text-gray-500">
-                            Digite pelo menos 2 caracteres...
-                          </div>
-                        ) : availableStudents.length === 0 ? (
-                          <div className="p-4 text-center text-gray-500">
-                            Nenhum aluno encontrado para "{searchTerm.trim()}"
-                          </div>
-                        ) : (
-                          <div className="space-y-1 p-2">
-                            <div className="px-2 py-1 text-xs text-gray-500 border-b">
-                              {availableStudents.length} aluno{availableStudents.length !== 1 ? 's' : ''} encontrado{availableStudents.length !== 1 ? 's' : ''}
-                            </div>
-                            {availableStudents.map((student) => (
-                              <div
-                                key={student.id}
-                                className={`flex items-center space-x-2 p-2 rounded hover:bg-gray-50 cursor-pointer border ${
-                                  selectedStudents.includes(student.id) 
-                                    ? 'bg-blue-50 border-blue-200' 
-                                    : 'border-transparent hover:border-gray-200'
-                                }`}
-                                onClick={() => toggleStudentSelection(student.id)}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedStudents.includes(student.id)}
-                                  onChange={() => {}}
-                                  className="rounded"
-                                />
-                                <div className="flex-1">
-                                  <p className="font-medium">{student.name}</p>
-                                  <p className="text-sm text-gray-600">
-                                    {student.email ? `${student.email} • ` : ''}CPF: {student.cpf}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+          {/* Adicionar Novos Alunos - Apenas se não for readOnly */}
+          {!readOnly && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  Adicionar Alunos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="student-search">Selecionar Alunos</Label>
+                    <div className="space-y-2">
+                      {/* Campo de busca */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <Input
+                          placeholder="Digite pelo menos 2 caracteres (nome, email ou CPF)..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10"
+                        />
+                        {searchLoading && (
+                          <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
                         )}
                       </div>
-                    ) : (
-                      <div className="border rounded-lg p-4 text-center text-gray-500">
-                        Digite pelo menos 2 caracteres para buscar alunos...
-                      </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* Alunos Selecionados */}
-                {selectedStudents.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Alunos Selecionados ({selectedStudents.length})</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedStudents.map((studentId) => {
-                        const student = allStudents.find(s => s.id === studentId)
-                        return (
-                          <Badge key={studentId} variant="secondary">
-                            {student?.name}
-                            <button
-                              onClick={() => toggleStudentSelection(studentId)}
-                              className="ml-2 hover:text-destructive"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        )
-                      })}
+                      {/* Resultados da busca */}
+                      {searchTerm.trim() !== "" ? (
+                        <div className="border rounded-lg max-h-60 overflow-y-auto">
+                          {searchLoading ? (
+                            <div className="p-4 text-center text-gray-500">
+                              <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                              Buscando...
+                            </div>
+                          ) : searchTerm.trim().length < 2 ? (
+                            <div className="p-4 text-center text-gray-500">
+                              Digite pelo menos 2 caracteres...
+                            </div>
+                          ) : availableStudents.length === 0 ? (
+                            <div className="p-4 text-center text-gray-500">
+                              Nenhum aluno encontrado para "{searchTerm.trim()}"
+                            </div>
+                          ) : (
+                            <div className="space-y-1 p-2">
+                              <div className="px-2 py-1 text-xs text-gray-500 border-b">
+                                {availableStudents.length} aluno{availableStudents.length !== 1 ? 's' : ''} encontrado{availableStudents.length !== 1 ? 's' : ''}
+                              </div>
+                              {availableStudents.map((student) => (
+                                <div
+                                  key={student.id}
+                                  className={`flex items-center space-x-2 p-2 rounded hover:bg-gray-50 cursor-pointer border ${
+                                    selectedStudents.includes(student.id) 
+                                      ? 'bg-blue-50 border-blue-200' 
+                                      : 'border-transparent hover:border-gray-200'
+                                  }`}
+                                  onClick={() => toggleStudentSelection(student.id)}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedStudents.includes(student.id)}
+                                    onChange={() => {}}
+                                    className="rounded"
+                                  />
+                                  <div className="flex-1">
+                                    <p className="font-medium">{student.name}</p>
+                                    <p className="text-sm text-gray-600">
+                                      {student.email ? `${student.email} • ` : ''}CPF: {student.cpf}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="border rounded-lg p-4 text-center text-gray-500">
+                          Digite pelo menos 2 caracteres para buscar alunos...
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
 
-                {selectedStudents.length > 0 && (
-                  <Button
-                    onClick={handleAddStudents}
-                    disabled={actionLoading}
-                    className="w-full"
-                  >
-                    {actionLoading ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <UserPlus className="h-4 w-4 mr-2" />
-                    )}
-                    Adicionar {selectedStudents.length} Aluno(s)
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  {/* Alunos Selecionados */}
+                  {selectedStudents.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Alunos Selecionados ({selectedStudents.length})</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedStudents.map((studentId) => {
+                          const student = allStudents.find(s => s.id === studentId)
+                          return (
+                            <Badge key={studentId} variant="secondary">
+                              {student?.name}
+                              <button
+                                onClick={() => toggleStudentSelection(studentId)}
+                                className="ml-2 hover:text-destructive"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedStudents.length > 0 && (
+                    <Button
+                      onClick={handleAddStudents}
+                      disabled={actionLoading}
+                      className="w-full"
+                    >
+                      {actionLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <UserPlus className="h-4 w-4 mr-2" />
+                      )}
+                      Adicionar {selectedStudents.length} Aluno(s)
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <DialogFooter>

@@ -4,7 +4,7 @@ import { AuthProvider } from '@/hooks/use-auth'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'WT Work Treinamentos',
+  title: 'Work Treinamentos',
   description: 'Plataforma de gerenciamento de treinamentos',
 }
 

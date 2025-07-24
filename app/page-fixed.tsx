@@ -84,8 +84,8 @@
             </div>
           </div>
         )
-      case "financial":
-        return <FinancialModule />
+      // case "financial":
+      //   return <FinancialModule />
       case "reports":
         return <ReportsPage />
       case "settings":

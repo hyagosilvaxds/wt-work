@@ -54,9 +54,10 @@ interface ClassAttendanceModalProps {
   onClose: () => void
   onSuccess: () => void
   turma: TurmaData | null
+  readOnly?: boolean
 }
 
-export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma }: ClassAttendanceModalProps) {
+export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma, readOnly = false }: ClassAttendanceModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [attendances, setAttendances] = useState<Attendance[]>([])
@@ -71,12 +72,12 @@ export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma }: Clas
     }
   }, [isOpen, turma])
 
-  // Marcar todos como ausentes quando uma aula for selecionada
+  // Marcar todos como ausentes quando uma aula for selecionada (apenas se não for readOnly)
   useEffect(() => {
-    if (selectedLesson && turma) {
+    if (selectedLesson && turma && !readOnly) {
       initializeLessonAttendance(selectedLesson)
     }
-  }, [selectedLesson, turma])
+  }, [selectedLesson, turma, readOnly])
 
   const initializeLessonAttendance = async (lessonId: string) => {
     if (!turma || !lessonId) return
@@ -236,7 +237,7 @@ export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma }: Clas
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5" />
-            Chamada - {turma.training.title}
+            {readOnly ? `Chamada - ${turma.training.title}` : `Chamada - ${turma.training.title}`}
           </DialogTitle>
         </DialogHeader>
 
@@ -284,6 +285,7 @@ export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma }: Clas
                     ))}
                   </SelectContent>
                 </Select>
+                
               </CardContent>
             </Card>
 
@@ -336,26 +338,40 @@ export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma }: Clas
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                id={`${student.id}-${selectedLesson}`}
-                                checked={isPresent}
-                                onCheckedChange={(checked) => 
-                                  handleAttendanceChange(student.id, selectedLesson, checked as boolean)
-                                }
-                                disabled={actionLoading}
-                              />
-                              <Label 
-                                htmlFor={`${student.id}-${selectedLesson}`}
-                                className={`text-sm font-medium cursor-pointer ${
-                                  isPresent ? 'text-green-700' : 'text-red-700'
-                                }`}
-                              >
-                                {isPresent ? "Presente" : "Ausente"}
-                              </Label>
+                          {!readOnly && (
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`${student.id}-${selectedLesson}`}
+                                  checked={isPresent}
+                                  onCheckedChange={(checked) => 
+                                    handleAttendanceChange(student.id, selectedLesson, checked as boolean)
+                                  }
+                                  disabled={actionLoading}
+                                />
+                                <Label 
+                                  htmlFor={`${student.id}-${selectedLesson}`}
+                                  className={`text-sm font-medium cursor-pointer ${
+                                    isPresent ? 'text-green-700' : 'text-red-700'
+                                  }`}
+                                >
+                                  {isPresent ? "Presente" : "Ausente"}
+                                </Label>
+                              </div>
                             </div>
-                          </div>
+                          )}
+                          
+                          {readOnly && (
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-medium px-3 py-1 rounded-full ${
+                                isPresent 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {isPresent ? "Presente" : "Ausente"}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -380,16 +396,22 @@ export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma }: Clas
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                      {initializingLesson && (
+                      {initializingLesson && !readOnly && (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Inicializando chamada...
                         </>
                       )}
-                      {!initializingLesson && selectedLesson && (
+                      {!initializingLesson && selectedLesson && !readOnly && (
                         <>
                           <CheckCircle className="h-4 w-4 text-green-600" />
                           Chamada ativa - marque os presentes
+                        </>
+                      )}
+                      {readOnly && selectedLesson && (
+                        <>
+                          <CheckCircle className="h-4 w-4 text-blue-600" />
+                          Visualizando chamada
                         </>
                       )}
                     </div>

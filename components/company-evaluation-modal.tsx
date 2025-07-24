@@ -41,6 +41,7 @@ interface CompanyEvaluationModalProps {
       name: string
     }
   } | null
+  readOnly?: boolean
 }
 
 interface EvaluationFormData {
@@ -53,7 +54,7 @@ interface EvaluationFormData {
   feedback: string
 }
 
-export function CompanyEvaluationModal({ isOpen, onClose, turma }: CompanyEvaluationModalProps) {
+export function CompanyEvaluationModal({ isOpen, onClose, turma, readOnly = false }: CompanyEvaluationModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [evaluation, setEvaluation] = useState<CompanyEvaluation | null>(null)
@@ -221,7 +222,7 @@ export function CompanyEvaluationModal({ isOpen, onClose, turma }: CompanyEvalua
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5" />
-            Avaliação da Empresa Contratante - {turma.training.title}
+            Avaliação do Treinamento - {turma.training.title}
           </DialogTitle>
           {turma.client && (
             <p className="text-sm text-gray-600">
@@ -269,34 +270,36 @@ export function CompanyEvaluationModal({ isOpen, onClose, turma }: CompanyEvalua
                         minute: '2-digit'
                       })}
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleStartEditing}
-                        disabled={loading}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleDeleteEvaluation}
-                        disabled={loading}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Remover
-                      </Button>
-                    </div>
+                    {!readOnly && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleStartEditing}
+                          disabled={loading}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Editar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDeleteEvaluation}
+                          disabled={loading}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remover
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               )}
             </Card>
 
             {/* Formulário de Avaliação */}
-            {(isEditing || !evaluation) && (
+            {(isEditing || !evaluation) && !readOnly && (
               <div className="space-y-6">
                 {/* Aula Prática */}
                 <Card>
@@ -530,7 +533,7 @@ export function CompanyEvaluationModal({ isOpen, onClose, turma }: CompanyEvalua
             )}
 
             {/* Botão para criar nova avaliação */}
-            {!evaluation && !isEditing && (
+            {!evaluation && !isEditing && !readOnly && (
               <Card>
                 <CardContent className="p-12">
                   <div className="text-center">
@@ -538,10 +541,10 @@ export function CompanyEvaluationModal({ isOpen, onClose, turma }: CompanyEvalua
                       <Building2 className="h-8 w-8 text-gray-400" />
                     </div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Nenhuma avaliação da empresa
+                      Nenhuma avaliação do treinamento
                     </h3>
                     <p className="text-gray-600 mb-4">
-                      Esta turma ainda não possui uma avaliação da empresa contratante.
+                      Esta turma ainda não possui uma avaliação do treinamento.
                     </p>
                     <Button 
                       className="gap-2" 
@@ -549,8 +552,27 @@ export function CompanyEvaluationModal({ isOpen, onClose, turma }: CompanyEvalua
                       disabled={loading}
                     >
                       <Plus className="h-4 w-4" />
-                      Criar Avaliação da Empresa
+                      Criar Avaliação do Treinamento
                     </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Mensagem para usuários em modo readOnly quando não há avaliação */}
+            {!evaluation && readOnly && (
+              <Card>
+                <CardContent className="p-12">
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                      <Building2 className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Nenhuma avaliação do treinamento
+                    </h3>
+                    <p className="text-gray-600">
+                      Esta turma ainda não possui uma avaliação do treinamento.
+                    </p>
                   </div>
                 </CardContent>
               </Card>

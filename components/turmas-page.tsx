@@ -25,11 +25,13 @@ import {
   Star,
   Camera,
   UserCog,
-  Building2
+  Building2,
+  FileText
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { getClasses, getStudents, addStudentsToClass, removeStudentsFromClass, getLessonAttendanceByClass, createLessonAttendance, patchLessonAttendance, deleteLessonAttendance } from "@/lib/api/superadmin"
+import { generateEvidenceReport, checkClassEligibility } from "@/lib/api/certificates"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { ClassCreateModal } from "@/components/class-create-modal"
@@ -125,6 +127,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
   const [attendanceListTurma, setAttendanceListTurma] = useState<TurmaData | null>(null)
   const [evaluationsTurma, setEvaluationsTurma] = useState<TurmaData | null>(null)
   const [companyEvaluationTurma, setCompanyEvaluationTurma] = useState<TurmaData | null>(null)
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null) // ID da turma sendo processada
 
   // Carregar dados das turmas
   const loadTurmas = async (resetPage = false) => {
@@ -328,6 +331,44 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
   // Função para abrir modal de avaliação da empresa
   const handleManageCompanyEvaluation = (turma: TurmaData) => {
     setCompanyEvaluationTurma(turma)
+  }
+
+  // Função para gerar relatório de evidências
+  const handleGenerateEvidenceReport = async (turma: TurmaData) => {
+    setGeneratingReport(turma.id)
+    
+    try {
+      // Verificar se a turma está apta para gerar relatório
+      const isEligible = await checkClassEligibility(turma.id)
+      
+      if (!isEligible) {
+        toast({
+          title: "Turma não elegível",
+          description: "Esta turma ainda não possui alunos elegíveis para gerar o relatório de evidências.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Gerar o relatório
+      await generateEvidenceReport(turma.id)
+      
+      toast({
+        title: "Relatório gerado",
+        description: "O relatório de evidências foi gerado e está sendo baixado.",
+        variant: "default"
+      })
+      
+    } catch (error: any) {
+      console.error('Erro ao gerar relatório de evidências:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao gerar relatório de evidências",
+        variant: "destructive"
+      })
+    } finally {
+      setGeneratingReport(null)
+    }
   }
 
   // Função para fechar modais
@@ -618,19 +659,17 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                           Visualizar
                         </DropdownMenuItem>
                         
-                        {/* Gerenciar Alunos - Apenas para não-CLIENTE */}
-                        {!isClientView && (
-                          <DropdownMenuItem 
-                            className="gap-2"
-                            onClick={() => handleManageStudents(turma)}
-                          >
-                            <Users className="h-4 w-4" />
-                            Gerenciar Alunos
-                          </DropdownMenuItem>
-                        )}
+                        {/* Gerenciar Alunos */}
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleManageStudents(turma)}
+                        >
+                          <Users className="h-4 w-4" />
+                          {isClientView ? 'Visualizar Alunos' : 'Gerenciar Alunos'}
+                        </DropdownMenuItem>
                         
-                        {/* Listas de Presença - Apenas para não-CLIENTE e se houver aulas */}
-                        {!isClientView && turma.lessons && turma.lessons.length > 0 && (
+                        {/* Listas de Presença - se houver aulas */}
+                        {turma.lessons && turma.lessons.length > 0 && (
                           <DropdownMenuItem 
                             className="gap-2 bg-green-50 text-green-800 focus:bg-green-100"
                             onClick={() => handleManageAttendanceList(turma)}
@@ -640,72 +679,74 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                           </DropdownMenuItem>
                         )}
                         
-                        {/* Chamada - Não disponível para CLIENTE */}
-                        {!isClientView && (
-                          <DropdownMenuItem 
-                            className="gap-2"
-                            onClick={() => handleManageAttendance(turma)}
-                            disabled={!turma.lessons.some(lesson => lesson.status === "REALIZADA")}
-                          >
-                            <ClipboardList className="h-4 w-4" />
-                            Chamada
-                          </DropdownMenuItem>
-                        )}
+                        {/* Chamada */}
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleManageAttendance(turma)}
+                          disabled={!turma.lessons.some(lesson => lesson.status === "REALIZADA")}
+                        >
+                          <ClipboardList className="h-4 w-4" />
+                          {isClientView ? 'Visualizar Chamada' : 'Chamada'}
+                        </DropdownMenuItem>
                         
-                        {/* Avaliações - Não disponível para CLIENTE */}
-                        {!isClientView && (
-                          <DropdownMenuItem 
-                            className="gap-2"
-                            onClick={() => handleManageEvaluations(turma)}
-                          >
-                            <Star className="h-4 w-4" />
-                            Avaliações dos Alunos
-                          </DropdownMenuItem>
-                        )}
+                        {/* Avaliações dos Alunos */}
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleManageEvaluations(turma)}
+                        >
+                          <Star className="h-4 w-4" />
+                          {isClientView ? 'Visualizar Avaliações' : 'Avaliações dos Alunos'}
+                        </DropdownMenuItem>
                         
-                        {/* Avaliação da Empresa - Não disponível para CLIENTE */}
-                        {!isClientView && (
-                          <DropdownMenuItem 
-                            className="gap-2 bg-blue-50 text-blue-800 focus:bg-blue-100"
-                            onClick={() => handleManageCompanyEvaluation(turma)}
-                          >
-                            <Building2 className="h-4 w-4" />
-                            Avaliação da Empresa
-                          </DropdownMenuItem>
-                        )}
+                        {/* Avaliação do Treinamento */}
+                        <DropdownMenuItem 
+                          className="gap-2 bg-blue-50 text-blue-800 focus:bg-blue-100"
+                          onClick={() => handleManageCompanyEvaluation(turma)}
+                        >
+                          <Building2 className="h-4 w-4" />
+                          {isClientView ? 'Visualizar Avaliação do Treinamento' : 'Avaliação do Treinamento'}
+                        </DropdownMenuItem>
                         
-                        {/* Avaliações - Não disponível para CLIENTE */}
-                        {!isClientView && (
-                          <DropdownMenuItem 
-                            className="gap-2"
-                            onClick={() => handleManageGrades(turma)}
-                          >
-                            <Star className="h-4 w-4" />
-                            Avaliações
-                          </DropdownMenuItem>
-                        )}
+                        {/* Relatório de Evidências */}
+                        <DropdownMenuItem 
+                          className="gap-2 bg-amber-50 text-amber-800 focus:bg-amber-100"
+                          onClick={() => handleGenerateEvidenceReport(turma)}
+                          disabled={generatingReport === turma.id}
+                        >
+                          {generatingReport === turma.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <FileText className="h-4 w-4" />
+                          )}
+                          {generatingReport === turma.id ? 'Gerando...' : 'Relatório de Evidências'}
+                        </DropdownMenuItem>
                         
-                        {/* Fotos - Não disponível para CLIENTE */}
-                        {!isClientView && (
-                          <DropdownMenuItem 
-                            className="gap-2"
-                            onClick={() => handleManagePhotos(turma)}
-                          >
-                            <Camera className="h-4 w-4" />
-                            Fotos
-                          </DropdownMenuItem>
-                        )}
+                        {/* Avaliações */}
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleManageGrades(turma)}
+                        >
+                          <Star className="h-4 w-4" />
+                          {isClientView ? 'Visualizar Notas' : 'Avaliações'}
+                        </DropdownMenuItem>
                         
-                        {/* Responsável Técnico - Apenas para não-CLIENTE */}
-                        {!isClientView && (
-                          <DropdownMenuItem 
-                            className="gap-2"
-                            onClick={() => handleManageTechnicalResponsible(turma)}
-                          >
-                            <UserCog className="h-4 w-4" />
-                            Responsável Técnico
-                          </DropdownMenuItem>
-                        )}
+                        {/* Fotos */}
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleManagePhotos(turma)}
+                        >
+                          <Camera className="h-4 w-4" />
+                          {isClientView ? 'Visualizar Fotos' : 'Fotos'}
+                        </DropdownMenuItem>
+                        
+                        {/* Responsável Técnico */}
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleManageTechnicalResponsible(turma)}
+                        >
+                          <UserCog className="h-4 w-4" />
+                          {isClientView ? 'Visualizar Responsável' : 'Responsável Técnico'}
+                        </DropdownMenuItem>
                         
                         {/* Agendar Aula - Apenas para não-CLIENTE */}
                         {!isClientView && (
@@ -845,6 +886,22 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                       <Eye className="h-4 w-4" />
                       Detalhes
                     </Button>
+                    
+                    {/* Botão Relatório de Evidências */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2 border-amber-200 text-amber-700 hover:bg-amber-50"
+                      onClick={() => handleGenerateEvidenceReport(turma)}
+                      disabled={generatingReport === turma.id}
+                    >
+                      {generatingReport === turma.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <FileText className="h-4 w-4" />
+                      )}
+                      {generatingReport === turma.id ? 'Gerando...' : 'Relatório'}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -969,107 +1026,99 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
         />
       )}
 
-      {/* Modal de Gerenciamento de Alunos - Apenas para usuários não-CLIENTE */}
-      {!isClientView && (
-        <ClassStudentsModal
-          isOpen={!!managingStudentsTurma}
-          onClose={handleCloseModal}
-          onSuccess={handleStudentsSuccess}
-          turma={managingStudentsTurma}
-        />
-      )}
+      {/* Modal de Gerenciamento de Alunos */}
+      <ClassStudentsModal
+        isOpen={!!managingStudentsTurma}
+        onClose={handleCloseModal}
+        onSuccess={handleStudentsSuccess}
+        turma={managingStudentsTurma}
+        readOnly={isClientView}
+      />
 
-      {/* Modal de Chamada - Não disponível para clientes */}
-      {!isClientView && (
-        <ClassAttendanceModal
-          isOpen={!!attendanceTurma}
-          onClose={handleCloseModal}
-          onSuccess={handleAttendanceSuccess}
-          turma={attendanceTurma}
-        />
-      )}
+      {/* Modal de Chamada */}
+      <ClassAttendanceModal
+        isOpen={!!attendanceTurma}
+        onClose={handleCloseModal}
+        onSuccess={handleAttendanceSuccess}
+        turma={attendanceTurma}
+        readOnly={isClientView}
+      />
 
-      {/* Modal de Avaliações - Não disponível para clientes */}
-      {!isClientView && (
-        <ClassGradesModal
-          isOpen={!!gradesTurma}
-          onClose={handleCloseModal}
-          onSuccess={handleSuccess}
-          turma={gradesTurma}
-        />
-      )}
+      {/* Modal de Avaliações */}
+      <ClassGradesModal
+        isOpen={!!gradesTurma}
+        onClose={handleCloseModal}
+        onSuccess={handleSuccess}
+        turma={gradesTurma}
+        readOnly={isClientView}
+      />
 
-      {/* Modal de Fotos - Não disponível para clientes */}
-      {!isClientView && (
-        <ClassPhotosModal
-          isOpen={!!photosTurma}
-          onClose={handleCloseModal}
-          turma={photosTurma ? {
-            id: photosTurma.id,
-            training: {
-              title: photosTurma.training.title
-            }
-          } : null}
-        />
-      )}
+      {/* Modal de Fotos */}
+      <ClassPhotosModal
+        isOpen={!!photosTurma}
+        onClose={handleCloseModal}
+        turma={photosTurma ? {
+          id: photosTurma.id,
+          training: {
+            title: photosTurma.training.title
+          }
+        } : null}
+        readOnly={isClientView}
+      />
 
-            {/* Modal de Responsável Técnico - Não disponível para clientes */}
-      {!isClientView && (
-        <ClassTechnicalResponsibleModal
-          isOpen={!!technicalResponsibleTurma}
-          onClose={handleCloseModal}
-          onSuccess={handleSuccess}
-          turma={technicalResponsibleTurma ? {
-            id: technicalResponsibleTurma.id,
-            training: {
-              title: technicalResponsibleTurma.training.title
-            },
-            technicalResponsible: technicalResponsibleTurma.technicalResponsible,
-            status: technicalResponsibleTurma.status,
-            startDate: technicalResponsibleTurma.startDate,
-            endDate: technicalResponsibleTurma.endDate
-          } : null}
-        />
-      )}
+            {/* Modal de Responsável Técnico */}
+      <ClassTechnicalResponsibleModal
+        isOpen={!!technicalResponsibleTurma}
+        onClose={handleCloseModal}
+        onSuccess={handleSuccess}
+        turma={technicalResponsibleTurma ? {
+          id: technicalResponsibleTurma.id,
+          training: {
+            title: technicalResponsibleTurma.training.title
+          },
+          technicalResponsible: technicalResponsibleTurma.technicalResponsible,
+          status: technicalResponsibleTurma.status,
+          startDate: technicalResponsibleTurma.startDate,
+          endDate: technicalResponsibleTurma.endDate
+        } : null}
+        readOnly={isClientView}
+      />
 
-      {/* Modal de Listas de Presença - Não disponível para clientes */}
-      {!isClientView && (
-        <AttendanceListModal
-          isOpen={!!attendanceListTurma}
-          onClose={handleCloseModal}
-          turma={attendanceListTurma}
-        />
-      )}
+      {/* Modal de Listas de Presença */}
+      <AttendanceListModal
+        isOpen={!!attendanceListTurma}
+        onClose={handleCloseModal}
+        turma={attendanceListTurma}
+        readOnly={isClientView}
+      />
 
-      {/* Modal de Avaliações dos Alunos - Não disponível para clientes */}
-      {!isClientView && (
-        <ClassEvaluationsModal
-          isOpen={!!evaluationsTurma}
-          onClose={handleCloseModal}
-          turma={evaluationsTurma ? {
-            id: evaluationsTurma.id,
-            training: {
-              title: evaluationsTurma.training.title
-            },
-            students: evaluationsTurma.students || []
-          } : null}
-        />
-      )}
+      {/* Modal de Avaliações dos Alunos */}
+      <ClassEvaluationsModal
+        isOpen={!!evaluationsTurma}
+        onClose={handleCloseModal}
+        turma={evaluationsTurma ? {
+          id: evaluationsTurma.id,
+          training: {
+            title: evaluationsTurma.training.title
+          },
+          students: evaluationsTurma.students || []
+        } : null}
+        readOnly={isClientView}
+      />
 
-      {/* Modal de Avaliação da Empresa - Não disponível para clientes */}
-      {!isClientView && (
-        <CompanyEvaluationModal
-          isOpen={!!companyEvaluationTurma}
-          onClose={handleCloseModal}
-          turma={companyEvaluationTurma ? {
-            id: companyEvaluationTurma.id,
-            training: {
-              title: companyEvaluationTurma.training.title
-            },
-            client: companyEvaluationTurma.client
-          } : null}
-        />
-      )}
+      {/* Modal de Avaliação do Treinamento */}
+      <CompanyEvaluationModal
+        isOpen={!!companyEvaluationTurma}
+        onClose={handleCloseModal}
+        turma={companyEvaluationTurma ? {
+          id: companyEvaluationTurma.id,
+          training: {
+            title: companyEvaluationTurma.training.title
+          },
+          client: companyEvaluationTurma.client
+        } : null}
+        readOnly={isClientView}
+      />
     </>
   )
 }
