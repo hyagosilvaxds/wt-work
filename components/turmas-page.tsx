@@ -24,7 +24,8 @@ import {
   ClipboardList,
   Star,
   Camera,
-  UserCog
+  UserCog,
+  Building2
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -42,6 +43,7 @@ import { ClassPhotosModal } from "@/components/class-photos-modal"
 import { ClassTechnicalResponsibleModal } from "@/components/class-technical-responsible-modal"
 import { AttendanceListModal } from "@/components/attendance-list-modal"
 import { ClassEvaluationsModal } from "@/components/class-evaluations-modal"
+import { CompanyEvaluationModal } from "@/components/company-evaluation-modal"
 
 interface TurmaData {
   id: string
@@ -122,6 +124,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
   const [technicalResponsibleTurma, setTechnicalResponsibleTurma] = useState<TurmaData | null>(null)
   const [attendanceListTurma, setAttendanceListTurma] = useState<TurmaData | null>(null)
   const [evaluationsTurma, setEvaluationsTurma] = useState<TurmaData | null>(null)
+  const [companyEvaluationTurma, setCompanyEvaluationTurma] = useState<TurmaData | null>(null)
 
   // Carregar dados das turmas
   const loadTurmas = async (resetPage = false) => {
@@ -322,6 +325,11 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setEvaluationsTurma(turma)
   }
 
+  // Função para abrir modal de avaliação da empresa
+  const handleManageCompanyEvaluation = (turma: TurmaData) => {
+    setCompanyEvaluationTurma(turma)
+  }
+
   // Função para fechar modais
   const handleCloseModal = () => {
     setCreateModalOpen(false)
@@ -336,6 +344,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setTechnicalResponsibleTurma(null)
     setAttendanceListTurma(null)
     setEvaluationsTurma(null)
+    setCompanyEvaluationTurma(null)
   }
 
   // Função para fechar apenas o modal de gerenciamento de alunos
@@ -651,6 +660,17 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                           >
                             <Star className="h-4 w-4" />
                             Avaliações dos Alunos
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {/* Avaliação da Empresa - Não disponível para CLIENTE */}
+                        {!isClientView && (
+                          <DropdownMenuItem 
+                            className="gap-2 bg-blue-50 text-blue-800 focus:bg-blue-100"
+                            onClick={() => handleManageCompanyEvaluation(turma)}
+                          >
+                            <Building2 className="h-4 w-4" />
+                            Avaliação da Empresa
                           </DropdownMenuItem>
                         )}
                         
@@ -1032,6 +1052,21 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
               title: evaluationsTurma.training.title
             },
             students: evaluationsTurma.students || []
+          } : null}
+        />
+      )}
+
+      {/* Modal de Avaliação da Empresa - Não disponível para clientes */}
+      {!isClientView && (
+        <CompanyEvaluationModal
+          isOpen={!!companyEvaluationTurma}
+          onClose={handleCloseModal}
+          turma={companyEvaluationTurma ? {
+            id: companyEvaluationTurma.id,
+            training: {
+              title: companyEvaluationTurma.training.title
+            },
+            client: companyEvaluationTurma.client
           } : null}
         />
       )}

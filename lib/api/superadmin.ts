@@ -3932,3 +3932,74 @@ export const deleteClassEvaluation = async (classId: string, studentId: string):
   }
 }
 
+// ================================
+// AVALIAÇÕES DA EMPRESA CONTRATANTE
+// ================================
+
+// Interface para dados da avaliação da empresa
+export interface CompanyEvaluationData {
+  classId: string
+  practicalContent: string
+  hasEquipment: boolean
+  equipmentDescription: string
+  trainingDifficulties: string
+  companyNeeds: string
+  observations: string
+  feedback: string
+}
+
+// Interface para resposta da avaliação da empresa
+export interface CompanyEvaluation extends CompanyEvaluationData {
+  id: string
+  evaluatedBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+// 1. Criar/Atualizar Avaliação da Empresa
+export const createCompanyEvaluation = async (evaluationData: CompanyEvaluationData): Promise<CompanyEvaluation> => {
+  try {
+    const response = await api.post('/superadmin/company-evaluations', evaluationData)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao criar avaliação da empresa:', error)
+    throw error
+  }
+}
+
+// 2. Buscar Avaliação da Empresa por Turma
+export const getCompanyEvaluationByClass = async (classId: string): Promise<CompanyEvaluation | null> => {
+  try {
+    const response = await api.get(`/superadmin/company-evaluations/class/${classId}`)
+    return response.data
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      return null
+    }
+    console.error('Erro ao buscar avaliação da empresa:', error)
+    throw error
+  }
+}
+
+// 3. Atualizar Avaliação da Empresa
+export const updateCompanyEvaluation = async (classId: string, updateData: Partial<CompanyEvaluationData>): Promise<CompanyEvaluation> => {
+  try {
+    const response = await api.patch(`/superadmin/company-evaluations/class/${classId}`, updateData)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao atualizar avaliação da empresa:', error)
+    throw error
+  }
+}
+
+// 4. Remover Avaliação da Empresa
+export const deleteCompanyEvaluation = async (classId: string): Promise<{ id: string; message: string }> => {
+  try {
+    const response = await api.delete(`/superadmin/company-evaluations/class/${classId}`)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao remover avaliação da empresa:', error)
+    throw error
+  }
+}
+
