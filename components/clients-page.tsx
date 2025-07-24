@@ -41,6 +41,7 @@ import {
   UpdateClientData,
   exportClientsToExcel,
   importClientsFromExcel,
+  downloadClientsTemplate,
   downloadExcelFile
 } from "@/lib/api/superadmin"
 
@@ -516,28 +517,66 @@ export function ClientsPage() {
     try {
       setIsExporting(true)
       
-      const result = await exportClientsToExcel({
-        // Usar os mesmos filtros da busca atual
+      const filters = {
         search: searchTerm || undefined
-      })
+      }
+      
+      const result = await exportClientsToExcel(filters)
       
       toast({
         title: "Exportação concluída",
         description: `${result.totalRecords} clientes exportados com sucesso`,
       })
 
-      // Fazer download automático
+      // Fazer download automático usando o fileName da resposta
       await downloadExcelFile(result.fileName)
       
     } catch (error: any) {
       console.error('Erro na exportação:', error)
+      
+      let errorMessage = "Erro ao exportar clientes"
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       toast({
         title: "Erro na exportação",
-        description: error.message || "Erro ao exportar clientes",
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  // Handle download template
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await downloadClientsTemplate()
+      
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'template_clientes.xlsx'
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      toast({
+        title: "Download concluído",
+        description: "Template de clientes baixado com sucesso",
+      })
+    } catch (error: any) {
+      console.error('Erro ao baixar template:', error)
+      toast({
+        title: "Erro no download",
+        description: "Erro ao baixar template de clientes",
+        variant: "destructive"
+      })
     }
   }
 
@@ -567,20 +606,29 @@ export function ClientsPage() {
       const validation = await importClientsFromExcel(selectedFile, true)
       
       if (validation.invalidRecords > 0) {
+        const errorDetails = validation.errors?.map(err => 
+          `Linha ${err.row}: ${err.field} - ${err.message}`
+        ).join('\n') || ''
+        
         toast({
           title: "Arquivo com erros",
-          description: `${validation.invalidRecords} registros com problemas. Corrija e tente novamente.`,
+          description: `${validation.invalidRecords} registros com problemas:\n${errorDetails}`,
           variant: "destructive"
         })
         return
       }
 
-      // Se validação passou, importar
+      // Se validação passou, perguntar se quer importar
+      if (!confirm(`Validação concluída! ${validation.validRecords} registros válidos encontrados. Deseja prosseguir com a importação?`)) {
+        return
+      }
+
+      // Importar os dados
       const result = await importClientsFromExcel(selectedFile, false)
       
       toast({
         title: "Importação concluída",
-        description: `${result.importedRecords} clientes importados com sucesso`,
+        description: `${result.importedRecords} clientes importados com sucesso de ${result.totalRecords} registros processados`,
       })
 
       // Limpar arquivo selecionado e recarregar lista
@@ -593,9 +641,22 @@ export function ClientsPage() {
       
     } catch (error: any) {
       console.error('Erro na importação:', error)
+      
+      let errorMessage = "Erro ao importar clientes"
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.response?.data?.errors) {
+        const errorDetails = error.response.data.errors.map((err: any) => 
+          `Linha ${err.row}: ${err.field} - ${err.message}`
+        ).join('\n')
+        errorMessage = `Erros encontrados:\n${errorDetails}`
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       toast({
         title: "Erro na importação",
-        description: error.message || "Erro ao importar clientes",
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
@@ -1143,6 +1204,22 @@ export function ClientsPage() {
           </DialogHeader>
           
           <div className="space-y-4">
+            <div className="p-4 border rounded-lg bg-blue-50">
+              <h4 className="font-medium text-blue-900 mb-2">Precisa do template?</h4>
+              <p className="text-sm text-blue-700 mb-3">
+                Baixe o arquivo modelo com a estrutura correta para importação.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Baixar Template
+              </Button>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="file-input">Arquivo Excel</Label>
               <Input
@@ -1167,6 +1244,16 @@ export function ClientsPage() {
                 </p>
               </div>
             )}
+
+            <div className="p-3 border rounded-lg bg-yellow-50">
+              <h4 className="font-medium text-yellow-900 mb-1">Importante:</h4>
+              <ul className="text-sm text-yellow-800 space-y-1">
+                <li>• Nome é obrigatório</li>
+                <li>• Pessoa Física: requer CPF válido</li>
+                <li>• Pessoa Jurídica: requer CNPJ válido</li>
+                <li>• Emails devem ser únicos no sistema</li>
+              </ul>
+            </div>
           </div>
           
           <DialogFooter>

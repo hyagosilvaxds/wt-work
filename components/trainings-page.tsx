@@ -4,19 +4,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Clock, Users, BookOpen, Search, Edit, Trash2, Eye, FileSpreadsheet } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Plus, Clock, Users, BookOpen, Search, Edit, Trash2, Eye, FileSpreadsheet, Download, Upload, FileText, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { 
   getTrainings, 
   deleteTraining, 
-  type CreateTrainingData 
+  type CreateTrainingData,
+  exportTrainingsToExcel,
+  importTrainingsFromExcel,
+  downloadTrainingsTemplate,
+  downloadExcelFile
 } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
 import { TrainingCreateModal } from "./training-create-modal"
 import { TrainingDetailsModal } from "./training-details-modal"
-import { QuickTrainingExcel } from "./quick-training-excel"
-import { TrainingExcelManager } from "./training-excel-manager"
 
 interface Training {
   id: string
@@ -42,6 +46,13 @@ export function TrainingsPage() {
   const [editingTraining, setEditingTraining] = useState<Training | null>(null)
   const [viewingTraining, setViewingTraining] = useState<Training | null>(null)
   const [activeTab, setActiveTab] = useState("list")
+  
+  // Excel states
+  const [isExporting, setIsExporting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  
   const { toast } = useToast()
 
   // Carregar treinamentos
@@ -171,6 +182,159 @@ export function TrainingsPage() {
     loadTrainings(currentPage, searchTerm)
   }
 
+  // Handle download template
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await downloadTrainingsTemplate()
+      
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'template_treinamentos.xlsx'
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      toast({
+        title: "Download concluído",
+        description: "Template de treinamentos baixado com sucesso",
+      })
+    } catch (error: any) {
+      console.error('Erro ao baixar template:', error)
+      toast({
+        title: "Erro no download",
+        description: "Erro ao baixar template de treinamentos",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Handle export to Excel
+  const handleExportToExcel = async () => {
+    try {
+      setIsExporting(true)
+      
+      const filters = {
+        search: searchTerm || undefined,
+        isActive: true
+      }
+      
+      const result = await exportTrainingsToExcel(filters)
+      
+      toast({
+        title: "Exportação concluída",
+        description: `${result.totalRecords} treinamentos exportados com sucesso`,
+      })
+
+      // Fazer download automático usando o fileName da resposta
+      await downloadExcelFile(result.fileName)
+      
+    } catch (error: any) {
+      console.error('Erro na exportação:', error)
+      
+      let errorMessage = "Erro ao exportar treinamentos"
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      toast({
+        title: "Erro na exportação",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Handle file selection for import
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+    }
+  }
+
+  // Handle import from Excel
+  const handleImportFromExcel = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "Erro",
+        description: "Selecione um arquivo Excel primeiro",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsImporting(true)
+      
+      // Primeiro validar o arquivo
+      const validation = await importTrainingsFromExcel(selectedFile, true)
+      
+      if (validation.invalidRecords > 0) {
+        const errorDetails = validation.errors?.map(err => 
+          `Linha ${err.row}: ${err.field} - ${err.message}`
+        ).join('\n') || ''
+        
+        toast({
+          title: "Arquivo com erros",
+          description: `${validation.invalidRecords} registros com problemas:\n${errorDetails}`,
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Se validação passou, perguntar se quer importar
+      if (!confirm(`Validação concluída! ${validation.validRecords} registros válidos encontrados. Deseja prosseguir com a importação?`)) {
+        return
+      }
+
+      // Importar os dados
+      const result = await importTrainingsFromExcel(selectedFile, false)
+      
+      toast({
+        title: "Importação concluída",
+        description: `${result.importedRecords} treinamentos importados com sucesso de ${result.totalRecords} registros processados`,
+      })
+
+      // Limpar arquivo selecionado e recarregar lista
+      setSelectedFile(null)
+      setIsImportDialogOpen(false)
+      const fileInput = document.getElementById('training-file-input') as HTMLInputElement
+      if (fileInput) fileInput.value = ''
+      
+      loadTrainings(currentPage, searchTerm)
+      
+    } catch (error: any) {
+      console.error('Erro na importação:', error)
+      
+      let errorMessage = "Erro ao importar treinamentos"
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.response?.data?.errors) {
+        const errorDetails = error.response.data.errors.map((err: any) => 
+          `Linha ${err.row}: ${err.field} - ${err.message}`
+        ).join('\n')
+        errorMessage = `Erros encontrados:\n${errorDetails}`
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      toast({
+        title: "Erro na importação",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -195,16 +359,29 @@ export function TrainingsPage() {
           <p className="text-gray-600">Gerencie os treinamentos oferecidos</p>
         </div>
         <div className="flex items-center gap-3">
-          <QuickTrainingExcel 
-            onImportComplete={() => {
-              toast({
-                title: "Sucesso",
-                description: "Treinamentos importados com sucesso!",
-              })
-              loadTrainings(currentPage, searchTerm)
-            }}
-            exportFilters={{ isActive: true }}
-          />
+          <Button 
+            variant="outline"
+            onClick={handleExportToExcel}
+            disabled={isExporting}
+            className="flex items-center gap-2"
+          >
+            {isExporting ? (
+              <div className="h-4 w-4 animate-spin border-2 border-gray-300 border-t-gray-600 rounded-full" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            {isExporting ? 'Exportando...' : 'Exportar Excel'}
+          </Button>
+          
+          <Button 
+            variant="outline"
+            onClick={() => setIsImportDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Importar Excel
+          </Button>
+          
           <Button 
             className="bg-primary-500 hover:bg-primary-600"
             onClick={handleCreateTraining}
@@ -217,14 +394,10 @@ export function TrainingsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-1">
           <TabsTrigger value="list" className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
             Lista de Treinamentos
-          </TabsTrigger>
-          <TabsTrigger value="excel" className="flex items-center gap-2">
-            <FileSpreadsheet className="h-4 w-4" />
-            Excel Import/Export
           </TabsTrigger>
         </TabsList>
 
@@ -363,19 +536,6 @@ export function TrainingsPage() {
             </div>
           )}
         </TabsContent>
-
-        {/* Aba Excel */}
-        <TabsContent value="excel">
-          <TrainingExcelManager 
-            onImportComplete={() => {
-              toast({
-                title: "Sucesso",
-                description: "Treinamentos importados com sucesso!",
-              })
-              loadTrainings(currentPage, searchTerm)
-            }}
-          />
-        </TabsContent>
       </Tabs>
 
       {/* Modal de criação/edição */}
@@ -392,6 +552,97 @@ export function TrainingsPage() {
         onClose={() => setViewingTraining(null)}
         training={viewingTraining}
       />
+
+      {/* Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Importar Treinamentos do Excel</DialogTitle>
+            <DialogDescription>
+              Selecione um arquivo Excel (.xlsx ou .xls) para importar treinamentos em lote
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-4 border rounded-lg bg-blue-50">
+              <h4 className="font-medium text-blue-900 mb-2">Precisa do template?</h4>
+              <p className="text-sm text-blue-700 mb-3">
+                Baixe o arquivo modelo com a estrutura correta para importação.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Baixar Template
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="training-file-input">Arquivo Excel</Label>
+              <Input
+                id="training-file-input"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+              />
+              <p className="text-sm text-muted-foreground">
+                Apenas arquivos .xlsx e .xls são aceitos
+              </p>
+            </div>
+
+            {selectedFile && (
+              <div className="p-3 border rounded-lg bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="text-sm font-medium">{selectedFile.name}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tamanho: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+            )}
+
+            <div className="p-3 border rounded-lg bg-yellow-50">
+              <h4 className="font-medium text-yellow-900 mb-1">Importante:</h4>
+              <ul className="text-sm text-yellow-800 space-y-1">
+                <li>• Título é obrigatório e deve ser único</li>
+                <li>• Duração (Horas) deve ser maior que 0</li>
+                <li>• Validade (Dias) é opcional</li>
+                <li>• Status padrão é "Ativo"</li>
+              </ul>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsImportDialogOpen(false)
+                setSelectedFile(null)
+                const fileInput = document.getElementById('training-file-input') as HTMLInputElement
+                if (fileInput) fileInput.value = ''
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleImportFromExcel}
+              disabled={!selectedFile || isImporting}
+              className="flex items-center gap-2"
+            >
+              {isImporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {isImporting ? 'Importando...' : 'Importar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

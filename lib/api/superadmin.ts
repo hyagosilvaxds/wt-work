@@ -3657,11 +3657,15 @@ export interface ImportClientResponse {
 }
 
 // Exportar clientes para Excel
-export const exportClientsToExcel = async (filters: ClientExportFilters = {}): Promise<ExportClientResponse> => {
+export const exportClientsToExcel = async (filters: ClientExportFilters = {}): Promise<ExportResponse> => {
   try {
     console.log('Exportando clientes para Excel com filtros:', filters)
     
-    const response = await api.post('/excel/export/clients', filters)
+    const response = await api.post('/excel/export/clients', filters, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
     
     console.log('Resposta da exportação:', response.data)
     return response.data
@@ -3675,13 +3679,16 @@ export const exportClientsToExcel = async (filters: ClientExportFilters = {}): P
 export const importClientsFromExcel = async (
   file: File, 
   validateOnly: boolean = false
-): Promise<ImportClientResponse> => {
+): Promise<ImportResponse> => {
   try {
-    console.log('Importando clientes do Excel:', file.name, 'Validar apenas:', validateOnly)
+    console.log('Importando clientes do Excel:', file.name, 'Validação apenas:', validateOnly)
     
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('validateOnly', validateOnly.toString())
+    
+    if (validateOnly) {
+      formData.append('validateOnly', 'true')
+    }
     
     const response = await api.post('/excel/import/clients', formData, {
       headers: {
@@ -3695,6 +3702,37 @@ export const importClientsFromExcel = async (
     console.error('Erro ao importar clientes:', error)
     throw error
   }
+}
+
+/**
+ * Baixa o template Excel para importação de clientes
+ * @returns Blob do arquivo template
+ */
+export const downloadClientsTemplate = async (): Promise<Blob> => {
+  try {
+    console.log('Baixando template de clientes')
+    
+    const response = await api.get('/excel/template/clients', {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
+    })
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao baixar template de clientes:', error)
+    throw error
+  }
+}
+
+/**
+ * Valida um arquivo Excel de clientes sem importar
+ * @param file - Arquivo Excel para validação
+ * @returns Resultado da validação
+ */
+export const validateClientsExcel = async (file: File): Promise<ImportResponse> => {
+  return importClientsFromExcel(file, true)
 }
 
 // Download de arquivo Excel exportado
@@ -3730,6 +3768,109 @@ export const downloadExcelFile = async (fileName: string): Promise<void> => {
     console.error('Erro ao fazer download:', error)
     throw error
   }
+}
+
+// ================================
+// FUNÇÕES DE EXPORTAÇÃO E IMPORTAÇÃO DE TREINAMENTOS
+// ================================
+
+// Interface para filtros de exportação de treinamentos
+export interface TrainingExportFilters {
+  isActive?: boolean
+  search?: string
+  category?: string
+  minDuration?: number
+  maxDuration?: number
+  startDate?: string
+  endDate?: string
+}
+
+/**
+ * Exporta treinamentos para arquivo Excel
+ * @param filters - Filtros para a exportação
+ * @returns Dados do arquivo gerado
+ */
+export const exportTrainingsToExcel = async (filters: TrainingExportFilters = {}): Promise<ExportResponse> => {
+  try {
+    console.log('Exportando treinamentos para Excel com filtros:', filters)
+    
+    const response = await api.post('/excel/export/trainings', filters, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    console.log('Resposta da exportação:', response.data)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao exportar treinamentos:', error)
+    throw error
+  }
+}
+
+/**
+ * Baixa o template Excel para importação de treinamentos
+ * @returns Blob do arquivo template
+ */
+export const downloadTrainingsTemplate = async (): Promise<Blob> => {
+  try {
+    console.log('Baixando template de treinamentos')
+    
+    const response = await api.get('/excel/template/trainings', {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
+    })
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao baixar template de treinamentos:', error)
+    throw error
+  }
+}
+
+/**
+ * Importa treinamentos de um arquivo Excel
+ * @param file - Arquivo Excel para importação
+ * @param validateOnly - Se true, apenas valida sem salvar
+ * @returns Resultado da importação
+ */
+export const importTrainingsFromExcel = async (
+  file: File, 
+  validateOnly: boolean = false
+): Promise<ImportResponse> => {
+  try {
+    console.log('Importando treinamentos do Excel:', file.name, 'Validação apenas:', validateOnly)
+    
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    if (validateOnly) {
+      formData.append('validateOnly', 'true')
+    }
+    
+    const response = await api.post('/excel/import/trainings', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    console.log('Resposta da importação:', response.data)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao importar treinamentos:', error)
+    throw error
+  }
+}
+
+/**
+ * Valida um arquivo Excel de treinamentos sem importar
+ * @param file - Arquivo Excel para validação
+ * @returns Resultado da validação
+ */
+export const validateTrainingsExcel = async (file: File): Promise<ImportResponse> => {
+  return importTrainingsFromExcel(file, true)
 }
 
 // ================================
