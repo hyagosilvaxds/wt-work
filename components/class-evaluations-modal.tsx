@@ -94,6 +94,14 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
   useEffect(() => {
     if (isOpen && turma) {
       loadData()
+    } else if (!isOpen) {
+      // Limpar dados quando o modal for fechado
+      setEvaluations(null)
+      setStats(null)
+      setSelectedStudent(null)
+      setEditingEvaluation(null)
+      setFormData({})
+      setSearchTerm("")
     }
   }, [isOpen, turma])
 
@@ -111,11 +119,61 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
       setStats(statsData)
     } catch (error: any) {
       console.error('Erro ao carregar dados das avaliações:', error)
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar dados das avaliações",
-        variant: "destructive"
-      })
+      
+      // Se for erro 404, isso significa que não há avaliações ainda
+      if (error.response?.status === 404) {
+        setEvaluations({
+          classInfo: {
+            id: turma.id,
+            trainingTitle: turma.training.title,
+            totalStudents: turma.students.length
+          },
+          evaluations: []
+        })
+        setStats({
+          classInfo: {
+            trainingTitle: turma.training.title,
+            totalStudents: turma.students.length
+          },
+          summary: {
+            evaluatedStudents: 0,
+            notEvaluatedStudents: turma.students.length,
+            evaluationRate: 0
+          },
+          statistics: {
+            content: {
+              adequacy: { average: 0, distribution: {}, totalResponses: 0 },
+              applicability: { average: 0, distribution: {}, totalResponses: 0 },
+              theoryPracticeBalance: { average: 0, distribution: {}, totalResponses: 0 },
+              newKnowledge: { average: 0, distribution: {}, totalResponses: 0 }
+            },
+            instructor: {
+              knowledge: { average: 0, distribution: {}, totalResponses: 0 },
+              didactic: { average: 0, distribution: {}, totalResponses: 0 },
+              communication: { average: 0, distribution: {}, totalResponses: 0 },
+              assimilation: { average: 0, distribution: {}, totalResponses: 0 },
+              practicalApps: { average: 0, distribution: {}, totalResponses: 0 }
+            },
+            infrastructure: {
+              facilities: { average: 0, distribution: {}, totalResponses: 0 },
+              classrooms: { average: 0, distribution: {}, totalResponses: 0 },
+              schedule: { average: 0, distribution: {}, totalResponses: 0 }
+            },
+            participants: {
+              understanding: { average: 0, distribution: {}, totalResponses: 0 },
+              relationship: { average: 0, distribution: {}, totalResponses: 0 },
+              consideration: { average: 0, distribution: {}, totalResponses: 0 },
+              instructorRel: { average: 0, distribution: {}, totalResponses: 0 }
+            }
+          }
+        })
+      } else {
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar dados das avaliações",
+          variant: "destructive"
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -373,14 +431,14 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
             </TabsContent>
 
             <TabsContent value="statistics" className="space-y-4">
-              {stats && (
+              {stats && stats.summary?.evaluatedStudents > 0 ? (
                 <>
                   {/* Resumo */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card>
                       <CardContent className="p-4 text-center">
                         <div className="text-2xl font-bold text-green-600">
-                          {stats.summary.evaluatedStudents}
+                          {stats.summary?.evaluatedStudents || 0}
                         </div>
                         <div className="text-sm text-gray-600">Alunos Avaliados</div>
                       </CardContent>
@@ -388,7 +446,7 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
                     <Card>
                       <CardContent className="p-4 text-center">
                         <div className="text-2xl font-bold text-red-600">
-                          {stats.summary.notEvaluatedStudents}
+                          {stats.summary?.notEvaluatedStudents || 0}
                         </div>
                         <div className="text-sm text-gray-600">Não Avaliados</div>
                       </CardContent>
@@ -396,7 +454,7 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
                     <Card>
                       <CardContent className="p-4 text-center">
                         <div className="text-2xl font-bold text-blue-600">
-                          {stats.summary.evaluationRate.toFixed(1)}%
+                          {(stats.summary?.evaluationRate || 0).toFixed(1)}%
                         </div>
                         <div className="text-sm text-gray-600">Taxa de Avaliação</div>
                       </CardContent>
@@ -438,23 +496,23 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
                       <CardContent className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Conhecimento do assunto</span>
-                          {renderStarRating(stats.statistics.instructor.knowledge.average)}
+                          {renderStarRating(stats.statistics?.instructor?.knowledge?.average)}
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Didática utilizada</span>
-                          {renderStarRating(stats.statistics.instructor.didactic.average)}
+                          {renderStarRating(stats.statistics?.instructor?.didactic?.average)}
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Comunicação</span>
-                          {renderStarRating(stats.statistics.instructor.communication.average)}
+                          {renderStarRating(stats.statistics?.instructor?.communication?.average)}
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Verificação da assimilação</span>
-                          {renderStarRating(stats.statistics.instructor.assimilation.average)}
+                          {renderStarRating(stats.statistics?.instructor?.assimilation?.average)}
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Aplicações práticas</span>
-                          {renderStarRating(stats.statistics.instructor.practicalApps.average)}
+                          {renderStarRating(stats.statistics?.instructor?.practicalApps?.average)}
                         </div>
                       </CardContent>
                     </Card>
@@ -467,15 +525,15 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
                       <CardContent className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Instalações/equipamentos</span>
-                          {renderStarRating(stats.statistics.infrastructure.facilities.average)}
+                          {renderStarRating(stats.statistics?.infrastructure?.facilities?.average)}
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Salas de aula</span>
-                          {renderStarRating(stats.statistics.infrastructure.classrooms.average)}
+                          {renderStarRating(stats.statistics?.infrastructure?.classrooms?.average)}
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Carga horária</span>
-                          {renderStarRating(stats.statistics.infrastructure.schedule.average)}
+                          {renderStarRating(stats.statistics?.infrastructure?.schedule?.average)}
                         </div>
                       </CardContent>
                     </Card>
@@ -488,24 +546,40 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma }: ClassEvaluatio
                       <CardContent className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Facilidade de entendimento</span>
-                          {renderStarRating(stats.statistics.participants.understanding.average)}
+                          {renderStarRating(stats.statistics?.participants?.understanding?.average)}
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Relação com outros participantes</span>
-                          {renderStarRating(stats.statistics.participants.relationship.average)}
+                          {renderStarRating(stats.statistics?.participants?.relationship?.average)}
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Própria participação</span>
-                          {renderStarRating(stats.statistics.participants.consideration.average)}
+                          {renderStarRating(stats.statistics?.participants?.consideration?.average)}
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm">Relação com instrutores</span>
-                          {renderStarRating(stats.statistics.participants.instructorRel.average)}
+                          {renderStarRating(stats.statistics?.participants?.instructorRel?.average)}
                         </div>
                       </CardContent>
                     </Card>
                   </div>
                 </>
+              ) : (
+                <Card>
+                  <CardContent className="p-12">
+                    <div className="text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                        <BarChart3 className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        Nenhuma avaliação disponível
+                      </h3>
+                      <p className="text-gray-600">
+                        As estatísticas serão exibidas quando houver pelo menos uma avaliação da turma.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
           </Tabs>
