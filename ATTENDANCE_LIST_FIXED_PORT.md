@@ -2,14 +2,14 @@
 
 ## ✅ Configuração Corrigida
 
-A API está rodando em **https://olimpustech.com**, e todos os endpoints foram atualizados nos componentes React.
+A API está rodando em **https://api.olimpustech.com**, e todos os endpoints foram atualizados nos componentes React.
 
 ## 🔧 Componentes Atualizados
 
 ### AttendanceListGenerator
-- ✅ Endpoint corrigido para `https://olimpustech.com/certificado/attendance-list/with-students`
-- ✅ Endpoint corrigido para `https://olimpustech.com/certificado/attendance-list/empty-fields`
-- ✅ Preview URLs corrigidas para `https://olimpustech.com/certificado/attendance-list/{lessonId}/preview/{type}`
+- ✅ Endpoint corrigido para `https://api.olimpustech.com/certificado/attendance-list/with-students`
+- ✅ Endpoint corrigido para `https://api.olimpustech.com/certificado/attendance-list/empty-fields`
+- ✅ Preview URLs corrigidas para `https://api.olimpustech.com/certificado/attendance-list/{lessonId}/preview/{type}`
 
 ### AttendanceListModal
 - ✅ Modal integrado ao sistema de turmas
@@ -30,25 +30,25 @@ node test-attendance-list-api.js
 ## 📋 URLs dos Endpoints (Porta 4000)
 
 ### Download de PDFs
-- **POST** `https://olimpustech.com/certificado/attendance-list/with-students`
-- **POST** `https://olimpustech.com/certificado/attendance-list/empty-fields`
+- **POST** `https://api.olimpustech.com/certificado/attendance-list/with-students`
+- **POST** `https://api.olimpustech.com/certificado/attendance-list/empty-fields`
 
 ### Preview no Navegador
-- **GET** `https://olimpustech.com/certificado/attendance-list/{lessonId}/preview/with-students`
-- **GET** `https://olimpustech.com/certificado/attendance-list/{lessonId}/preview/empty-fields`
+- **GET** `https://api.olimpustech.com/certificado/attendance-list/{lessonId}/preview/with-students`
+- **GET** `https://api.olimpustech.com/certificado/attendance-list/{lessonId}/preview/empty-fields`
 
 ## 🎯 Exemplo de Uso
 
 ```javascript
 // Gerar PDF com alunos
-const response = await fetch('https://olimpustech.com/certificado/attendance-list/with-students', {
+const response = await fetch('https://api.olimpustech.com/certificado/attendance-list/with-students', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ lessonId: 'lesson-id-here' })
 });
 
 // Preview no navegador
-window.open('https://olimpustech.com/certificado/attendance-list/lesson-id-here/preview/with-students', '_blank');
+window.open('https://api.olimpustech.com/certificado/attendance-list/lesson-id-here/preview/with-students', '_blank');
 ```
 
 ## ⚡ Status da Implementação
