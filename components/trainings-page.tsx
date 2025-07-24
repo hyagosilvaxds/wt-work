@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Clock, Users, BookOpen, Search, Edit, Trash2, Eye } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Plus, Clock, Users, BookOpen, Search, Edit, Trash2, Eye, FileSpreadsheet } from "lucide-react"
 import { useState, useEffect } from "react"
 import { 
   getTrainings, 
@@ -14,6 +15,8 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { TrainingCreateModal } from "./training-create-modal"
 import { TrainingDetailsModal } from "./training-details-modal"
+import { QuickTrainingExcel } from "./quick-training-excel"
+import { TrainingExcelManager } from "./training-excel-manager"
 
 interface Training {
   id: string
@@ -38,6 +41,7 @@ export function TrainingsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingTraining, setEditingTraining] = useState<Training | null>(null)
   const [viewingTraining, setViewingTraining] = useState<Training | null>(null)
+  const [activeTab, setActiveTab] = useState("list")
   const { toast } = useToast()
 
   // Carregar treinamentos
@@ -190,147 +194,189 @@ export function TrainingsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Treinamentos</h1>
           <p className="text-gray-600">Gerencie os treinamentos oferecidos</p>
         </div>
-        <Button 
-          className="bg-primary-500 hover:bg-primary-600"
-          onClick={handleCreateTraining}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Treinamento
-        </Button>
-      </div>
-
-      {/* Barra de busca */}
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Buscar por título, descrição ou conteúdo programático..."
-            value={searchTerm}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-10"
+        <div className="flex items-center gap-3">
+          <QuickTrainingExcel 
+            onImportComplete={() => {
+              toast({
+                title: "Sucesso",
+                description: "Treinamentos importados com sucesso!",
+              })
+              loadTrainings(currentPage, searchTerm)
+            }}
+            exportFilters={{ isActive: true }}
           />
-        </div>
-        <div className="text-sm text-gray-600">
-          {totalItems} treinamento{totalItems !== 1 ? 's' : ''} encontrado{totalItems !== 1 ? 's' : ''}
+          <Button 
+            className="bg-primary-500 hover:bg-primary-600"
+            onClick={handleCreateTraining}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Treinamento
+          </Button>
         </div>
       </div>
 
-      {/* Lista de treinamentos */}
-      {trainings.length === 0 ? (
-        <div className="text-center py-12">
-          <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum treinamento encontrado</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {searchTerm ? 'Tente ajustar os filtros de busca.' : 'Comece criando um novo treinamento.'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {trainings.map((training) => (
-            <Card key={training.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <Badge variant="outline">Treinamento</Badge>
-                  <Badge
-                    variant={training.isActive ? "default" : "secondary"}
-                    className={training.isActive ? "bg-primary-500" : ""}
-                  >
-                    {training.isActive ? "Ativo" : "Inativo"}
-                  </Badge>
-                </div>
-                <CardTitle className="text-lg">{training.title}</CardTitle>
-                <CardDescription>{training.description || "Sem descrição"}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Clock className="mr-2 h-4 w-4" />
-                    {training.durationHours} hora{training.durationHours !== 1 ? 's' : ''}
-                  </div>
-                  {training.validityDays && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Users className="mr-2 h-4 w-4" />
-                      Válido por {training.validityDays} dias
-                    </div>
-                  )}
-                  {training.programContent && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      Conteúdo programático disponível
-                    </div>
-                  )}
-                  <div className="flex gap-2 pt-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={() => handleViewTraining(training)}
-                    >
-                      <Eye className="mr-1 h-3 w-3" />
-                      Ver
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="bg-secondary-500 hover:bg-secondary-600 text-white"
-                      onClick={() => handleEditTraining(training)}
-                    >
-                      <Edit className="mr-1 h-3 w-3" />
-                      Editar
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="destructive"
-                      onClick={() => handleDeleteTraining(training.id, training.title)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="list" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Lista de Treinamentos
+          </TabsTrigger>
+          <TabsTrigger value="excel" className="flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4" />
+            Excel Import/Export
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Paginação */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage <= 1}
-          >
-            Anterior
-          </Button>
-          
-          <div className="flex items-center space-x-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i
-              return (
-                <Button
-                  key={pageNum}
-                  variant={currentPage === pageNum ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => goToPage(pageNum)}
-                  className={currentPage === pageNum ? "bg-primary-500" : ""}
-                >
-                  {pageNum}
-                </Button>
-              )
-            })}
+        {/* Aba Lista de Treinamentos */}
+        <TabsContent value="list" className="space-y-4">
+          {/* Barra de busca */}
+          <div className="flex gap-4 items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Buscar por título, descrição ou conteúdo programático..."
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="text-sm text-gray-600">
+              {totalItems} treinamento{totalItems !== 1 ? 's' : ''} encontrado{totalItems !== 1 ? 's' : ''}
+            </div>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-          >
-            Próximo
-          </Button>
-        </div>
-      )}
+          {/* Lista de treinamentos */}
+          {trainings.length === 0 ? (
+            <div className="text-center py-12">
+              <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum treinamento encontrado</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchTerm ? 'Tente ajustar os filtros de busca.' : 'Comece criando um novo treinamento.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {trainings.map((training) => (
+                <Card key={training.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <Badge variant="outline">Treinamento</Badge>
+                      <Badge
+                        variant={training.isActive ? "default" : "secondary"}
+                        className={training.isActive ? "bg-primary-500" : ""}
+                      >
+                        {training.isActive ? "Ativo" : "Inativo"}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-lg">{training.title}</CardTitle>
+                    <CardDescription>{training.description || "Sem descrição"}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Clock className="mr-2 h-4 w-4" />
+                        {training.durationHours} hora{training.durationHours !== 1 ? 's' : ''}
+                      </div>
+                      {training.validityDays && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Users className="mr-2 h-4 w-4" />
+                          Válido por {training.validityDays} dias
+                        </div>
+                      )}
+                      {training.programContent && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          Conteúdo programático disponível
+                        </div>
+                      )}
+                      <div className="flex gap-2 pt-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => handleViewTraining(training)}
+                        >
+                          <Eye className="mr-1 h-3 w-3" />
+                          Ver
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="bg-secondary-500 hover:bg-secondary-600 text-white"
+                          onClick={() => handleEditTraining(training)}
+                        >
+                          <Edit className="mr-1 h-3 w-3" />
+                          Editar
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleDeleteTraining(training.id, training.title)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Paginação */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center space-x-2 mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+              >
+                Anterior
+              </Button>
+              
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => goToPage(pageNum)}
+                      className={currentPage === pageNum ? "bg-primary-500" : ""}
+                    >
+                      {pageNum}
+                    </Button>
+                  )
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+              >
+                Próximo
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Aba Excel */}
+        <TabsContent value="excel">
+          <TrainingExcelManager 
+            onImportComplete={() => {
+              toast({
+                title: "Sucesso",
+                description: "Treinamentos importados com sucesso!",
+              })
+              loadTrainings(currentPage, searchTerm)
+            }}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Modal de criação/edição */}
       <TrainingCreateModal

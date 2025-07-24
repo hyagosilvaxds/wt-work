@@ -2018,29 +2018,6 @@ export const exportInstructorsToExcel = async (filters: InstructorExportFilters 
 }
 
 /**
- * Faz download do arquivo Excel gerado
- * @param fileName - Nome do arquivo para download
- * @returns Blob do arquivo
- */
-export const downloadExcelFile = async (fileName: string): Promise<Blob> => {
-  try {
-    console.log('Fazendo download do arquivo:', fileName)
-    
-    const response = await api.get(`/excel/download/${fileName}`, {
-      responseType: 'blob',
-      headers: {
-        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      }
-    })
-    
-    return response.data
-  } catch (error) {
-    console.error('Erro ao fazer download do arquivo:', error)
-    throw error
-  }
-}
-
-/**
  * Baixa o template Excel para importação de instrutores
  * @returns Blob do arquivo template
  */
@@ -3642,6 +3619,315 @@ export async function downloadBatchCertificates(
     }
   } catch (error: any) {
     console.error('❌ Erro no download de certificados em lote:', error)
+    throw error
+  }
+}
+
+// ============ EXCEL EXPORT/IMPORT ============
+
+export interface ClientExportFilters {
+  isActive?: boolean
+  search?: string
+  city?: string
+  state?: string
+  personType?: 'FISICA' | 'JURIDICA'
+  startDate?: string
+  endDate?: string
+}
+
+export interface ExportClientResponse {
+  filePath: string
+  fileName: string
+  downloadUrl: string
+  totalRecords: number
+  generatedAt: string
+}
+
+export interface ImportClientResponse {
+  success: boolean
+  totalRecords: number
+  validRecords: number
+  invalidRecords: number
+  importedRecords: number
+  errors: Array<{
+    row: number
+    field: string
+    message: string
+  }>
+}
+
+// Exportar clientes para Excel
+export const exportClientsToExcel = async (filters: ClientExportFilters = {}): Promise<ExportClientResponse> => {
+  try {
+    console.log('Exportando clientes para Excel com filtros:', filters)
+    
+    const response = await api.post('/excel/export/clients', filters)
+    
+    console.log('Resposta da exportação:', response.data)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao exportar clientes:', error)
+    throw error
+  }
+}
+
+// Importar clientes do Excel
+export const importClientsFromExcel = async (
+  file: File, 
+  validateOnly: boolean = false
+): Promise<ImportClientResponse> => {
+  try {
+    console.log('Importando clientes do Excel:', file.name, 'Validar apenas:', validateOnly)
+    
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('validateOnly', validateOnly.toString())
+    
+    const response = await api.post('/excel/import/clients', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    console.log('Resposta da importação:', response.data)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao importar clientes:', error)
+    throw error
+  }
+}
+
+// Download de arquivo Excel exportado
+export const downloadExcelFile = async (fileName: string): Promise<void> => {
+  try {
+    console.log('Fazendo download do arquivo:', fileName)
+    
+    const response = await api.get(`/excel/download/${fileName}`, {
+      responseType: 'blob'
+    })
+    
+    // Criar link para download
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    
+    // Adicionar ao DOM temporariamente
+    link.style.display = 'none'
+    document.body.appendChild(link)
+    
+    // Simular clique para download
+    link.click()
+    
+    // Limpar recursos
+    setTimeout(() => {
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    }, 100)
+    
+    console.log('Download concluído:', fileName)
+  } catch (error: any) {
+    console.error('Erro ao fazer download:', error)
+    throw error
+  }
+}
+
+// ================================
+// AVALIAÇÕES DE TURMAS
+// ================================
+
+// Interface para dados de avaliação
+export interface ClassEvaluationData {
+  classId: string
+  studentId: string
+  
+  // Conteúdo/Programa (1-5, opcional)
+  contentAdequacy?: number
+  contentApplicability?: number
+  contentTheoryPracticeBalance?: number
+  contentNewKnowledge?: number
+  
+  // Instrutor/Palestrante (1-5, opcional)
+  instructorKnowledge?: number
+  instructorDidactic?: number
+  instructorCommunication?: number
+  instructorAssimilation?: number
+  instructorPracticalApps?: number
+  
+  // Infraestrutura e Logística (1-5, opcional)
+  infrastructureFacilities?: number
+  infrastructureClassrooms?: number
+  infrastructureSchedule?: number
+  
+  // Participantes (1-5, opcional)
+  participantsUnderstanding?: number
+  participantsRelationship?: number
+  participantsConsideration?: number
+  participantsInstructorRel?: number
+  
+  observations?: string
+}
+
+// Interface para resposta de avaliação criada
+export interface ClassEvaluation extends ClassEvaluationData {
+  id: string
+  createdAt: string
+  class?: {
+    training: {
+      title: string
+    }
+  }
+  student?: {
+    name: string
+    cpf: string
+  }
+}
+
+// Interface para estatísticas de campo
+export interface FieldStatistics {
+  average: number
+  distribution: Record<string, number>
+  totalResponses: number
+}
+
+// Interface para estatísticas da turma
+export interface ClassEvaluationStats {
+  classInfo: {
+    trainingTitle: string
+    totalStudents: number
+  }
+  summary: {
+    evaluatedStudents: number
+    notEvaluatedStudents: number
+    evaluationRate: number
+  }
+  statistics: {
+    content: {
+      adequacy: FieldStatistics
+      applicability: FieldStatistics
+      theoryPracticeBalance: FieldStatistics
+      newKnowledge: FieldStatistics
+    }
+    instructor: {
+      knowledge: FieldStatistics
+      didactic: FieldStatistics
+      communication: FieldStatistics
+      assimilation: FieldStatistics
+      practicalApps: FieldStatistics
+    }
+    infrastructure: {
+      facilities: FieldStatistics
+      classrooms: FieldStatistics
+      schedule: FieldStatistics
+    }
+    participants: {
+      understanding: FieldStatistics
+      relationship: FieldStatistics
+      consideration: FieldStatistics
+      instructorRel: FieldStatistics
+    }
+  }
+}
+
+// Interface para avaliações da turma
+export interface ClassEvaluations {
+  classInfo: {
+    id: string
+    trainingTitle: string
+    totalStudents: number
+  }
+  evaluations: ClassEvaluation[]
+}
+
+// Interface para avaliações do estudante
+export interface StudentEvaluations {
+  studentInfo: {
+    name: string
+    cpf: string
+  }
+  evaluations: (ClassEvaluation & {
+    class: {
+      training: { title: string }
+    }
+  })[]
+}
+
+// 1. Criar/Atualizar Avaliação
+export const createClassEvaluation = async (evaluationData: ClassEvaluationData): Promise<ClassEvaluation> => {
+  try {
+    const response = await api.post('/superadmin/class-evaluations', evaluationData)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao criar avaliação:', error)
+    throw error
+  }
+}
+
+// 2. Ver Avaliação Específica
+export const getClassEvaluationByStudent = async (classId: string, studentId: string): Promise<ClassEvaluation | null> => {
+  try {
+    const response = await api.get(`/superadmin/class-evaluations/class/${classId}/student/${studentId}`)
+    return response.data
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      return null
+    }
+    console.error('Erro ao buscar avaliação:', error)
+    throw error
+  }
+}
+
+// 3. Ver Todas as Avaliações da Turma
+export const getClassEvaluations = async (classId: string): Promise<ClassEvaluations> => {
+  try {
+    const response = await api.get(`/superadmin/class-evaluations/class/${classId}`)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao buscar avaliações da turma:', error)
+    throw error
+  }
+}
+
+// 4. Estatísticas da Turma
+export const getClassEvaluationStats = async (classId: string): Promise<ClassEvaluationStats> => {
+  try {
+    const response = await api.get(`/superadmin/class-evaluations/class/${classId}/stats`)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao buscar estatísticas:', error)
+    throw error
+  }
+}
+
+// 5. Ver Avaliações do Estudante
+export const getStudentEvaluations = async (studentId: string): Promise<StudentEvaluations> => {
+  try {
+    const response = await api.get(`/superadmin/class-evaluations/student/${studentId}`)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao buscar avaliações do estudante:', error)
+    throw error
+  }
+}
+
+// 6. Atualizar Campos Específicos
+export const updateClassEvaluation = async (classId: string, studentId: string, updateData: Partial<ClassEvaluationData>): Promise<ClassEvaluation> => {
+  try {
+    const response = await api.patch(`/superadmin/class-evaluations/class/${classId}/student/${studentId}`, updateData)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao atualizar avaliação:', error)
+    throw error
+  }
+}
+
+// 7. Remover Avaliação
+export const deleteClassEvaluation = async (classId: string, studentId: string): Promise<{ id: string; message: string }> => {
+  try {
+    const response = await api.delete(`/superadmin/class-evaluations/class/${classId}/student/${studentId}`)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao remover avaliação:', error)
     throw error
   }
 }

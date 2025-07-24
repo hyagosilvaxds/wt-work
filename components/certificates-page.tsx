@@ -50,7 +50,6 @@ import {
 } from "@/lib/api/superadmin"
 import { CertificateGeneratorModal } from "./certificate-generator-modal"
 import { CertificatePreviewModal } from "./certificate-preview-modal"
-import { generateBatchCertificatesPDFWithSignature, CertificateData } from "@/lib/certificate-generator"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -565,26 +564,6 @@ export function CertificatesPage() {
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Toggle para modo de elegibilidade */}
-          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-            <Button
-              size="sm"
-              variant={eligibilityMode ? "default" : "ghost"}
-              onClick={() => setEligibilityMode(true)}
-              className="text-xs"
-            >
-              📊 API Elegibilidade
-            </Button>
-            <Button
-              size="sm"
-              variant={!eligibilityMode ? "default" : "ghost"}
-              onClick={() => setEligibilityMode(false)}
-              className="text-xs"
-            >
-              📋 Modo Clássico
-            </Button>
-          </div>
-          
           <Button variant="outline" onClick={() => loadFinishedClasses()}>
             🔄 Atualizar
           </Button>

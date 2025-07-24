@@ -1,3 +1,13 @@
+// ⚠️ DESCONTINUADO - NÃO USE ESTE ARQUIVO ⚠️
+// Este arquivo contém o modelo antigo de geração de certificados.
+// Agora todos os certificados devem ser gerados através da API usando as funções em /lib/api/superadmin.ts:
+// - generateCertificatePDF() - para certificados individuais
+// - generateBatchCertificates() - para certificados em lote
+// - downloadCertificatePDF() - para download direto
+// 
+// As funções abaixo são mantidas apenas para compatibilidade com código legado
+// mas não devem ser usadas em novas implementações.
+
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import { getSignatureByInstructorId } from './api/superadmin'

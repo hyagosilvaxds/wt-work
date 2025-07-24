@@ -26,9 +26,23 @@ import {
   EyeOff,
   Loader2,
   Search,
-  MapPin
+  MapPin,
+  Download,
+  Upload,
+  FileText
 } from "lucide-react"
-import { getClients, createClient, CreateClientData, getClientById, patchClient, deleteClient, UpdateClientData } from "@/lib/api/superadmin"
+import { 
+  getClients, 
+  createClient, 
+  CreateClientData, 
+  getClientById, 
+  patchClient, 
+  deleteClient, 
+  UpdateClientData,
+  exportClientsToExcel,
+  importClientsFromExcel,
+  downloadExcelFile
+} from "@/lib/api/superadmin"
 
 interface Client {
   id: string
@@ -79,6 +93,12 @@ export function ClientsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  
+  // Excel states
+  const [isExporting, setIsExporting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   
   // Form state
   const [clientForm, setClientForm] = useState<CreateClientData>({
@@ -491,6 +511,98 @@ export function ClientsPage() {
     return parts.length > 0 ? parts.join(", ") : "Endereço não informado"
   }
 
+  // Handle export to Excel
+  const handleExportToExcel = async () => {
+    try {
+      setIsExporting(true)
+      
+      const result = await exportClientsToExcel({
+        // Usar os mesmos filtros da busca atual
+        search: searchTerm || undefined
+      })
+      
+      toast({
+        title: "Exportação concluída",
+        description: `${result.totalRecords} clientes exportados com sucesso`,
+      })
+
+      // Fazer download automático
+      await downloadExcelFile(result.fileName)
+      
+    } catch (error: any) {
+      console.error('Erro na exportação:', error)
+      toast({
+        title: "Erro na exportação",
+        description: error.message || "Erro ao exportar clientes",
+        variant: "destructive"
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Handle file selection for import
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+    }
+  }
+
+  // Handle import from Excel
+  const handleImportFromExcel = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "Erro",
+        description: "Selecione um arquivo Excel primeiro",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsImporting(true)
+      
+      // Primeiro validar o arquivo
+      const validation = await importClientsFromExcel(selectedFile, true)
+      
+      if (validation.invalidRecords > 0) {
+        toast({
+          title: "Arquivo com erros",
+          description: `${validation.invalidRecords} registros com problemas. Corrija e tente novamente.`,
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Se validação passou, importar
+      const result = await importClientsFromExcel(selectedFile, false)
+      
+      toast({
+        title: "Importação concluída",
+        description: `${result.importedRecords} clientes importados com sucesso`,
+      })
+
+      // Limpar arquivo selecionado e recarregar lista
+      setSelectedFile(null)
+      setIsImportDialogOpen(false)
+      const fileInput = document.getElementById('file-input') as HTMLInputElement
+      if (fileInput) fileInput.value = ''
+      
+      loadClients()
+      
+    } catch (error: any) {
+      console.error('Erro na importação:', error)
+      toast({
+        title: "Erro na importação",
+        description: error.message || "Erro ao importar clientes",
+        variant: "destructive"
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -498,13 +610,38 @@ export function ClientsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Clientes</h1>
           <p className="text-gray-600">Gerencie as empresas clientes</p>
         </div>
-        <Button 
-          className="bg-primary-500 hover:bg-primary-600"
-          onClick={() => setIsAddDialogOpen(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Cliente
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline"
+            onClick={handleExportToExcel}
+            disabled={isExporting}
+            className="flex items-center gap-2"
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            {isExporting ? 'Exportando...' : 'Exportar Excel'}
+          </Button>
+          
+          <Button 
+            variant="outline"
+            onClick={() => setIsImportDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Importar Excel
+          </Button>
+          
+          <Button 
+            className="bg-primary-500 hover:bg-primary-600"
+            onClick={() => setIsAddDialogOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Cliente
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -990,6 +1127,71 @@ export function ClientsPage() {
               ) : (
                 'Salvar Alterações'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Importar Clientes do Excel</DialogTitle>
+            <DialogDescription>
+              Selecione um arquivo Excel (.xlsx ou .xls) para importar clientes em lote
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="file-input">Arquivo Excel</Label>
+              <Input
+                id="file-input"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+              />
+              <p className="text-sm text-muted-foreground">
+                Apenas arquivos .xlsx e .xls são aceitos
+              </p>
+            </div>
+
+            {selectedFile && (
+              <div className="p-3 border rounded-lg bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="text-sm font-medium">{selectedFile.name}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tamanho: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsImportDialogOpen(false)
+                setSelectedFile(null)
+                const fileInput = document.getElementById('file-input') as HTMLInputElement
+                if (fileInput) fileInput.value = ''
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleImportFromExcel}
+              disabled={!selectedFile || isImporting}
+              className="flex items-center gap-2"
+            >
+              {isImporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {isImporting ? 'Importando...' : 'Importar'}
             </Button>
           </DialogFooter>
         </DialogContent>

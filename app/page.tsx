@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import InstructorDocumentUploadFinal from '@/components/instructor-document-upload-final'
 import { AdaptiveSidebar } from "@/components/adaptive-sidebar"
 import { Header } from "@/components/header"
 import AdaptiveDashboard from "@/components/adaptive-dashboard"
@@ -15,7 +14,6 @@ import { ClientsPage } from "@/components/clients-page"
 import { GroupsPage } from "@/components/groups-page"
 import { RoomsPage } from "@/components/rooms-page"
 import { CertificatesPage } from "@/components/certificates-page"
-import { CertificateExamplePage } from "@/components/certificate-example-page"
 import { ReportsPage } from "@/components/reports-page"
 import { FinancialModule } from "@/components/financial/financial-module"
 import { SettingsPage } from "@/components/settings-page-simple"
@@ -24,17 +22,8 @@ import ProtectedRoute from "@/components/protected-route"
 import { useAuth } from "@/hooks/use-auth"
 
 export default function Home() {
-  // Iniciar com dashboard por padrão, permitir teste-upload via parâmetro URL
-  const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search)
-      // Usar ?teste=upload para acessar a aba de teste de upload
-      if (urlParams.get('teste') === 'upload') {
-        return "teste-upload"
-      }
-    }
-    return "dashboard"
-  })
+  // Iniciar com dashboard por padrão
+  const [activeTab, setActiveTab] = useState("dashboard")
   const { isClient } = useAuth()
 
   // Escutar eventos de navegação personalizada
@@ -89,27 +78,20 @@ export default function Home() {
       case "certificates":
         return <CertificatesPage />
       case "certificate-generator":
-        return <CertificateExamplePage />
-      case "teste-upload":
         return (
-          <div>
-            <div style={{ 
-              backgroundColor: '#d4edda', 
-              border: '1px solid #c3e6cb', 
-              borderRadius: '6px', 
-              padding: '16px', 
-              marginBottom: '20px',
-              textAlign: 'center'
-            }}>
-              <h3 style={{ margin: '0 0 12px 0', color: '#155724' }}>
-                ✅ UPLOAD DE ARQUIVO - PROBLEMA RESOLVIDO
-              </h3>
-              <p style={{ margin: '0', fontSize: '14px', color: '#155724' }}>
-                Componente funcional baseado no teste isolado que funcionou
+          <div className="p-6">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <h2 className="text-lg font-semibold text-yellow-800 mb-2">
+                Gerador de Certificados Descontinuado
+              </h2>
+              <p className="text-yellow-700 mb-4">
+                O gerador de certificados manual foi descontinuado. Agora todos os certificados 
+                são gerados através da API automaticamente.
+              </p>
+              <p className="text-yellow-700">
+                Para gerar certificados, acesse a página <strong>Certificados</strong> no menu lateral.
               </p>
             </div>
-            
-            <InstructorDocumentUploadFinal />
           </div>
         )
       case "financial":

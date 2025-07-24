@@ -40,6 +40,8 @@ import { LessonScheduleModal } from "@/components/lesson-schedule-modal"
 import { LessonEditModal } from "@/components/lesson-edit-modal"
 import { ClassPhotosModal } from "@/components/class-photos-modal"
 import { ClassTechnicalResponsibleModal } from "@/components/class-technical-responsible-modal"
+import { AttendanceListModal } from "@/components/attendance-list-modal"
+import { ClassEvaluationsModal } from "@/components/class-evaluations-modal"
 
 interface TurmaData {
   id: string
@@ -118,6 +120,8 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
   const [gradesTurma, setGradesTurma] = useState<TurmaData | null>(null)
   const [photosTurma, setPhotosTurma] = useState<TurmaData | null>(null)
   const [technicalResponsibleTurma, setTechnicalResponsibleTurma] = useState<TurmaData | null>(null)
+  const [attendanceListTurma, setAttendanceListTurma] = useState<TurmaData | null>(null)
+  const [evaluationsTurma, setEvaluationsTurma] = useState<TurmaData | null>(null)
 
   // Carregar dados das turmas
   const loadTurmas = async (resetPage = false) => {
@@ -308,6 +312,16 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setTechnicalResponsibleTurma(turma)
   }
 
+  // Função para abrir modal de lista de presença
+  const handleManageAttendanceList = (turma: TurmaData) => {
+    setAttendanceListTurma(turma)
+  }
+
+  // Função para abrir modal de avaliações
+  const handleManageEvaluations = (turma: TurmaData) => {
+    setEvaluationsTurma(turma)
+  }
+
   // Função para fechar modais
   const handleCloseModal = () => {
     setCreateModalOpen(false)
@@ -320,6 +334,8 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setGradesTurma(null)
     setPhotosTurma(null)
     setTechnicalResponsibleTurma(null)
+    setAttendanceListTurma(null)
+    setEvaluationsTurma(null)
   }
 
   // Função para fechar apenas o modal de gerenciamento de alunos
@@ -604,6 +620,17 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                           </DropdownMenuItem>
                         )}
                         
+                        {/* Listas de Presença - Apenas para não-CLIENTE e se houver aulas */}
+                        {!isClientView && turma.lessons && turma.lessons.length > 0 && (
+                          <DropdownMenuItem 
+                            className="gap-2 bg-green-50 text-green-800 focus:bg-green-100"
+                            onClick={() => handleManageAttendanceList(turma)}
+                          >
+                            <ClipboardList className="h-4 w-4" />
+                            Listas de Presença ({turma.lessons.length})
+                          </DropdownMenuItem>
+                        )}
+                        
                         {/* Chamada - Não disponível para CLIENTE */}
                         {!isClientView && (
                           <DropdownMenuItem 
@@ -613,6 +640,17 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                           >
                             <ClipboardList className="h-4 w-4" />
                             Chamada
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {/* Avaliações - Não disponível para CLIENTE */}
+                        {!isClientView && (
+                          <DropdownMenuItem 
+                            className="gap-2"
+                            onClick={() => handleManageEvaluations(turma)}
+                          >
+                            <Star className="h-4 w-4" />
+                            Avaliações dos Alunos
                           </DropdownMenuItem>
                         )}
                         
@@ -787,79 +825,6 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                       <Eye className="h-4 w-4" />
                       Detalhes
                     </Button>
-                    
-                    {!isClientView && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="gap-2"
-                        onClick={() => handleManageStudents(turma)}
-                      >
-                        <Users className="h-4 w-4" />
-                        Gerenciar Alunos
-                      </Button>
-                    )}
-                    
-                    {!isClientView && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="gap-2"
-                        onClick={() => handleManageAttendance(turma)}
-                        disabled={!turma.lessons.some(lesson => lesson.status === "REALIZADA")}
-                      >
-                        <ClipboardList className="h-4 w-4" />
-                        Chamada
-                      </Button>
-                    )}
-                    
-                    {!isClientView && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="gap-2"
-                        onClick={() => handleManageGrades(turma)}
-                      >
-                        <Star className="h-4 w-4" />
-                        Avaliações
-                      </Button>
-                    )}
-                    
-                    {!isClientView && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="gap-2"
-                        onClick={() => handleManagePhotos(turma)}
-                      >
-                        <Camera className="h-4 w-4" />
-                        Fotos
-                      </Button>
-                    )}
-                    
-                    {!isClientView && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="gap-2"
-                        onClick={() => handleManageTechnicalResponsible(turma)}
-                      >
-                        <UserCog className="h-4 w-4" />
-                        Resp. Técnico
-                      </Button>
-                    )}
-                    
-                    {!isClientView && turma.status === "EM ABERTO" && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="gap-2"
-                        onClick={() => handleEdit(turma)}
-                      >
-                        <Edit className="h-4 w-4" />
-                        Editar
-                      </Button>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1028,7 +993,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
         />
       )}
 
-      {/* Modal de Responsável Técnico - Não disponível para clientes */}
+            {/* Modal de Responsável Técnico - Não disponível para clientes */}
       {!isClientView && (
         <ClassTechnicalResponsibleModal
           isOpen={!!technicalResponsibleTurma}
@@ -1043,6 +1008,30 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
             status: technicalResponsibleTurma.status,
             startDate: technicalResponsibleTurma.startDate,
             endDate: technicalResponsibleTurma.endDate
+          } : null}
+        />
+      )}
+
+      {/* Modal de Listas de Presença - Não disponível para clientes */}
+      {!isClientView && (
+        <AttendanceListModal
+          isOpen={!!attendanceListTurma}
+          onClose={handleCloseModal}
+          turma={attendanceListTurma}
+        />
+      )}
+
+      {/* Modal de Avaliações dos Alunos - Não disponível para clientes */}
+      {!isClientView && (
+        <ClassEvaluationsModal
+          isOpen={!!evaluationsTurma}
+          onClose={handleCloseModal}
+          turma={evaluationsTurma ? {
+            id: evaluationsTurma.id,
+            training: {
+              title: evaluationsTurma.training.title
+            },
+            students: evaluationsTurma.students || []
           } : null}
         />
       )}

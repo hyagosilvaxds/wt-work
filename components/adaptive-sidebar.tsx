@@ -104,20 +104,15 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
   // Gerador de Certificados (temporário para demonstração)
   // Gerador de certificados removido do menu - integrado na tela de certificados
   
-  // Financeiro - TEMPORARIAMENTE OCULTO
-  // if (hasPermission('VIEW_FINANCIAL') || hasPermission('VIEW_ACCOUNTS_RECEIVABLE') || hasPermission('VIEW_ACCOUNTS_PAYABLE') || hasPermission('VIEW_CASH_FLOW')) {
-  //   items.push({ id: "financial", label: "Financeiro", icon: DollarSign, badge: null })
-  // }
+  // Financeiro
+  if (hasPermission('VIEW_FINANCIAL') || hasPermission('VIEW_ACCOUNTS_RECEIVABLE') || hasPermission('VIEW_ACCOUNTS_PAYABLE') || hasPermission('VIEW_CASH_FLOW')) {
+    items.push({ id: "financial", label: "Financeiro", icon: DollarSign, badge: null })
+  }
   
   // Relatórios - TEMPORARIAMENTE OCULTO
   // if (hasPermission('VIEW_REPORTS') || hasPermission('VIEW_FINANCIAL_REPORTS') || hasPermission('VIEW_ANALYTICS')) {
   //   items.push({ id: "reports", label: "Relatórios", icon: BarChart3, badge: null })
   // }
-  
-  // Teste Upload - disponível para todos os usuários autenticados
-  if (hasPermission('VIEW_DASHBOARD')) {
-    items.push({ id: "teste-upload", label: "🧪 Teste Upload", icon: Upload, badge: "TESTE" })
-  }
   
   // Configurações/Roles - OCULTO para instrutores
   if ((hasPermission('VIEW_ROLES') || hasPermission('MANAGE_USERS') || hasPermission('EDIT_PROFILE')) && !isInstructor) {
