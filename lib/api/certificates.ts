@@ -1,3 +1,5 @@
+import Cookies from "js-cookie"
+
 // API para gerenciar certificados - implementação futura
 export interface CertificateData {
   id?: string
@@ -76,22 +78,51 @@ export const deleteCertificate = async (id: string): Promise<void> => {
 // Função para gerar relatório de evidências
 export const generateEvidenceReport = async (classId: string): Promise<void> => {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.worktreinamentos.com.br'}/certificado/evidence-report`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    // Usar a mesma lógica de obtenção de token do client.ts
+    const token = Cookies.get("jwtToken")
+    
+    console.log('🔄 Gerando relatório de evidências para turma:', classId)
+    console.log('📡 URL da API:', apiUrl)
+    console.log('🔑 Token presente:', !!token)
+    
+    if (!token) {
+      throw new Error('Token de autenticação não encontrado. Faça login novamente.')
+    }
+
+    const response = await fetch(`${apiUrl}/certificado/evidence-report`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ classId })
     })
 
+    console.log('📊 Status da resposta:', response.status)
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: 'Erro ao gerar relatório' }))
-      throw new Error(errorData.message || 'Erro ao gerar relatório de evidências')
+      console.error('❌ Erro da API:', errorData)
+      throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`)
+    }
+
+    // Verificar se a resposta é um PDF
+    const contentType = response.headers.get('content-type')
+    console.log('📄 Tipo de conteúdo:', contentType)
+
+    if (!contentType?.includes('application/pdf')) {
+      throw new Error('Resposta inválida: arquivo não é um PDF')
     }
 
     // Fazer download do PDF
     const blob = await response.blob()
+    console.log('📦 Tamanho do arquivo:', blob.size, 'bytes')
+
+    if (blob.size === 0) {
+      throw new Error('Arquivo PDF vazio recebido')
+    }
+
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -105,18 +136,28 @@ export const generateEvidenceReport = async (classId: string): Promise<void> => 
     // Limpar memória
     window.URL.revokeObjectURL(url)
     
+    console.log('✅ Relatório gerado com sucesso!')
+    
   } catch (error) {
-    console.error('Erro ao gerar relatório de evidências:', error)
-    throw error
+    console.error('❌ Erro detalhado ao gerar relatório de evidências:', error)
+    
+    // Melhorar as mensagens de erro para o usuário
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error('Erro de conexão: Verifique sua internet e tente novamente. Se o problema persistir, a API pode estar indisponível.')
+    } else if (error instanceof Error) {
+      throw error
+    } else {
+      throw new Error('Erro desconhecido ao gerar relatório de evidências')
+    }
   }
 }
 
 // Função para verificar se uma turma está apta para gerar relatório
 export const checkClassEligibility = async (classId: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.worktreinamentos.com.br'}/certificado/eligibility/${classId}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'}/certificado/eligibility/${classId}`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${Cookies.get("jwtToken")}`
       }
     })
 
