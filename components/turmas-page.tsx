@@ -31,7 +31,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { getClasses, getStudents, addStudentsToClass, removeStudentsFromClass, getLessonAttendanceByClass, createLessonAttendance, patchLessonAttendance, deleteLessonAttendance } from "@/lib/api/superadmin"
-import { generateEvidenceReport, checkClassEligibility } from "@/lib/api/certificates"
+import { generateEvidenceReport } from "@/lib/api/certificates"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { ClassCreateModal } from "@/components/class-create-modal"
@@ -338,19 +338,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setGeneratingReport(turma.id)
     
     try {
-      // Verificar se a turma está apta para gerar relatório
-      const isEligible = await checkClassEligibility(turma.id)
-      
-      if (!isEligible) {
-        toast({
-          title: "Turma não elegível",
-          description: "Esta turma ainda não possui alunos elegíveis para gerar o relatório de evidências.",
-          variant: "destructive"
-        })
-        return
-      }
-
-      // Gerar o relatório
+      // Gerar o relatório diretamente - não há necessidade de verificar elegibilidade
       await generateEvidenceReport(turma.id)
       
       toast({
@@ -1089,7 +1077,6 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
         isOpen={!!attendanceListTurma}
         onClose={handleCloseModal}
         turma={attendanceListTurma}
-        readOnly={isClientView}
       />
 
       {/* Modal de Avaliações dos Alunos */}

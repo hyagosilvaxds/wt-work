@@ -122,7 +122,8 @@ export const checkClassEligibility = async (classId: string): Promise<boolean> =
 
     if (response.ok) {
       const eligibility = await response.json()
-      return eligibility.length > 0 // Se há alunos elegíveis, pode gerar relatório
+      // Para relatório de evidências, basta ter alunos na turma (elegíveis ou não)
+      return eligibility.length > 0 // Se há alunos na turma, pode gerar relatório
     }
     
     return false
