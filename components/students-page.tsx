@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Filter, MoreHorizontal, Mail, Phone, Edit, Trash2, Loader2, History } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { getStudents } from "@/lib/api/superadmin"
+import { getStudents, getClassById } from "@/lib/api/superadmin"
 import { useToast } from "@/hooks/use-toast"
 import { StudentCreateModal } from "@/components/student-create-modal"
 import { StudentEditModal } from "@/components/student-edit-modal"
@@ -16,6 +16,8 @@ import { StudentDeleteModal } from "@/components/student-delete-modal"
 import { StudentExcelExportModal } from "@/components/student-excel-export-modal"
 import { StudentExcelImportModal } from "@/components/student-excel-import-modal"
 import { StudentHistoryModal } from "@/components/student-history-modal"
+import { ClassReportsModal } from "@/components/class-reports-modal"
+import { ClassDocumentsModal } from "@/components/class-documents-modal"
 
 interface Student {
   id: string
@@ -69,6 +71,12 @@ export function StudentsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  
+  // States for reports and documents modals
+  const [reportsModalTurmaId, setReportsModalTurmaId] = useState<string | null>(null)
+  const [documentsModalTurmaId, setDocumentsModalTurmaId] = useState<string | null>(null)
+  const [reportsModalTurma, setReportsModalTurma] = useState<any | null>(null)
+  const [documentsModalTurma, setDocumentsModalTurma] = useState<any | null>(null)
 
   // Load students data
   const loadStudents = async () => {
@@ -119,6 +127,37 @@ export function StudentsPage() {
   const handleHistory = (student: Student) => {
     setSelectedStudent(student)
     setHistoryModalOpen(true)
+  }
+
+  // Functions to handle reports and documents modals
+  const handleOpenReports = async (turmaId: string) => {
+    try {
+      const turmaData = await getClassById(turmaId)
+      setReportsModalTurma(turmaData)
+      setReportsModalTurmaId(turmaId)
+    } catch (error) {
+      console.error('Erro ao buscar dados da turma:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados da turma",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleOpenDocuments = async (turmaId: string) => {
+    try {
+      const turmaData = await getClassById(turmaId)
+      setDocumentsModalTurma(turmaData)
+      setDocumentsModalTurmaId(turmaId)
+    } catch (error) {
+      console.error('Erro ao buscar dados da turma:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados da turma",
+        variant: "destructive"
+      })
+    }
   }
 
   const handleSuccess = () => {
@@ -331,6 +370,41 @@ export function StudentsPage() {
           studentName={selectedStudent.name}
           open={historyModalOpen}
           onOpenChange={setHistoryModalOpen}
+          onOpenReports={handleOpenReports}
+          onOpenDocuments={handleOpenDocuments}
+        />
+      )}
+
+      {/* Modal de Relatórios */}
+      {reportsModalTurma && (
+        <ClassReportsModal
+          isOpen={!!reportsModalTurma}
+          onClose={() => {
+            setReportsModalTurma(null)
+            setReportsModalTurmaId(null)
+          }}
+          turma={reportsModalTurma}
+          onOpenCompanyEvaluation={() => {}}
+          onOpenEvidenceReport={() => {}}
+          onOpenGrades={() => {}}
+          onOpenPhotos={() => {}}
+          onOpenTechnicalResponsible={() => {}}
+          onOpenDocuments={() => {}}
+          isClientView={false}
+          generatingReport={false}
+        />
+      )}
+
+      {/* Modal de Documentos */}
+      {documentsModalTurma && (
+        <ClassDocumentsModal
+          isOpen={!!documentsModalTurma}
+          onClose={() => {
+            setDocumentsModalTurma(null)
+            setDocumentsModalTurmaId(null)
+          }}
+          turma={documentsModalTurma}
+          readOnly={false}
         />
       )}
     </div>

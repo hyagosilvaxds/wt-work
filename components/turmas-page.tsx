@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
   Plus,
   Search,
@@ -14,7 +15,6 @@ import {
   Clock,
   GraduationCap,
   Filter,
-  MoreHorizontal,
   Edit,
   Trash2,
   Eye,
@@ -26,10 +26,12 @@ import {
   Camera,
   UserCog,
   Building2,
-  FileText
+  FileText,
+  FolderOpen,
+  MoreHorizontal,
+  Download
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { getClasses, getStudents, addStudentsToClass, removeStudentsFromClass, getLessonAttendanceByClass, createLessonAttendance, patchLessonAttendance, deleteLessonAttendance } from "@/lib/api/superadmin"
 import { generateEvidenceReport } from "@/lib/api/certificates"
 import { useToast } from "@/hooks/use-toast"
@@ -46,6 +48,8 @@ import { ClassTechnicalResponsibleModal } from "@/components/class-technical-res
 import { AttendanceListModal } from "@/components/attendance-list-modal"
 import { ClassEvaluationsModal } from "@/components/class-evaluations-modal"
 import { CompanyEvaluationModal } from "@/components/company-evaluation-modal"
+import { ClassReportsModal } from "@/components/class-reports-modal"
+import { ClassDocumentsModal } from "@/components/class-documents-modal"
 
 interface TurmaData {
   id: string
@@ -127,7 +131,19 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
   const [attendanceListTurma, setAttendanceListTurma] = useState<TurmaData | null>(null)
   const [evaluationsTurma, setEvaluationsTurma] = useState<TurmaData | null>(null)
   const [companyEvaluationTurma, setCompanyEvaluationTurma] = useState<TurmaData | null>(null)
+  const [reportsModalTurma, setReportsModalTurma] = useState<TurmaData | null>(null)
+  const [documentsTurma, setDocumentsTurma] = useState<TurmaData | null>(null)
   const [generatingReport, setGeneratingReport] = useState<string | null>(null) // ID da turma sendo processada
+
+  // Função para detectar se o termo de busca é um ID (UUID ou CUID)
+  const isUUID = (str: string): boolean => {
+    // UUID padrão: 8-4-4-4-12 characters
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    // CUID: começa com 'c' seguido de 24 caracteres alfanuméricos
+    const cuidRegex = /^c[a-z0-9]{24}$/i
+    
+    return uuidRegex.test(str) || cuidRegex.test(str)
+  }
 
   // Carregar dados das turmas
   const loadTurmas = async (resetPage = false) => {
@@ -149,11 +165,13 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
         
         // Aplicar filtro de busca localmente para usuários CLIENTE
         if (searchTerm.trim()) {
+          const searchLower = searchTerm.toLowerCase()
           classes = classes.filter((turma: TurmaData) =>
-            turma.training?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            turma.instructor?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            turma.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            turma.location?.toLowerCase().includes(searchTerm.toLowerCase())
+            turma.id?.toLowerCase().includes(searchLower) ||
+            turma.training?.title?.toLowerCase().includes(searchLower) ||
+            turma.instructor?.name?.toLowerCase().includes(searchLower) ||
+            turma.client?.name?.toLowerCase().includes(searchLower) ||
+            turma.location?.toLowerCase().includes(searchLower)
           )
         }
         
@@ -168,7 +186,29 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
         }
       } else {
         // Para outros tipos de usuário, usar getClasses normal
-        response = await getClasses(currentPageToUse, limit, searchTerm.trim() || undefined)
+        const searchText = searchTerm.trim()
+        let classId: string | undefined
+        let searchParam: string | undefined
+        
+        // Detectar se é busca por ID ou busca textual
+        if (searchText && isUUID(searchText)) {
+          classId = searchText
+          searchParam = undefined
+          console.log('🔍 Busca por ID detectada:', { searchText, classId })
+        } else if (searchText) {
+          classId = undefined
+          searchParam = searchText
+          console.log('🔍 Busca textual detectada:', { searchText, searchParam })
+        }
+        
+        console.log('📡 Chamando getClasses com:', { 
+          page: currentPageToUse, 
+          limit, 
+          searchParam, 
+          classId 
+        })
+        
+        response = await getClasses(currentPageToUse, limit, searchParam, classId)
       }
       
       // A API retorna: { classes: [...], pagination: { page, limit, total, totalPages } }
@@ -333,7 +373,23 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setCompanyEvaluationTurma(turma)
   }
 
-  // Função para gerar relatório de evidências
+  // Função para abrir modal de relatórios
+  const handleOpenReportsModal = (turma: TurmaData) => {
+    setReportsModalTurma(turma)
+  }
+
+  // Função para abrir modal de documentos
+  const handleManageDocuments = (turma: TurmaData) => {
+    setDocumentsTurma(turma)
+  }
+
+  // Função para gerar lista de presença da turma em PDF
+  const handleGenerateAttendanceListPDF = async (turma: TurmaData) => {
+    // Usar o modal existente de listas de presença
+    handleManageAttendanceList(turma)
+  }
+
+  // Função para gerar relatório
   const handleGenerateEvidenceReport = async (turma: TurmaData) => {
     setGeneratingReport(turma.id)
     
@@ -343,15 +399,15 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
       
       toast({
         title: "Relatório gerado",
-        description: "O relatório de evidências foi gerado e está sendo baixado.",
+        description: "O relatório foi gerado e está sendo baixado.",
         variant: "default"
       })
       
     } catch (error: any) {
-      console.error('Erro ao gerar relatório de evidências:', error)
+      console.error('Erro ao gerar relatório:', error)
       toast({
         title: "Erro",
-        description: error.message || "Erro ao gerar relatório de evidências",
+        description: error.message || "Erro ao gerar relatório",
         variant: "destructive"
       })
     } finally {
@@ -374,6 +430,8 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     setAttendanceListTurma(null)
     setEvaluationsTurma(null)
     setCompanyEvaluationTurma(null)
+    setReportsModalTurma(null)
+    setDocumentsTurma(null)
   }
 
   // Função para fechar apenas o modal de gerenciamento de alunos
@@ -528,7 +586,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             )}
             <Input
-              placeholder={isClientView ? "Buscar minhas turmas..." : "Buscar turmas, cursos ou instrutores..."}
+              placeholder={isClientView ? "Buscar minhas turmas..." : "Buscar turmas, instrutores ou cole o ID da turma..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -555,6 +613,16 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
           )}
         </div>
 
+        {/* Indicador de busca por ID */}
+        {searchTerm && isUUID(searchTerm) && !isClientView && (
+          <div className="mb-4">
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              <Search className="h-3 w-3 mr-1" />
+              Buscando por ID da turma
+            </Badge>
+          </div>
+        )}
+        
         {/* Cards das Turmas */}
         {searchLoading && !loading ? (
           <div className="flex justify-center items-center py-12">
@@ -631,135 +699,41 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                           Cliente: {turma.client.name}
                         </p>
                       )}
+                      <p className="text-xs text-gray-400 mt-1 font-mono">
+                        ID: {turma.id}
+                      </p>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem 
-                          className="gap-2"
-                          onClick={() => handleViewDetails(turma)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          Visualizar
-                        </DropdownMenuItem>
-                        
-                        {/* Gerenciar Alunos */}
-                        <DropdownMenuItem 
-                          className="gap-2"
-                          onClick={() => handleManageStudents(turma)}
-                        >
-                          <Users className="h-4 w-4" />
-                          {isClientView ? 'Visualizar Alunos' : 'Gerenciar Alunos'}
-                        </DropdownMenuItem>
-                        
-                        {/* Listas de Presença - se houver aulas */}
-                        {turma.lessons && turma.lessons.length > 0 && (
-                          <DropdownMenuItem 
-                            className="gap-2 bg-green-50 text-green-800 focus:bg-green-100"
-                            onClick={() => handleManageAttendanceList(turma)}
-                          >
-                            <ClipboardList className="h-4 w-4" />
-                            Listas de Presença ({turma.lessons.length})
+                    {!isClientView && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewDetails(turma)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver Detalhes
                           </DropdownMenuItem>
-                        )}
-                        
-                        {/* Chamada */}
-                        <DropdownMenuItem 
-                          className="gap-2"
-                          onClick={() => handleManageAttendance(turma)}
-                          disabled={!turma.lessons.some(lesson => lesson.status === "REALIZADA")}
-                        >
-                          <ClipboardList className="h-4 w-4" />
-                          {isClientView ? 'Visualizar Chamada' : 'Chamada'}
-                        </DropdownMenuItem>
-                        
-                        {/* Avaliações dos Alunos */}
-                        <DropdownMenuItem 
-                          className="gap-2"
-                          onClick={() => handleManageEvaluations(turma)}
-                        >
-                          <Star className="h-4 w-4" />
-                          {isClientView ? 'Visualizar Avaliações' : 'Avaliações dos Alunos'}
-                        </DropdownMenuItem>
-                        
-                        {/* Avaliação do Treinamento */}
-                        <DropdownMenuItem 
-                          className="gap-2 bg-blue-50 text-blue-800 focus:bg-blue-100"
-                          onClick={() => handleManageCompanyEvaluation(turma)}
-                        >
-                          <Building2 className="h-4 w-4" />
-                          {isClientView ? 'Visualizar Avaliação do Treinamento' : 'Avaliação do Treinamento'}
-                        </DropdownMenuItem>
-                        
-                        {/* Relatório de Evidências */}
-                        <DropdownMenuItem 
-                          className="gap-2 bg-amber-50 text-amber-800 focus:bg-amber-100"
-                          onClick={() => handleGenerateEvidenceReport(turma)}
-                          disabled={generatingReport === turma.id}
-                        >
-                          {generatingReport === turma.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <FileText className="h-4 w-4" />
-                          )}
-                          {generatingReport === turma.id ? 'Gerando...' : 'Relatório de Evidências'}
-                        </DropdownMenuItem>
-                        
-                        {/* Avaliações */}
-                        <DropdownMenuItem 
-                          className="gap-2"
-                          onClick={() => handleManageGrades(turma)}
-                        >
-                          <Star className="h-4 w-4" />
-                          {isClientView ? 'Visualizar Notas' : 'Avaliações'}
-                        </DropdownMenuItem>
-                        
-                        {/* Fotos */}
-                        <DropdownMenuItem 
-                          className="gap-2"
-                          onClick={() => handleManagePhotos(turma)}
-                        >
-                          <Camera className="h-4 w-4" />
-                          {isClientView ? 'Visualizar Fotos' : 'Fotos'}
-                        </DropdownMenuItem>
-                        
-                        {/* Responsável Técnico */}
-                        <DropdownMenuItem 
-                          className="gap-2"
-                          onClick={() => handleManageTechnicalResponsible(turma)}
-                        >
-                          <UserCog className="h-4 w-4" />
-                          {isClientView ? 'Visualizar Responsável' : 'Responsável Técnico'}
-                        </DropdownMenuItem>
-                        
-                        {/* Agendar Aula - Apenas para não-CLIENTE */}
-                        {!isClientView && (
-                          <DropdownMenuItem 
-                            className="gap-2"
-                            onClick={() => handleScheduleLesson(turma)}
-                          >
-                            <Calendar className="h-4 w-4" />
-                            Agendar Aula
+                          <DropdownMenuItem onClick={() => handleManageStudents(turma)}>
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Gerenciar Alunos
                           </DropdownMenuItem>
-                        )}
-                        
-                        {/* Editar - Apenas para não-CLIENTE */}
-                        {!isClientView && (
-                          <DropdownMenuItem 
-                            className="gap-2" 
-                            onClick={() => handleEdit(turma)}
-                          >
-                            <Edit className="h-4 w-4" />
+                          <DropdownMenuItem onClick={() => handleManageAttendance(turma)}>
+                            <ClipboardList className="mr-2 h-4 w-4" />
+                            Lista de Presença
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleGenerateAttendanceListPDF(turma)}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Listas de Presença em PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setEditingTurma(turma)}>
+                            <Edit className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
-                        )}
-                        
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </CardHeader>
                 
@@ -875,20 +849,37 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                       Detalhes
                     </Button>
                     
-                    {/* Botão Relatório de Evidências */}
+                    {/* Botão Relatórios */}
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="gap-2 border-amber-200 text-amber-700 hover:bg-amber-50"
-                      onClick={() => handleGenerateEvidenceReport(turma)}
-                      disabled={generatingReport === turma.id}
+                      onClick={() => handleOpenReportsModal(turma)}
                     >
-                      {generatingReport === turma.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <FileText className="h-4 w-4" />
-                      )}
-                      {generatingReport === turma.id ? 'Gerando...' : 'Relatório'}
+                      <FileText className="h-4 w-4" />
+                      Relatórios
+                    </Button>
+
+                    {/* Botão Evidências */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                      onClick={() => handleManageDocuments(turma)}
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      Evidências
+                    </Button>
+
+                    {/* Botão Lista de Presença - Disponível para usuários cliente */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2 border-green-200 text-green-700 hover:bg-green-50"
+                      onClick={() => handleManageAttendanceList(turma)}
+                    >
+                      <FileText className="h-4 w-4" />
+                      Lista de Presença
                     </Button>
                   </div>
                 </CardContent>
@@ -1104,6 +1095,29 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
           },
           client: companyEvaluationTurma.client
         } : null}
+        readOnly={isClientView}
+      />
+
+      {/* Modal de Relatórios */}
+      <ClassReportsModal
+        isOpen={!!reportsModalTurma}
+        onClose={() => setReportsModalTurma(null)}
+        turma={reportsModalTurma}
+        onOpenCompanyEvaluation={() => handleManageCompanyEvaluation(reportsModalTurma!)}
+        onOpenEvidenceReport={() => handleGenerateEvidenceReport(reportsModalTurma!)}
+        onOpenGrades={() => handleManageGrades(reportsModalTurma!)}
+        onOpenPhotos={() => handleManagePhotos(reportsModalTurma!)}
+        onOpenTechnicalResponsible={() => handleManageTechnicalResponsible(reportsModalTurma!)}
+        onOpenDocuments={() => handleManageDocuments(reportsModalTurma!)}
+        isClientView={isClientView}
+        generatingReport={generatingReport === reportsModalTurma?.id}
+      />
+
+      {/* Modal de Documentos */}
+      <ClassDocumentsModal
+        isOpen={!!documentsTurma}
+        onClose={() => setDocumentsTurma(null)}
+        turma={documentsTurma}
         readOnly={isClientView}
       />
     </>

@@ -16,7 +16,7 @@ import {
   type ExportClientResponse,
   type ImportClientResponse
 } from '@/lib/api/superadmin'
-import { Download, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react'
+import { Download, Upload, FileText, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 
 export function ClientExcelManager() {
   const { toast } = useToast()
@@ -286,7 +286,11 @@ export function ClientExcelManager() {
                   disabled={isExporting}
                   className="flex items-center gap-2"
                 >
-                  <FileText className="w-4 h-4" />
+                  {isExporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )}
                   {isExporting ? 'Exportando...' : 'Exportar para Excel'}
                 </Button>
 

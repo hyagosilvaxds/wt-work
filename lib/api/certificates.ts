@@ -75,14 +75,14 @@ export const deleteCertificate = async (id: string): Promise<void> => {
   return
 }
 
-// Função para gerar relatório de evidências
+// Função para gerar relatório
 export const generateEvidenceReport = async (classId: string): Promise<void> => {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
     // Usar a mesma lógica de obtenção de token do client.ts
     const token = Cookies.get("jwtToken")
     
-    console.log('🔄 Gerando relatório de evidências para turma:', classId)
+    console.log('🔄 Gerando relatório para turma:', classId)
     console.log('📡 URL da API:', apiUrl)
     console.log('🔑 Token presente:', !!token)
     
@@ -139,7 +139,7 @@ export const generateEvidenceReport = async (classId: string): Promise<void> => 
     console.log('✅ Relatório gerado com sucesso!')
     
   } catch (error) {
-    console.error('❌ Erro detalhado ao gerar relatório de evidências:', error)
+    console.error('❌ Erro detalhado ao gerar relatório:', error)
     
     // Melhorar as mensagens de erro para o usuário
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
@@ -147,7 +147,7 @@ export const generateEvidenceReport = async (classId: string): Promise<void> => 
     } else if (error instanceof Error) {
       throw error
     } else {
-      throw new Error('Erro desconhecido ao gerar relatório de evidências')
+      throw new Error('Erro desconhecido ao gerar relatório')
     }
   }
 }
@@ -163,7 +163,7 @@ export const checkClassEligibility = async (classId: string): Promise<boolean> =
 
     if (response.ok) {
       const eligibility = await response.json()
-      // Para relatório de evidências, basta ter alunos na turma (elegíveis ou não)
+      // Para relatório, basta ter alunos na turma (elegíveis ou não)
       return eligibility.length > 0 // Se há alunos na turma, pode gerar relatório
     }
     
@@ -171,5 +171,149 @@ export const checkClassEligibility = async (classId: string): Promise<boolean> =
   } catch (error) {
     console.warn('Erro ao verificar elegibilidade da turma:', error)
     return false
+  }
+}
+
+// ========== FUNÇÕES PARA CAPA PERSONALIZADA ==========
+
+// Interface para resposta da API de capa personalizada
+export interface CustomCoverResponse {
+  message: string
+  data: {
+    message?: string
+    filePath?: string
+    hasCustomCover?: boolean
+    removedFiles?: string[]
+  }
+}
+
+// Função para fazer upload de capa personalizada
+export const uploadCustomCover = async (classId: string, file: File): Promise<CustomCoverResponse> => {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const token = Cookies.get("jwtToken")
+    
+    console.log('🔄 Fazendo upload de capa personalizada para turma:', classId)
+    console.log('📁 Arquivo:', file.name, 'Tamanho:', file.size, 'bytes')
+    
+    if (!token) {
+      throw new Error('Token de autenticação não encontrado. Faça login novamente.')
+    }
+
+    // Validar tipo de arquivo
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error('Tipo de arquivo não suportado. Use PDF, JPEG ou PNG.')
+    }
+
+    // Validar tamanho (5MB máximo)
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    if (file.size > maxSize) {
+      throw new Error('Arquivo muito grande. O tamanho máximo é de 5MB.')
+    }
+
+    const formData = new FormData()
+    formData.append('cover', file)
+    formData.append('classId', classId)
+
+    const response = await fetch(`${apiUrl}/certificado/evidence-report/custom-cover/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    })
+
+    console.log('📊 Status da resposta:', response.status)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Erro ao fazer upload da capa' }))
+      console.error('❌ Erro da API:', errorData)
+      throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`)
+    }
+
+    const result = await response.json()
+    console.log('✅ Capa personalizada enviada com sucesso!')
+    
+    return result
+  } catch (error: any) {
+    console.error('❌ Erro ao fazer upload da capa:', error)
+    throw error
+  }
+}
+
+// Função para verificar se uma turma possui capa personalizada
+export const checkCustomCover = async (classId: string): Promise<CustomCoverResponse> => {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const token = Cookies.get("jwtToken")
+    
+    console.log('🔍 Verificando capa personalizada para turma:', classId)
+    
+    if (!token) {
+      throw new Error('Token de autenticação não encontrado. Faça login novamente.')
+    }
+
+    const response = await fetch(`${apiUrl}/certificado/evidence-report/custom-cover/check/${classId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('📊 Status da resposta:', response.status)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Erro ao verificar capa personalizada' }))
+      console.error('❌ Erro da API:', errorData)
+      throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`)
+    }
+
+    const result = await response.json()
+    console.log('✅ Verificação realizada:', result.data.hasCustomCover ? 'Possui capa personalizada' : 'Não possui capa personalizada')
+    
+    return result
+  } catch (error: any) {
+    console.error('❌ Erro ao verificar capa personalizada:', error)
+    throw error
+  }
+}
+
+// Função para remover capa personalizada
+export const removeCustomCover = async (classId: string): Promise<CustomCoverResponse> => {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const token = Cookies.get("jwtToken")
+    
+    console.log('🗑️ Removendo capa personalizada para turma:', classId)
+    
+    if (!token) {
+      throw new Error('Token de autenticação não encontrado. Faça login novamente.')
+    }
+
+    const response = await fetch(`${apiUrl}/certificado/evidence-report/custom-cover/${classId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('📊 Status da resposta:', response.status)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Erro ao remover capa personalizada' }))
+      console.error('❌ Erro da API:', errorData)
+      throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`)
+    }
+
+    const result = await response.json()
+    console.log('✅ Capa personalizada removida com sucesso!')
+    
+    return result
+  } catch (error: any) {
+    console.error('❌ Erro ao remover capa personalizada:', error)
+    throw error
   }
 }

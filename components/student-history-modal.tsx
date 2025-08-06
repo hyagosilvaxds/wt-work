@@ -30,7 +30,8 @@ import {
   Download,
   Award,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
@@ -45,6 +46,7 @@ import {
   type StudentHistoryClassDto,
   type StudentEligibilityResultDto
 } from "@/lib/api/superadmin"
+import { generateEvidenceReport } from "@/lib/api/certificates"
 import { CertificatePreviewModal } from "@/components/certificate-preview-modal"
 
 interface StudentHistoryModalProps {
@@ -52,6 +54,8 @@ interface StudentHistoryModalProps {
   studentName: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  onOpenReports?: (turmaId: string) => void
+  onOpenDocuments?: (turmaId: string) => void
 }
 
 const STATUS_COLORS = {
@@ -78,13 +82,19 @@ function CertificateActions({
   studentId, 
   isClient, 
   isInstructor, 
-  onGenerateCertificate 
+  onGenerateCertificate,
+  onOpenDocuments,
+  onGenerateReport,
+  generatingReport
 }: {
   classData: StudentHistoryClassDto
   studentId: string
   isClient: boolean
   isInstructor: boolean
   onGenerateCertificate: (classData: StudentHistoryClassDto) => Promise<void>
+  onOpenDocuments?: (turmaId: string) => void
+  onGenerateReport: (classId: string) => void
+  generatingReport: boolean
 }) {
   const [impediments, setImpediments] = useState<{
     hasAbsences: boolean
@@ -117,12 +127,12 @@ function CertificateActions({
         let hasInsufficientGradesLocal = false
         if (classData.studentGrade) {
           const practicalGrade = classData.studentGrade.practicalGrade
-          const theoreticalGrade = classData.studentGrade.theoreticalGrade
+          const preGrade = classData.studentGrade.preGrade
           
           const hasBadPractical = (practicalGrade !== null && practicalGrade !== undefined) && practicalGrade < 5
-          const hasBadTheoretical = (theoreticalGrade !== null && theoreticalGrade !== undefined) && theoreticalGrade < 5
+          const hasBadPre = (preGrade !== null && preGrade !== undefined) && preGrade < 5
           
-          hasInsufficientGradesLocal = hasBadPractical || hasBadTheoretical
+          hasInsufficientGradesLocal = hasBadPractical || hasBadPre
         }
         
         setImpediments({
@@ -177,14 +187,50 @@ function CertificateActions({
               )}
             </div>
           </div>
-          <Button
-            className="gap-2 bg-gray-400 cursor-not-allowed"
-            size="sm"
-            disabled
-          >
-            <XCircle className="h-4 w-4" />
-            Não Disponível
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                if (onOpenDocuments) {
+                  onOpenDocuments(classData.id)
+                } else {
+                  console.log('Abrir evidências para turma:', classData.id)
+                }
+              }}
+            >
+              <FileText className="h-4 w-4" />
+              Evidências
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => onGenerateReport(classData.id)}
+              disabled={generatingReport}
+            >
+              {generatingReport ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Relatório
+                </>
+              )}
+            </Button>
+            <Button
+              className="gap-2 bg-gray-400 cursor-not-allowed"
+              size="sm"
+              disabled
+            >
+              <XCircle className="h-4 w-4" />
+              Não Disponível
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -215,14 +261,50 @@ function CertificateActions({
               )}
             </div>
           </div>
-          <Button
-            className="gap-2 bg-yellow-500 hover:bg-yellow-600 text-white shadow-md"
-            size="sm"
-            onClick={() => onGenerateCertificate(classData)}
-          >
-            <AlertTriangle className="h-4 w-4" />
-            Gerar com Ressalvas
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                if (onOpenDocuments) {
+                  onOpenDocuments(classData.id)
+                } else {
+                  console.log('Abrir evidências para turma:', classData.id)
+                }
+              }}
+            >
+              <FileText className="h-4 w-4" />
+              Evidências
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => onGenerateReport(classData.id)}
+              disabled={generatingReport}
+            >
+              {generatingReport ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Relatório
+                </>
+              )}
+            </Button>
+            <Button
+              className="gap-2 bg-red-500 hover:bg-red-600 text-white shadow-md"
+              size="sm"
+              onClick={() => onGenerateCertificate(classData)}
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Gerar com Ressalvas
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -246,14 +328,47 @@ function CertificateActions({
             )}
           </div>
         </div>
-        <Button
-          className="gap-2 bg-green-600 hover:bg-green-700 text-white shadow-md"
-          size="sm"
-          onClick={() => onGenerateCertificate(classData)}
-        >
-          <Award className="h-4 w-4" />
-          Gerar Certificado
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              // TODO: Implementar abertura do modal de documentos/evidências
+              console.log('Abrir evidências para turma:', classData.id)
+            }}
+          >
+            <FileText className="h-4 w-4" />
+            Evidências
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => onGenerateReport(classData.id)}
+            disabled={generatingReport}
+          >
+            {generatingReport ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                Relatório
+              </>
+            )}
+          </Button>
+          <Button
+            className="gap-2 bg-green-600 hover:bg-green-700 text-white shadow-md"
+            size="sm"
+            onClick={() => onGenerateCertificate(classData)}
+          >
+            <Award className="h-4 w-4" />
+            Gerar Certificado
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -263,13 +378,16 @@ export function StudentHistoryModal({
   studentId, 
   studentName, 
   open, 
-  onOpenChange 
+  onOpenChange,
+  onOpenReports,
+  onOpenDocuments
 }: StudentHistoryModalProps) {
   const [history, setHistory] = useState<StudentHistoryResponseDto | null>(null)
   const [statistics, setStatistics] = useState<StudentStatistics | null>(null)
   const [loading, setLoading] = useState(false)
   const [statsLoading, setStatsLoading] = useState(false)
   const [certificateLoading, setCertificateLoading] = useState<{ [key: string]: boolean }>({})
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null)
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean
     classId: string
@@ -361,6 +479,31 @@ export function StudentHistoryModal({
     )
   }
 
+  // Função para gerar relatório diretamente
+  const handleGenerateReport = async (classId: string) => {
+    setGeneratingReport(classId)
+    
+    try {
+      await generateEvidenceReport(classId)
+      
+      toast({
+        title: "Relatório gerado",
+        description: "O relatório foi gerado e está sendo baixado.",
+        variant: "default"
+      })
+      
+    } catch (error: any) {
+      console.error('Erro ao gerar relatório:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao gerar relatório",
+        variant: "destructive"
+      })
+    } finally {
+      setGeneratingReport(null)
+    }
+  }
+
   const getAttendanceIcon = (status: string) => {
     if (status === 'PRESENTE') {
       return <CheckCircle className="h-4 w-4 text-green-500" />
@@ -427,19 +570,19 @@ export function StudentHistoryModal({
     if (!classData.studentGrade) return null
     
     const practicalGrade = classData.studentGrade.practicalGrade
-    const theoreticalGrade = classData.studentGrade.theoreticalGrade
+    const preGrade = classData.studentGrade.preGrade
     
     // Verificar se pelo menos uma nota existe e é um número válido
     const hasPracticalGrade = practicalGrade !== null && practicalGrade !== undefined && !isNaN(Number(practicalGrade))
-    const hasTheoreticalGrade = theoreticalGrade !== null && theoreticalGrade !== undefined && !isNaN(Number(theoreticalGrade))
+    const hasPreGrade = preGrade !== null && preGrade !== undefined && !isNaN(Number(preGrade))
     
-    if (!hasPracticalGrade && !hasTheoreticalGrade) return null
+    if (!hasPracticalGrade && !hasPreGrade) return null
     
     return {
       practicalGrade: hasPracticalGrade ? Number(practicalGrade) : null,
-      theoreticalGrade: hasTheoreticalGrade ? Number(theoreticalGrade) : null,
+      preGrade: hasPreGrade ? Number(preGrade) : null,
       hasFailingGrade: (hasPracticalGrade && Number(practicalGrade) < 5.0) || 
-                       (hasTheoreticalGrade && Number(theoreticalGrade) < 5.0)
+                       (hasPreGrade && Number(preGrade) < 5.0)
     }
   }
 
@@ -678,6 +821,7 @@ export function StudentHistoryModal({
                       <div className="flex justify-between items-start">
                         <div>
                           <CardTitle className="text-lg">{cls.training.title}</CardTitle>
+                          <p className="text-xs text-gray-400 font-mono mt-1">ID: {cls.id}</p>
                           <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                             <div className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
@@ -740,13 +884,13 @@ export function StudentHistoryModal({
                                   {cls.studentGrade.practicalGrade < 5 && <span className="text-red-500 ml-1">⚠️ Insuficiente</span>}
                                 </p>
                               )}
-                              {cls.studentGrade.theoreticalGrade !== null && cls.studentGrade.theoreticalGrade !== undefined && (
+                              {cls.studentGrade.preGrade !== null && cls.studentGrade.preGrade !== undefined && (
                                 <p>
-                                  <span className="font-medium">Teórica:</span> 
-                                  <span className={cls.studentGrade.theoreticalGrade < 5 ? 'text-red-600 font-bold' : 'text-green-600'}>
-                                    {cls.studentGrade.theoreticalGrade.toFixed(1)}
+                                  <span className="font-medium">Pré-avaliação:</span> 
+                                  <span className={cls.studentGrade.preGrade < 5 ? 'text-red-600 font-bold' : 'text-green-600'}>
+                                    {cls.studentGrade.preGrade.toFixed(1)}
                                   </span>
-                                  {cls.studentGrade.theoreticalGrade < 5 && <span className="text-red-500 ml-1">⚠️ Insuficiente</span>}
+                                  {cls.studentGrade.preGrade < 5 && <span className="text-red-500 ml-1">⚠️ Insuficiente</span>}
                                 </p>
                               )}
                               {cls.studentGrade.observations && (
@@ -800,6 +944,9 @@ export function StudentHistoryModal({
                             isClient={isClient}
                             isInstructor={isInstructor}
                             onGenerateCertificate={handleCertificateGeneration}
+                            onOpenDocuments={onOpenDocuments}
+                            onGenerateReport={handleGenerateReport}
+                            generatingReport={generatingReport === cls.id}
                           />
                         </div>
                       )}

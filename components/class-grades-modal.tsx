@@ -58,8 +58,9 @@ interface ClassGradesModalProps {
 
 interface StudentGradeForm {
   studentId: string
-  practicalGrade: string
-  theoreticalGrade: string
+  preGrade: string        // Avaliação pré
+  postGrade: string       // Avaliação pós
+  practicalGrade: string  // Avaliação prática
   observations: string
 }
 
@@ -73,8 +74,9 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
   const [editingStudent, setEditingStudent] = useState<string | null>(null)
   const [gradeForm, setGradeForm] = useState<StudentGradeForm>({
     studentId: "",
+    preGrade: "",
+    postGrade: "",
     practicalGrade: "",
-    theoreticalGrade: "",
     observations: ""
   })
 
@@ -131,8 +133,9 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
     setEditingStudent(studentId)
     setGradeForm({
       studentId,
+      preGrade: existingGrade?.preGrade?.toString() || "",
+      postGrade: existingGrade?.postGrade?.toString() || "",
       practicalGrade: existingGrade?.practicalGrade?.toString() || "",
-      theoreticalGrade: existingGrade?.theoreticalGrade?.toString() || "",
       observations: existingGrade?.observations || ""
     })
   }
@@ -141,35 +144,36 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
   const handleSaveGrade = async () => {
     if (!turma || !editingStudent) return
 
+    const preGrade = gradeForm.preGrade ? parseFloat(gradeForm.preGrade) : undefined
+    const postGrade = gradeForm.postGrade ? parseFloat(gradeForm.postGrade) : undefined
     const practicalGrade = gradeForm.practicalGrade ? parseFloat(gradeForm.practicalGrade) : undefined
-    const theoreticalGrade = gradeForm.theoreticalGrade ? parseFloat(gradeForm.theoreticalGrade) : undefined
 
     // Validações
-    if (!practicalGrade && !theoreticalGrade) {
+    if (!preGrade && !postGrade && !practicalGrade) {
       toast({
         title: "Erro",
-        description: "Pelo menos uma nota (prática ou teórica) deve ser informada",
+        description: "Pelo menos uma avaliação (pré, pós ou prática) deve ser informada",
         variant: "destructive"
       })
       return
     }
 
-    if (practicalGrade !== undefined && (practicalGrade < 0 || practicalGrade > 10)) {
-      toast({
-        title: "Erro",
-        description: "A nota prática deve estar entre 0 e 10",
-        variant: "destructive"
-      })
-      return
-    }
+    // Validar range das notas (0-10)
+    const gradesToValidate = [
+      { grade: preGrade, name: "pré" },
+      { grade: postGrade, name: "pós" },
+      { grade: practicalGrade, name: "prática" }
+    ]
 
-    if (theoreticalGrade !== undefined && (theoreticalGrade < 0 || theoreticalGrade > 10)) {
-      toast({
-        title: "Erro",
-        description: "A nota teórica deve estar entre 0 e 10",
-        variant: "destructive"
-      })
-      return
+    for (const { grade, name } of gradesToValidate) {
+      if (grade !== undefined && (grade < 0 || grade > 10)) {
+        toast({
+          title: "Erro",
+          description: `A avaliação ${name} deve estar entre 0 e 10`,
+          variant: "destructive"
+        })
+        return
+      }
     }
 
     setLoading(true)
@@ -177,14 +181,15 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
       await createOrUpdateStudentGrade({
         classId: turma.id,
         studentId: editingStudent,
+        preGrade,
+        postGrade,
         practicalGrade,
-        theoreticalGrade,
         observations: gradeForm.observations || undefined
       })
 
       toast({
         title: "Sucesso",
-        description: "Nota salva com sucesso",
+        description: "Avaliação salva com sucesso",
       })
 
       // Recarregar dados
@@ -195,17 +200,18 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
       setEditingStudent(null)
       setGradeForm({
         studentId: "",
+        preGrade: "",
+        postGrade: "",
         practicalGrade: "",
-        theoreticalGrade: "",
         observations: ""
       })
 
       onSuccess?.()
     } catch (error: any) {
-      console.error('Erro ao salvar nota:', error)
+      console.error('Erro ao salvar avaliação:', error)
       toast({
         title: "Erro",
-        description: error.response?.data?.message || "Erro ao salvar nota",
+        description: error.response?.data?.message || "Erro ao salvar avaliação",
         variant: "destructive"
       })
     } finally {
@@ -249,8 +255,9 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
     setEditingStudent(null)
     setGradeForm({
       studentId: "",
+      preGrade: "",
+      postGrade: "",
       practicalGrade: "",
-      theoreticalGrade: "",
       observations: ""
     })
   }
@@ -355,9 +362,35 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
                                   </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                   <div className="space-y-2">
-                                    <Label htmlFor="practicalGrade">Nota Prática (0-10)</Label>
+                                    <Label htmlFor="preGrade">Avaliação Pré (0-10)</Label>
+                                    <Input
+                                      id="preGrade"
+                                      type="number"
+                                      min="0"
+                                      max="10"
+                                      step="0.1"
+                                      value={gradeForm.preGrade}
+                                      onChange={(e) => setGradeForm(prev => ({ ...prev, preGrade: e.target.value }))}
+                                      placeholder="Ex: 6.0"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="postGrade">Avaliação Pós (0-10)</Label>
+                                    <Input
+                                      id="postGrade"
+                                      type="number"
+                                      min="0"
+                                      max="10"
+                                      step="0.1"
+                                      value={gradeForm.postGrade}
+                                      onChange={(e) => setGradeForm(prev => ({ ...prev, postGrade: e.target.value }))}
+                                      placeholder="Ex: 8.5"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="practicalGrade">Avaliação Prática (0-10)</Label>
                                     <Input
                                       id="practicalGrade"
                                       type="number"
@@ -366,19 +399,6 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
                                       step="0.1"
                                       value={gradeForm.practicalGrade}
                                       onChange={(e) => setGradeForm(prev => ({ ...prev, practicalGrade: e.target.value }))}
-                                      placeholder="Ex: 8.5"
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="theoreticalGrade">Nota Teórica (0-10)</Label>
-                                    <Input
-                                      id="theoreticalGrade"
-                                      type="number"
-                                      min="0"
-                                      max="10"
-                                      step="0.1"
-                                      value={gradeForm.theoreticalGrade}
-                                      onChange={(e) => setGradeForm(prev => ({ ...prev, theoreticalGrade: e.target.value }))}
                                       placeholder="Ex: 9.0"
                                     />
                                   </div>
@@ -402,29 +422,36 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
                                     <h4 className="font-medium">{student.name}</h4>
                                     {grade && (
                                       <div className="flex gap-2">
+                                        {grade.preGrade && getGradeBadge(grade.preGrade)}
+                                        {grade.postGrade && getGradeBadge(grade.postGrade)}
                                         {grade.practicalGrade && getGradeBadge(grade.practicalGrade)}
-                                        {grade.theoreticalGrade && getGradeBadge(grade.theoreticalGrade)}
                                       </div>
                                     )}
                                   </div>
                                   <p className="text-sm text-gray-500 mb-2">{student.cpf}</p>
                                   
                                   {grade ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                       <div>
-                                        <span className="text-gray-500">Nota Prática:</span>
+                                        <span className="text-gray-500">Avaliação Pré:</span>
+                                        <span className={`ml-2 font-medium ${getGradeColor(grade.preGrade)}`}>
+                                          {grade.preGrade ? grade.preGrade.toFixed(1) : "N/A"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-500">Avaliação Pós:</span>
+                                        <span className={`ml-2 font-medium ${getGradeColor(grade.postGrade)}`}>
+                                          {grade.postGrade ? grade.postGrade.toFixed(1) : "N/A"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-500">Avaliação Prática:</span>
                                         <span className={`ml-2 font-medium ${getGradeColor(grade.practicalGrade)}`}>
                                           {grade.practicalGrade ? grade.practicalGrade.toFixed(1) : "N/A"}
                                         </span>
                                       </div>
-                                      <div>
-                                        <span className="text-gray-500">Nota Teórica:</span>
-                                        <span className={`ml-2 font-medium ${getGradeColor(grade.theoreticalGrade)}`}>
-                                          {grade.theoreticalGrade ? grade.theoreticalGrade.toFixed(1) : "N/A"}
-                                        </span>
-                                      </div>
                                       {grade.observations && (
-                                        <div className="md:col-span-2">
+                                        <div className="md:col-span-3">
                                           <span className="text-gray-500">Observações:</span>
                                           <p className="text-gray-700 mt-1">{grade.observations}</p>
                                         </div>
@@ -521,7 +548,41 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
                   <Card>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
-                        <BookOpen className="h-8 w-8 text-purple-600" />
+                        <BookOpen className="h-8 w-8 text-blue-600" />
+                        <div>
+                          <p className="text-sm text-gray-500">Média Pré</p>
+                          <p className="text-2xl font-bold">
+                            {stats.statistics.averagePreGrade 
+                              ? stats.statistics.averagePreGrade.toFixed(1) 
+                              : "N/A"
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <TrendingUp className="h-8 w-8 text-green-600" />
+                        <div>
+                          <p className="text-sm text-gray-500">Média Pós</p>
+                          <p className="text-2xl font-bold">
+                            {stats.statistics.averagePostGrade 
+                              ? stats.statistics.averagePostGrade.toFixed(1) 
+                              : "N/A"
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Award className="h-8 w-8 text-purple-600" />
                         <div>
                           <p className="text-sm text-gray-500">Média Prática</p>
                           <p className="text-2xl font-bold">
@@ -534,30 +595,92 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
                       </div>
                     </CardContent>
                   </Card>
+                </div>
 
+                {/* Distribuição de Notas */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Distribuição Avaliação Pré */}
                   <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <TrendingUp className="h-8 w-8 text-orange-600" />
-                        <div>
-                          <p className="text-sm text-gray-500">Média Teórica</p>
-                          <p className="text-2xl font-bold">
-                            {stats.statistics.averageTheoreticalGrade 
-                              ? stats.statistics.averageTheoreticalGrade.toFixed(1) 
-                              : "N/A"
-                            }
-                          </p>
+                    <CardHeader>
+                      <CardTitle>Distribuição - Avaliação Pré</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-green-500 rounded"></div>
+                            Excelente (9-10)
+                          </span>
+                          <span className="font-medium">{stats.statistics.preGradeDistribution.excellent}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                            Bom (7-8.9)
+                          </span>
+                          <span className="font-medium">{stats.statistics.preGradeDistribution.good}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-yellow-500 rounded"></div>
+                            Regular (5-6.9)
+                          </span>
+                          <span className="font-medium">{stats.statistics.preGradeDistribution.average}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-red-500 rounded"></div>
+                            Insuficiente (&lt;5)
+                          </span>
+                          <span className="font-medium">{stats.statistics.preGradeDistribution.poor}</span>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                </div>
 
-                {/* Distribuição de Notas */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Distribuição Avaliação Pós */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Distribuição - Notas Práticas</CardTitle>
+                      <CardTitle>Distribuição - Avaliação Pós</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-green-500 rounded"></div>
+                            Excelente (9-10)
+                          </span>
+                          <span className="font-medium">{stats.statistics.postGradeDistribution.excellent}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                            Bom (7-8.9)
+                          </span>
+                          <span className="font-medium">{stats.statistics.postGradeDistribution.good}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-yellow-500 rounded"></div>
+                            Regular (5-6.9)
+                          </span>
+                          <span className="font-medium">{stats.statistics.postGradeDistribution.average}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-red-500 rounded"></div>
+                            Insuficiente (&lt;5)
+                          </span>
+                          <span className="font-medium">{stats.statistics.postGradeDistribution.poor}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Distribuição Avaliação Prática */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Distribuição - Avaliação Prática</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
@@ -592,44 +715,6 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
                       </div>
                     </CardContent>
                   </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Distribuição - Notas Teóricas</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-green-500 rounded"></div>
-                            Excelente (9-10)
-                          </span>
-                          <span className="font-medium">{stats.statistics.theoreticalGradeDistribution.excellent}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                            Bom (7-8.9)
-                          </span>
-                          <span className="font-medium">{stats.statistics.theoreticalGradeDistribution.good}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-                            Regular (5-6.9)
-                          </span>
-                          <span className="font-medium">{stats.statistics.theoreticalGradeDistribution.average}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-red-500 rounded"></div>
-                            Insuficiente (&lt;5)
-                          </span>
-                          <span className="font-medium">{stats.statistics.theoreticalGradeDistribution.poor}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
                 </div>
 
                 {/* Resumo dos Alunos Avaliados */}
@@ -643,8 +728,9 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
                         <TableHeader>
                           <TableRow>
                             <TableHead>Aluno</TableHead>
-                            <TableHead>Nota Prática</TableHead>
-                            <TableHead>Nota Teórica</TableHead>
+                            <TableHead>Avaliação Pré</TableHead>
+                            <TableHead>Avaliação Pós</TableHead>
+                            <TableHead>Avaliação Prática</TableHead>
                             <TableHead>Data Avaliação</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -653,18 +739,27 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
                             <TableRow key={student.studentId}>
                               <TableCell className="font-medium">{student.studentName}</TableCell>
                               <TableCell>
-                                {student.practicalGrade ? (
-                                  <span className={getGradeColor(student.practicalGrade)}>
-                                    {student.practicalGrade.toFixed(1)}
+                                {student.preGrade ? (
+                                  <span className={getGradeColor(student.preGrade)}>
+                                    {student.preGrade.toFixed(1)}
                                   </span>
                                 ) : (
                                   <span className="text-gray-500">N/A</span>
                                 )}
                               </TableCell>
                               <TableCell>
-                                {student.theoreticalGrade ? (
-                                  <span className={getGradeColor(student.theoreticalGrade)}>
-                                    {student.theoreticalGrade.toFixed(1)}
+                                {student.postGrade ? (
+                                  <span className={getGradeColor(student.postGrade)}>
+                                    {student.postGrade.toFixed(1)}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-500">N/A</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {student.practicalGrade ? (
+                                  <span className={getGradeColor(student.practicalGrade)}>
+                                    {student.practicalGrade.toFixed(1)}
                                   </span>
                                 ) : (
                                   <span className="text-gray-500">N/A</span>

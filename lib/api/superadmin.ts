@@ -978,20 +978,32 @@ export const createClass = async (classData: CreateClassData) => {
 }
 
 // Buscar classes com paginação
-export const getClasses = async (page: number = 1, limit: number = 10, search?: string) => {
+export const getClasses = async (page: number = 1, limit: number = 10, search?: string, classId?: string) => {
   try {
-    console.log('Calling getClasses with params:', { page, limit, search })
+    console.log('🚀 getClasses chamado com:', { page, limit, search, classId })
+    
+    const params: any = {
+      page,
+      limit
+    }
+    
+    // Prioridade do classId sobre search conforme documentação
+    if (classId) {
+      params.classId = classId
+      console.log('📋 Usando parâmetro classId:', classId)
+    } else if (search) {
+      params.search = search
+      console.log('📋 Usando parâmetro search:', search)
+    }
+    
+    console.log('📡 Fazendo requisição para /superadmin/classes com params:', params)
     
     const response = await api.get('/superadmin/classes', {
-      params: {
-        page,
-        limit,
-        search
-      }
+      params
     })
     
-    console.log('getClasses response:', response)
-    console.log('getClasses response.data:', response.data)
+    console.log('✅ getClasses response status:', response.status)
+    console.log('✅ getClasses response.data:', response.data)
     
     return response.data
   } catch (error) {
@@ -2245,8 +2257,9 @@ export interface StudentGrade {
   id: string
   classId: string
   studentId: string
-  practicalGrade?: number
-  theoreticalGrade?: number
+  preGrade?: number         // Avaliação pré (0-10)
+  postGrade?: number        // Avaliação pós (0-10)
+  practicalGrade?: number   // Avaliação prática (0-10)
   observations?: string
   gradedAt: string
   gradedBy?: string
@@ -2272,8 +2285,9 @@ export interface StudentGrade {
 export interface StudentGradeInput {
   classId: string
   studentId: string
-  practicalGrade?: number
-  theoreticalGrade?: number
+  preGrade?: number         // Avaliação pré (0-10)
+  postGrade?: number        // Avaliação pós (0-10)
+  practicalGrade?: number   // Avaliação prática (0-10)
   observations?: string
 }
 
@@ -2286,17 +2300,25 @@ export interface ClassGradeStats {
   statistics: {
     studentsWithGrades: number
     studentsWithoutGrades: number
+    studentsWithPreGrade: number
+    studentsWithPostGrade: number
     studentsWithPracticalGrade: number
-    studentsWithTheoreticalGrade: number
+    averagePreGrade?: number
+    averagePostGrade?: number
     averagePracticalGrade?: number
-    averageTheoreticalGrade?: number
-    practicalGradeDistribution: {
+    preGradeDistribution: {
       excellent: number  // 9-10
       good: number       // 7-8.9
       average: number    // 5-6.9
       poor: number       // <5
     }
-    theoreticalGradeDistribution: {
+    postGradeDistribution: {
+      excellent: number
+      good: number
+      average: number
+      poor: number
+    }
+    practicalGradeDistribution: {
       excellent: number
       good: number
       average: number
@@ -2306,8 +2328,9 @@ export interface ClassGradeStats {
   gradedStudents: Array<{
     studentId: string
     studentName: string
+    preGrade?: number
+    postGrade?: number
     practicalGrade?: number
-    theoreticalGrade?: number
     observations?: string
     gradedAt: string
   }>
@@ -2359,8 +2382,9 @@ export async function deleteStudentGrade(classId: string, studentId: string): Pr
 export async function getAllStudentGrades(params?: {
   classId?: string
   studentId?: string
+  hasPreGrade?: boolean
+  hasPostGrade?: boolean
   hasPracticalGrade?: boolean
-  hasTheoreticalGrade?: boolean
   page?: number
   limit?: number
 }): Promise<{
@@ -2376,8 +2400,9 @@ export async function getAllStudentGrades(params?: {
   
   if (params?.classId) queryParams.append('classId', params.classId)
   if (params?.studentId) queryParams.append('studentId', params.studentId)
+  if (params?.hasPreGrade !== undefined) queryParams.append('hasPreGrade', params.hasPreGrade.toString())
+  if (params?.hasPostGrade !== undefined) queryParams.append('hasPostGrade', params.hasPostGrade.toString())
   if (params?.hasPracticalGrade !== undefined) queryParams.append('hasPracticalGrade', params.hasPracticalGrade.toString())
-  if (params?.hasTheoreticalGrade !== undefined) queryParams.append('hasTheoreticalGrade', params.hasTheoreticalGrade.toString())
   if (params?.page) queryParams.append('page', params.page.toString())
   if (params?.limit) queryParams.append('limit', params.limit.toString())
 
@@ -2821,8 +2846,9 @@ export async function getAllVehicles(): Promise<Vehicle[]> {
 // Interface para nota do aluno
 export interface StudentGrade {
   id: string
-  practicalGrade?: number
-  theoreticalGrade?: number
+  preGrade?: number         // Avaliação pré (0-10)
+  postGrade?: number        // Avaliação pós (0-10)
+  practicalGrade?: number   // Avaliação prática (0-10)
   observations?: string
   gradedAt: string
   gradedBy?: string
@@ -3913,7 +3939,196 @@ export const validateTrainingsExcel = async (file: File): Promise<ImportResponse
 }
 
 // ================================
-// AVALIAÇÕES DE TURMAS
+// LANÇAMENTO MANUAL DE ESTATÍSTICAS DE AVALIAÇÃO
+// ================================
+
+// Interface para estatísticas de notas (contagem por nota 1-5)
+export interface NotaStats {
+  nota1: number // quantos alunos deram nota 1
+  nota2: number // quantos alunos deram nota 2
+  nota3: number // quantos alunos deram nota 3
+  nota4: number // quantos alunos deram nota 4
+  nota5: number // quantos alunos deram nota 5
+}
+
+// Interface para dados de criação/atualização de estatísticas manuais
+export interface ManualEvaluationStatsData {
+  classId: string
+  collectedBy: string
+  totalEvaluationsCollected: number
+  
+  // Estatísticas de Conteúdo/Programa (4 campos)
+  contentAdequacyStats?: NotaStats
+  contentApplicabilityStats?: NotaStats
+  contentTheoryPracticeStats?: NotaStats
+  contentNewKnowledgeStats?: NotaStats
+  
+  // Estatísticas do Instrutor (5 campos)
+  instructorKnowledgeStats?: NotaStats
+  instructorDidacticStats?: NotaStats
+  instructorCommunicationStats?: NotaStats
+  instructorAssimilationStats?: NotaStats
+  instructorPracticalAppsStats?: NotaStats
+  
+  // Estatísticas de Infraestrutura (3 campos)
+  infrastructureFacilitiesStats?: NotaStats
+  infrastructureClassroomsStats?: NotaStats
+  infrastructureScheduleStats?: NotaStats
+  
+  // Estatísticas de Participação dos Alunos (4 campos)
+  participantsUnderstandingStats?: NotaStats
+  participantsRelationshipStats?: NotaStats
+  participantsConsiderationStats?: NotaStats
+  participantsInstructorRelStats?: NotaStats
+  
+  // Comentários e observações
+  collectedComments?: string
+  observations?: string
+}
+
+// Interface para resposta completa de estatísticas manuais
+export interface ManualEvaluationStatsResponse {
+  id: string
+  classId: string
+  collectedBy: string
+  totalEvaluationsCollected: number
+  classInfo: {
+    id: string
+    trainingTitle: string
+    totalStudents: number
+    clientName?: string
+    instructorName?: string
+  }
+  statistics: {
+    participationRate: number
+    contentStats: {
+      adequacy?: NotaStats
+      applicability?: NotaStats
+      theoryPractice?: NotaStats
+      newKnowledge?: NotaStats
+    }
+    instructorStats: {
+      knowledge?: NotaStats
+      didactic?: NotaStats
+      communication?: NotaStats
+      assimilation?: NotaStats
+      practicalApps?: NotaStats
+    }
+    infrastructureStats: {
+      facilities?: NotaStats
+      classrooms?: NotaStats
+      schedule?: NotaStats
+    }
+    participantsStats: {
+      understanding?: NotaStats
+      relationship?: NotaStats
+      consideration?: NotaStats
+      instructorRel?: NotaStats
+    }
+    averages: {
+      contentAverage?: number
+      instructorAverage?: number
+      infrastructureAverage?: number
+      participantsAverage?: number
+      overallAverage?: number
+    }
+  }
+  collectedComments?: string
+  observations?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// Interface para item da lista de estatísticas (resumida)
+export interface ManualEvaluationStatsListItem {
+  id: string
+  classId: string
+  collectedBy: string
+  totalEvaluationsCollected: number
+  classInfo: {
+    id: string
+    trainingTitle: string
+    totalStudents: number
+    clientName?: string
+    instructorName?: string
+  }
+  participationRate: number
+  hasContentStats: boolean
+  hasInstructorStats: boolean
+  hasInfrastructureStats: boolean
+  hasParticipantsStats: boolean
+  hasComments: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// FUNÇÕES DA API - ESTATÍSTICAS MANUAIS
+// ================================
+
+// 1. Criar Estatísticas Manuais
+export const createManualEvaluationStats = async (data: ManualEvaluationStatsData): Promise<ManualEvaluationStatsResponse> => {
+  console.log('Enviando dados para createManualEvaluationStats:', data)
+  try {
+    const response = await api.post('/superadmin/manual-evaluation-stats', data)
+    console.log('Resposta da API createManualEvaluationStats:', response.data)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro na API createManualEvaluationStats:', error)
+    console.error('Dados enviados:', data)
+    console.error('Response error:', error.response?.data)
+    throw error
+  }
+}
+
+// 2. Atualizar Estatísticas Manuais Existentes
+export const updateManualEvaluationStats = async (classId: string, data: Partial<ManualEvaluationStatsData>): Promise<ManualEvaluationStatsResponse> => {
+  console.log('Enviando dados para updateManualEvaluationStats:', { classId, data })
+  try {
+    const response = await api.put(`/superadmin/manual-evaluation-stats/${classId}`, data)
+    console.log('Resposta da API updateManualEvaluationStats:', response.data)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro na API updateManualEvaluationStats:', error)
+    console.error('ClassId:', classId)
+    console.error('Dados enviados:', data)
+    console.error('Response error:', error.response?.data)
+    throw error
+  }
+}
+
+// 3. Buscar Estatísticas de uma Turma
+export const getManualEvaluationStats = async (classId: string): Promise<ManualEvaluationStatsResponse> => {
+  const response = await api.get(`/superadmin/manual-evaluation-stats/${classId}`)
+  return response.data
+}
+
+// 4. Buscar Todas as Estatísticas com Filtros
+export const getAllManualEvaluationStats = async (params?: {
+  clientId?: string
+  instructorId?: string
+  collectedBy?: string
+  page?: number
+  limit?: number
+}): Promise<{
+  stats: ManualEvaluationStatsListItem[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}> => {
+  const response = await api.get('/superadmin/manual-evaluation-stats', { params })
+  return response.data
+}
+
+// 5. Remover Estatísticas
+export const deleteManualEvaluationStats = async (classId: string): Promise<{ id: string; message: string }> => {
+  const response = await api.delete(`/superadmin/manual-evaluation-stats/${classId}`)
+  return response.data
+}
+
+// AVALIAÇÕES DE TURMAS - SISTEMA LEGADO (mantido para compatibilidade)
 // ================================
 
 // Interface para dados de avaliação
@@ -4031,6 +4246,12 @@ export interface StudentEvaluations {
     }
   })[]
 }
+
+// FUNÇÕES DA API - AVALIAÇÕES ANÔNIMAS
+// ================================
+
+// FUNÇÕES DA API - SISTEMA LEGADO (mantido para compatibilidade)
+// ================================
 
 // 1. Criar/Atualizar Avaliação
 export const createClassEvaluation = async (evaluationData: ClassEvaluationData): Promise<ClassEvaluation> => {
