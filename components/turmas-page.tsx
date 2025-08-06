@@ -703,37 +703,46 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                         ID: {turma.id}
                       </p>
                     </div>
-                    {!isClientView && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewDetails(turma)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Ver Detalhes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleManageStudents(turma)}>
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Gerenciar Alunos
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleManageAttendance(turma)}>
-                            <ClipboardList className="mr-2 h-4 w-4" />
-                            Lista de Presença
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleGenerateAttendanceListPDF(turma)}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {isClientView ? (
+                          // Para usuários cliente: apenas Lista de Presença em PDF
+                          <DropdownMenuItem onClick={() => handleManageAttendanceList(turma)}>
                             <Download className="mr-2 h-4 w-4" />
-                            Listas de Presença em PDF
+                            Lista de Presença em PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setEditingTurma(turma)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Editar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                        ) : (
+                          // Para usuários admin: todas as opções
+                          <>
+                            <DropdownMenuItem onClick={() => handleViewDetails(turma)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Ver Detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleManageStudents(turma)}>
+                              <UserPlus className="mr-2 h-4 w-4" />
+                              Gerenciar Alunos
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleManageAttendance(turma)}>
+                              <ClipboardList className="mr-2 h-4 w-4" />
+                              Lista de Presença
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleManageAttendanceList(turma)}>
+                              <Download className="mr-2 h-4 w-4" />
+                              Lista de Presença em PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setEditingTurma(turma)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardHeader>
                 
@@ -869,17 +878,6 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                     >
                       <FolderOpen className="h-4 w-4" />
                       Evidências
-                    </Button>
-
-                    {/* Botão Lista de Presença - Disponível para usuários cliente */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-2 border-green-200 text-green-700 hover:bg-green-50"
-                      onClick={() => handleManageAttendanceList(turma)}
-                    >
-                      <FileText className="h-4 w-4" />
-                      Lista de Presença
                     </Button>
                   </div>
                 </CardContent>
