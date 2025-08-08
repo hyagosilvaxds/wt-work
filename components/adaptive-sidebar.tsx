@@ -104,10 +104,10 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
   // Gerador de Certificados (temporário para demonstração)
   // Gerador de certificados removido do menu - integrado na tela de certificados
   
-  // Financeiro - TEMPORARIAMENTE OCULTO
-  // if (hasPermission('VIEW_FINANCIAL') || hasPermission('VIEW_ACCOUNTS_RECEIVABLE') || hasPermission('VIEW_ACCOUNTS_PAYABLE') || hasPermission('VIEW_CASH_FLOW')) {
-  //   items.push({ id: "financial", label: "Financeiro", icon: DollarSign, badge: null })
-  // }
+  // Financeiro
+  if (hasPermission('VIEW_FINANCIAL') || hasPermission('VIEW_ACCOUNTS_RECEIVABLE') || hasPermission('VIEW_ACCOUNTS_PAYABLE') || hasPermission('VIEW_CASH_FLOW')) {
+    items.push({ id: "financial", label: "Financeiro", icon: DollarSign, badge: null })
+  }
   
   // Relatórios - TEMPORARIAMENTE OCULTO
   // if (hasPermission('VIEW_REPORTS') || hasPermission('VIEW_FINANCIAL_REPORTS') || hasPermission('VIEW_ANALYTICS')) {

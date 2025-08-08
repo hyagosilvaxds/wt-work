@@ -36,7 +36,7 @@ export function MonthlyComparisonChart({ data }: MonthlyComparisonChartProps) {
 
       // Container para as barras
       const barsContainer = document.createElement("div")
-      barsContainer.className = "h-56 w-full flex justify-center space-x-1"
+      barsContainer.className = "h-56 w-full flex justify-center items-end space-x-1"
 
       // Barra de valores recebidos
       const receivedBar = document.createElement("div")

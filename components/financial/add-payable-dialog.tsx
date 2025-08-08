@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,10 +17,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Calendar as CalendarIcon, Plus } from "lucide-react"
+import { Calendar as CalendarIcon, Plus, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { bankAccountsApi, type BankAccount } from "@/lib/api/financial"
+import { useToast } from "@/hooks/use-toast"
 
 interface AddPayableDialogProps {
   isOpen: boolean
@@ -29,6 +31,8 @@ interface AddPayableDialogProps {
 }
 
 export function AddPayableDialog({ isOpen, onClose, onSave }: AddPayableDialogProps) {
+  const { toast } = useToast()
+  
   const [formData, setFormData] = useState({
     supplier: "",
     description: "",
@@ -44,6 +48,40 @@ export function AddPayableDialog({ isOpen, onClose, onSave }: AddPayableDialogPr
     priority: "medium",
   })
 
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [loadingAccounts, setLoadingAccounts] = useState(false)
+
+  // Carregar contas bancárias
+  useEffect(() => {
+    if (isOpen) {
+      loadBankAccounts()
+    }
+  }, [isOpen])
+
+  const loadBankAccounts = async () => {
+    try {
+      setLoadingAccounts(true)
+      const response = await bankAccountsApi.getAll()
+      
+      // Verificar se response é um array ou um objeto com dados
+      const accounts = Array.isArray(response) 
+        ? response 
+        : response?.data || response?.items || []
+      
+      setBankAccounts(accounts)
+    } catch (error) {
+      console.error("Erro ao carregar contas bancárias:", error)
+      toast({
+        title: "Aviso",
+        description: "Erro ao carregar contas bancárias. Tente novamente.",
+        variant: "destructive",
+      })
+      setBankAccounts([]) // Use array vazio como fallback
+    } finally {
+      setLoadingAccounts(false)
+    }
+  }
+
   const paymentMethods = [
     "Transferência Bancária",
     "PIX",
@@ -53,13 +91,6 @@ export function AddPayableDialog({ isOpen, onClose, onSave }: AddPayableDialogPr
     "Débito Automático",
     "Dinheiro",
     "Cheque"
-  ]
-
-  const accounts = [
-    { id: "1", name: "Conta Corrente Banco do Brasil" },
-    { id: "2", name: "Conta Corrente Itaú" },
-    { id: "3", name: "Conta Poupança Caixa" },
-    { id: "4", name: "Cartão de Crédito" }
   ]
 
   const categories = [
@@ -93,8 +124,12 @@ export function AddPayableDialog({ isOpen, onClose, onSave }: AddPayableDialogPr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.supplier || !formData.value || !formData.dueDate) {
-      alert("Preencha todos os campos obrigatórios")
+    if (!formData.supplier || !formData.value || !formData.dueDate || !formData.accountId) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha todos os campos obrigatórios: Fornecedor, Valor, Data de Vencimento e Conta de Débito",
+        variant: "destructive",
+      })
       return
     }
 
@@ -296,19 +331,42 @@ export function AddPayableDialog({ isOpen, onClose, onSave }: AddPayableDialogPr
 
             {/* Conta */}
             <div className="space-y-2">
-              <Label>Conta de Débito</Label>
-              <Select value={formData.accountId} onValueChange={(value) => setFormData(prev => ({ ...prev, accountId: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a conta" />
+              <Label>Conta de Débito <span className="text-red-500">*</span></Label>
+              <Select 
+                value={formData.accountId} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, accountId: value }))}
+                disabled={loadingAccounts}
+              >
+                <SelectTrigger className={!formData.accountId ? "border-red-300" : ""}>
+                  <SelectValue placeholder={
+                    loadingAccounts 
+                      ? "Carregando contas..." 
+                      : bankAccounts.length === 0 
+                        ? "Nenhuma conta disponível" 
+                        : "Selecione a conta"
+                  } />
                 </SelectTrigger>
                 <SelectContent>
-                  {accounts.map(account => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
+                  {bankAccounts.length > 0 ? (
+                    bankAccounts.map(account => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.nome} - {account.banco} 
+                        {account.isMain && " (Principal)"}
+                      </SelectItem>
+                    ))
+                  ) : !loadingAccounts ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      Nenhuma conta bancária encontrada
+                    </div>
+                  ) : null}
                 </SelectContent>
               </Select>
+              {loadingAccounts && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Carregando contas bancárias...
+                </div>
+              )}
             </div>
           </div>
 

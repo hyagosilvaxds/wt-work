@@ -215,19 +215,18 @@ export function DateRangePicker({
           </Button>
         </DialogTrigger>
         
-        {/* Modal rolável - solução simples */}
-        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 flex flex-col">
           {isMobile ? (
             // Layout mobile com abas
-            <div className="w-full max-w-[400px] mx-auto">
+            <div className="w-full max-w-[400px] mx-auto flex flex-col h-full">
               {/* Header */}
-              <div className="p-4 border-b">
+              <div className="p-4 border-b flex-shrink-0">
                 <h3 className="font-semibold text-lg">Selecionar Período</h3>
                 <p className="text-sm text-muted-foreground">Escolha um período predefinido ou use o calendário</p>
               </div>
 
               {/* Abas de navegação */}
-              <div className="border-b p-2">
+              <div className="border-b p-2 flex-shrink-0">
                 <div className="flex space-x-1">
                   <Button
                     variant={activeTab === "presets" ? "default" : "ghost"}
@@ -249,10 +248,10 @@ export function DateRangePicker({
               </div>
 
               {/* Conteúdo das abas */}
-              {activeTab === "presets" && showPresets && (
-                <div className="h-[400px]">
+              <div className="flex-1 overflow-hidden">
+                {activeTab === "presets" && showPresets && (
                   <ScrollArea className="h-full">
-                    <div className="p-4 space-y-4">
+                    <div className="p-4 space-y-4 pb-6">
                       {/* Recentes */}
                       <div>
                         <h5 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
@@ -316,98 +315,100 @@ export function DateRangePicker({
                       </div>
                     </div>
                   </ScrollArea>
-                </div>
-              )}
+                )}
 
-              {activeTab === "calendars" && (
-                <div className="p-4 space-y-6">
-                  {/* Seleção de Data de Início */}
-                  <div>
-                    <label className="text-sm font-medium mb-3 block">Data de Início</label>
-                    <div className="p-3 border rounded-lg">
-                      <div className="text-center text-sm font-medium mb-3 text-primary">
-                        {formatSingleDate(tempFromDate)}
+                {activeTab === "calendars" && (
+                  <ScrollArea className="h-full">
+                    <div className="p-4 space-y-6 pb-6">
+                      {/* Seleção de Data de Início */}
+                      <div>
+                        <label className="text-sm font-medium mb-3 block">Data de Início</label>
+                        <div className="p-3 border rounded-lg">
+                          <div className="text-center text-sm font-medium mb-3 text-primary">
+                            {formatSingleDate(tempFromDate)}
+                          </div>
+                          <Calendar
+                            mode="single"
+                            selected={tempFromDate}
+                            onSelect={handleFromDateSelect}
+                            locale={ptBR}
+                            showOutsideDays={true}
+                            className="rounded-md"
+                            disabled={(date) => tempToDate ? date > tempToDate : false}
+                          />
+                        </div>
                       </div>
-                      <Calendar
-                        mode="single"
-                        selected={tempFromDate}
-                        onSelect={handleFromDateSelect}
-                        locale={ptBR}
-                        showOutsideDays={true}
-                        className="rounded-md"
-                        disabled={(date) => tempToDate ? date > tempToDate : false}
-                      />
-                    </div>
-                  </div>
 
-                  <Separator />
+                      <Separator />
 
-                  {/* Seleção de Data de Fim */}
-                  <div>
-                    <label className="text-sm font-medium mb-3 block">Data de Fim</label>
-                    <div className="p-3 border rounded-lg">
-                      <div className="text-center text-sm font-medium mb-3 text-primary">
-                        {formatSingleDate(tempToDate)}
+                      {/* Seleção de Data de Fim */}
+                      <div>
+                        <label className="text-sm font-medium mb-3 block">Data de Fim</label>
+                        <div className="p-3 border rounded-lg">
+                          <div className="text-center text-sm font-medium mb-3 text-primary">
+                            {formatSingleDate(tempToDate)}
+                          </div>
+                          <Calendar
+                            mode="single"
+                            selected={tempToDate}
+                            onSelect={handleToDateSelect}
+                            locale={ptBR}
+                            showOutsideDays={true}
+                            className="rounded-md"
+                            disabled={(date) => tempFromDate ? date < tempFromDate : false}
+                          />
+                        </div>
                       </div>
-                      <Calendar
-                        mode="single"
-                        selected={tempToDate}
-                        onSelect={handleToDateSelect}
-                        locale={ptBR}
-                        showOutsideDays={true}
-                        className="rounded-md"
-                        disabled={(date) => tempFromDate ? date < tempFromDate : false}
-                      />
-                    </div>
-                  </div>
 
-                  {/* Botão de confirmação quando há mudanças pendentes */}
-                  {hasChanges && (tempFromDate || tempToDate) && (
-                    <div className="pt-4 border-t">
-                      <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Período selecionado:</span>
-                          <div className="text-sm text-primary font-medium">
-                            {tempFromDate && tempToDate ? (
-                              `${formatSingleDate(tempFromDate)} - ${formatSingleDate(tempToDate)}`
-                            ) : tempFromDate ? (
-                              `A partir de ${formatSingleDate(tempFromDate)}`
-                            ) : (
-                              `Até ${formatSingleDate(tempToDate)}`
-                            )}
+                      {/* Botão de confirmação quando há mudanças pendentes */}
+                      {hasChanges && (tempFromDate || tempToDate) && (
+                        <div className="pt-4 border-t">
+                          <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">Período selecionado:</span>
+                              <div className="text-sm text-primary font-medium">
+                                {tempFromDate && tempToDate ? (
+                                  `${formatSingleDate(tempFromDate)} - ${formatSingleDate(tempToDate)}`
+                                ) : tempFromDate ? (
+                                  `A partir de ${formatSingleDate(tempFromDate)}`
+                                ) : (
+                                  `Até ${formatSingleDate(tempToDate)}`
+                                )}
+                              </div>
+                            </div>
+                            <Button 
+                              onClick={applyDateRange}
+                              className="w-full"
+                              disabled={!tempFromDate}
+                            >
+                              Confirmar e Aplicar Período
+                            </Button>
                           </div>
                         </div>
-                        <Button 
-                          onClick={applyDateRange}
-                          className="w-full"
-                          disabled={!tempFromDate}
-                        >
-                          Confirmar e Aplicar Período
-                        </Button>
-                      </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
+                  </ScrollArea>
+                )}
+              </div>
             </div>
           ) : (
             // Layout desktop
-            <div className="w-full max-w-[1000px] mx-auto">
+            <div className="w-full max-w-[1000px] mx-auto flex flex-col h-full">
               {/* Header */}
-              <div className="p-6 border-b">
+              <div className="p-6 border-b flex-shrink-0">
                 <h3 className="font-semibold text-xl">Selecionar Período</h3>
                 <p className="text-sm text-muted-foreground mt-1">Escolha um período predefinido ou use os calendários para seleção personalizada</p>
               </div>
 
-              <div className="flex">
+              <div className="flex flex-1 overflow-hidden">
                 {/* Predefinições */}
                 {showPresets && (
-                  <div className="w-64 border-r border-border">
+                  <div className="w-64 border-r border-border flex-shrink-0">
                     <div className="p-4 border-b border-border">
                       <h4 className="font-medium text-sm">Períodos Rápidos</h4>
                     </div>
-                    <ScrollArea className="h-[500px]">
-                      <div className="p-4 space-y-4">
+                    <ScrollArea className="h-full">
+                      <div className="p-4 space-y-4 pb-6">
                         {/* Recentes */}
                         <div>
                           <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
@@ -475,7 +476,7 @@ export function DateRangePicker({
                 )}
                 
                 {/* Calendários Duplos */}
-                <div className="flex-1 p-6">
+                <div className="flex-1 p-6 overflow-y-auto">
                   <div className="grid grid-cols-2 gap-8">
                     {/* Calendário de Início */}
                     <div>
@@ -559,7 +560,7 @@ export function DateRangePicker({
                   </div>
 
                   {/* Indicador visual de conexão e botão de confirmação */}
-                  <div className="flex items-center justify-center mt-6 space-y-4">
+                  <div className="flex items-center justify-center mt-6">
                     <div className="flex flex-col items-center space-y-4">
                       <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                         <ArrowRight className="h-4 w-4" />
@@ -598,8 +599,8 @@ export function DateRangePicker({
             </div>
           )}
           
-          {/* Rodapé com ações */}
-          <div className="border-t border-border p-4 flex flex-col sm:flex-row gap-3 sm:justify-between bg-muted/20">
+          {/* Rodapé com ações - sempre visível na parte inferior */}
+          <div className="border-t border-border p-4 flex flex-col sm:flex-row gap-3 sm:justify-between bg-muted/20 flex-shrink-0">
             <div className="flex gap-3 items-center">
               <Button
                 variant="outline"

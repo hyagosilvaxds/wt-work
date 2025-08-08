@@ -222,17 +222,17 @@ export function ClientExcelManager() {
                 <div className="space-y-2">
                   <Label htmlFor="person-type">Tipo de Pessoa</Label>
                   <Select 
-                    value={exportFilters.personType || ''} 
+                    value={exportFilters.personType || 'all'} 
                     onValueChange={(value) => setExportFilters(prev => ({ 
                       ...prev, 
-                      personType: value as 'FISICA' | 'JURIDICA' | undefined 
+                      personType: value === 'all' ? undefined : value as 'FISICA' | 'JURIDICA' 
                     }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="FISICA">Pessoa Física</SelectItem>
                       <SelectItem value="JURIDICA">Pessoa Jurídica</SelectItem>
                     </SelectContent>
@@ -242,17 +242,17 @@ export function ClientExcelManager() {
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
                   <Select 
-                    value={exportFilters.isActive === undefined ? '' : exportFilters.isActive.toString()} 
+                    value={exportFilters.isActive === undefined ? 'all' : exportFilters.isActive.toString()} 
                     onValueChange={(value) => setExportFilters(prev => ({ 
                       ...prev, 
-                      isActive: value === '' ? undefined : value === 'true' 
+                      isActive: value === 'all' ? undefined : value === 'true' 
                     }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="true">Ativo</SelectItem>
                       <SelectItem value="false">Inativo</SelectItem>
                     </SelectContent>

@@ -214,12 +214,12 @@ export function DateRangePicker({
             {!date?.from && <ChevronDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />}
           </Button>
         </DialogTrigger>
-        
-        {/* Modal rolável - solução simples */}
-        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent 
+          className="max-w-[95vw] max-h-[90vh] p-0 flex flex-col" 
+        >
           {isMobile ? (
             // Layout mobile com abas
-            <div className="w-full max-w-[400px] mx-auto">
+            <div className="w-full max-w-[400px] mx-auto flex flex-col flex-1 overflow-hidden">
               {/* Header */}
               <div className="p-4 border-b">
                 <h3 className="font-semibold text-lg">Selecionar Período</h3>
@@ -249,10 +249,11 @@ export function DateRangePicker({
               </div>
 
               {/* Conteúdo das abas */}
-              {activeTab === "presets" && showPresets && (
-                <div className="h-[400px]">
-                  <ScrollArea className="h-full">
-                    <div className="p-4 space-y-4">
+              <div className="flex-1 overflow-hidden">
+                {activeTab === "presets" && showPresets && (
+                  <div className="h-full">
+                    <ScrollArea className="h-full">
+                      <div className="p-4 space-y-4 pb-20">
                       {/* Recentes */}
                       <div>
                         <h5 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
@@ -320,7 +321,7 @@ export function DateRangePicker({
               )}
 
               {activeTab === "calendars" && (
-                <div className="p-4 space-y-6">
+                <div className="p-4 space-y-6 max-h-[400px] overflow-y-auto pb-20">
                   {/* Seleção de Data de Início */}
                   <div>
                     <label className="text-sm font-medium mb-3 block">Data de Início</label>
@@ -388,7 +389,6 @@ export function DateRangePicker({
                     </div>
                   )}
                 </div>
-              )}
             </div>
           ) : (
             // Layout desktop
@@ -599,7 +599,7 @@ export function DateRangePicker({
           )}
           
           {/* Rodapé com ações */}
-          <div className="border-t border-border p-4 flex flex-col sm:flex-row gap-3 sm:justify-between bg-muted/20">
+          <div className="border-t border-border p-4 flex flex-col sm:flex-row gap-3 sm:justify-between bg-muted/20 mt-auto sticky bottom-0">
             <div className="flex gap-3 items-center">
               <Button
                 variant="outline"

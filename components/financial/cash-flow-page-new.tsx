@@ -1,15 +1,22 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   ArrowUpRight,
   ArrowDownLeft,
+  Filter,
   Download,
   DollarSign,
   TrendingUp,
   TrendingDown,
+  Search,
   Loader2,
   BarChart3,
   Eye,
@@ -27,19 +34,18 @@ import {
   type CashFlowFilters,
   CASH_FLOW_CATEGORIES,
   CASH_FLOW_ORIGINS,
-  PAYMENT_METHODS,
 } from "@/lib/api/financial"
 
 interface CashFlowPageProps {
-  searchTerm: string
-  dateRange: DateRange | undefined
-  selectedAccounts: string[]
-  selectedPaymentMethods: string[]
+  searchTerm?: string
+  dateRange?: DateRange | undefined
+  selectedAccounts?: string[]
+  selectedPaymentMethods?: string[]
 }
 
 export function CashFlowPage({
-  searchTerm,
-  dateRange,
+  searchTerm: externalSearchTerm,
+  dateRange: externalDateRange,
   selectedAccounts,
   selectedPaymentMethods,
 }: CashFlowPageProps) {
@@ -51,6 +57,18 @@ export function CashFlowPage({
   const [loadingTransactions, setLoadingTransactions] = useState(false)
   const [bankAccounts, setBankAccounts] = useState<any[]>([])
   
+  // Estados locais para filtros
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(
+    externalDateRange || {
+      from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+      to: new Date(),
+    }
+  )
+  const [selectedAccount, setSelectedAccount] = useState<string>("all")
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [searchTerm, setSearchTerm] = useState<string>(externalSearchTerm || "")
+  const [currentPage, setCurrentPage] = useState(1)
+
   // Carregar dados iniciais
   useEffect(() => {
     loadInitialData()
@@ -59,12 +77,12 @@ export function CashFlowPage({
   // Carregar transações quando filtros mudarem
   useEffect(() => {
     loadTransactions()
-  }, [dateRange, selectedAccounts, selectedPaymentMethods, searchTerm])
+  }, [dateRange, selectedAccount, selectedCategory, searchTerm, currentPage])
 
   // Carregar estatísticas quando filtros relevantes mudarem
   useEffect(() => {
     loadStatistics()
-  }, [dateRange, selectedAccounts])
+  }, [dateRange, selectedAccount])
 
   const loadInitialData = async () => {
     try {
@@ -110,7 +128,7 @@ export function CashFlowPage({
 
   const buildFilters = (): CashFlowFilters => {
     const filters: CashFlowFilters = {
-      page: 1,
+      page: currentPage,
       limit: pagination.limit,
     }
 
@@ -120,8 +138,11 @@ export function CashFlowPage({
     if (dateRange?.to) {
       filters.endDate = format(dateRange.to, "yyyy-MM-dd")
     }
-    if (selectedAccounts.length > 0) {
-      filters.bankAccountId = selectedAccounts[0] // Usar primeira conta selecionada
+    if (selectedAccount !== "all") {
+      filters.bankAccountId = selectedAccount
+    }
+    if (selectedCategory !== "all") {
+      filters.categoria = selectedCategory as any
     }
     if (searchTerm) {
       filters.search = searchTerm
@@ -151,11 +172,7 @@ export function CashFlowPage({
       setLoadingTransactions(true)
       const filters = buildFilters()
       
-      console.log('🔍 Carregando transações com filtros:', filters)
-      
       const response = await cashFlowApi.getTransactions(filters).catch(() => getMockTransactions())
-      
-      console.log('📊 Resposta da API de transações:', response)
       
       setTransactions(response.data || [])
       setPagination(response.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 })
@@ -176,7 +193,7 @@ export function CashFlowPage({
       period: {
         startDate: format(dateRange?.from || new Date(), "yyyy-MM-dd"),
         endDate: format(dateRange?.to || new Date(), "yyyy-MM-dd"),
-        bankAccountId: selectedAccounts.length > 0 ? selectedAccounts[0] : null
+        bankAccountId: selectedAccount !== "all" ? selectedAccount : null
       },
       summary: {
         totalEntradas: 125450.75,
@@ -250,31 +267,6 @@ export function CashFlowPage({
       style: 'currency',
       currency: 'BRL'
     }).format(value)
-  }
-
-  // 📊 EXCEL - Handler para exportação
-  const handleExportToExcel = async () => {
-    try {
-      const filters = buildFilters()
-      // Remover paginação para exportar todos os dados
-      delete filters.page
-      delete filters.limit
-      
-      await cashFlowApi.exportToExcel(filters)
-      
-      toast({
-        title: "Sucesso!",
-        description: "Fluxo de caixa exportado para Excel com sucesso!",
-        duration: 3000,
-      })
-    } catch (error) {
-      console.error("Erro ao exportar fluxo de caixa para Excel:", error)
-      toast({
-        title: "Erro",
-        description: "Erro ao exportar fluxo de caixa para Excel",
-        variant: "destructive",
-      })
-    }
   }
 
   const getTransactionTypeIcon = (type: string) => {
@@ -375,6 +367,68 @@ export function CashFlowPage({
         </div>
       )}
 
+      {/* Filtros */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Filter className="w-5 h-5 mr-2" />
+            Filtros
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Conta Bancária */}
+            <div className="space-y-2">
+              <Label>Conta Bancária</Label>
+              <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas as contas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as contas</SelectItem>
+                  {bankAccounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.nome} - {account.banco}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Categoria */}
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas as categorias" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  {CASH_FLOW_CATEGORIES.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Busca */}
+            <div className="space-y-2">
+              <Label>Buscar</Label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar transações..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Tabela de Transações */}
       <Card>
@@ -387,9 +441,9 @@ export function CashFlowPage({
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleExportToExcel}>
+              <Button variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
-                Exportar Excel
+                Exportar
               </Button>
             </div>
           </div>
@@ -416,73 +470,84 @@ export function CashFlowPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                        {loadingTransactions ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Carregando transações...
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <p>Nenhuma transação encontrada</p>
-                          </div>
-                        )}
+                  {transactions.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell>
+                        {format(new Date(transaction.data), "dd/MM/yyyy", { locale: ptBR })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getTransactionTypeIcon(transaction.tipo)}
+                          <span className={getTransactionTypeColor(transaction.tipo)}>
+                            {transaction.tipo === "ENTRADA" ? "Entrada" : "Saída"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{transaction.descricao}</p>
+                          <p className="text-sm text-gray-500">{transaction.numeroDocumento}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {getCategoryLabel(transaction.categoria)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{transaction.contaBancaria.nome}</p>
+                          <p className="text-sm text-gray-500">{transaction.contaBancaria.banco}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {getOriginLabel(transaction.origem)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={getTransactionTypeColor(transaction.tipo)}>
+                          {formatCurrency(transaction.valor)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    transactions.map((transaction) => (
-                      <TableRow key={transaction.id}>
-                        <TableCell>
-                          {format(new Date(transaction.data), "dd/MM/yyyy", { locale: ptBR })}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getTransactionTypeIcon(transaction.tipo)}
-                            <span className={getTransactionTypeColor(transaction.tipo)}>
-                              {transaction.tipo === "ENTRADA" ? "Entrada" : "Saída"}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{transaction.descricao}</p>
-                            <p className="text-sm text-gray-500">{transaction.numeroDocumento}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {getCategoryLabel(transaction.categoria)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{transaction.contaBancaria.nome}</p>
-                            <p className="text-sm text-gray-500">{transaction.contaBancaria.banco}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {getOriginLabel(transaction.origem)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className={getTransactionTypeColor(transaction.tipo)}>
-                            {formatCurrency(transaction.valor)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
 
+              {/* Paginação */}
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-gray-500">
+                    Mostrando {((currentPage - 1) * pagination.limit) + 1} a{" "}
+                    {Math.min(currentPage * pagination.limit, pagination.total)} de{" "}
+                    {pagination.total} resultados
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === pagination.totalPages}
+                    >
+                      Próximo
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </CardContent>

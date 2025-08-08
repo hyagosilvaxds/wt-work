@@ -156,23 +156,7 @@ export function FinancialDashboardContent({
         },
         paymentMethods: null,
         receivablesTimeline: null,
-        payablesTimeline: {
-          year: 2024,
-          months: Array.from({ length: 12 }, (_, i) => ({
-            month: i + 1,
-            monthName: format(new Date(2024, i), 'MMMM', { locale: ptBR }),
-            totalToPay: 5000 + Math.random() * 2000,
-            totalPaid: 4500 + Math.random() * 1500,
-            pending: 500 + Math.random() * 500,
-            overdue: Math.random() * 200,
-          })),
-          totals: {
-            yearToPay: 72000,
-            yearPaid: 66000,
-            yearPending: 6000,
-            yearOverdue: 1200,
-          }
-        },
+        payablesTimeline: null,
         monthlyCashFlow: null,
       })
     } finally {
@@ -305,8 +289,10 @@ export function FinancialDashboardContent({
       <Tabs value={dashboardTab} onValueChange={setDashboardTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="monthly">Análise Mensal</TabsTrigger>
           <TabsTrigger value="receivables">Contas a Receber</TabsTrigger>
           <TabsTrigger value="payables">Contas a Pagar</TabsTrigger>
+          <TabsTrigger value="methods">Métodos de Pagamento</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -315,6 +301,20 @@ export function FinancialDashboardContent({
               <CardHeader>
                 <CardTitle>Comparação Mensal</CardTitle>
                 <CardDescription>Receitas e despesas por mês</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MonthlyComparisonChart data={monthlyData} />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="monthly" className="space-y-4">
+          {monthlyData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Análise Detalhada Mensal</CardTitle>
+                <CardDescription>Breakdown completo de receitas e despesas</CardDescription>
               </CardHeader>
               <CardContent>
                 <MonthlyComparisonChart data={monthlyData} />
@@ -366,6 +366,34 @@ export function FinancialDashboardContent({
                 />
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="methods" className="space-y-4">
+          {paymentMethodsData.received.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Valores Recebidos por Método</CardTitle>
+                  <CardDescription>Distribuição dos recebimentos por método de pagamento</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PaymentMethodDistributionChart data={paymentMethodsData.received} type="received" />
+                </CardContent>
+              </Card>
+              
+              {paymentMethodsData.paid.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Valores Pagos por Método</CardTitle>
+                    <CardDescription>Distribuição dos pagamentos por método</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <PaymentMethodDistributionChart data={paymentMethodsData.paid} type="paid" />
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
         </TabsContent>
       </Tabs>

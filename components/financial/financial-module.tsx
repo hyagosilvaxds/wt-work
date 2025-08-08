@@ -5,20 +5,20 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Filter, Upload, Calendar, ChevronDown, X, RefreshCw } from "lucide-react"
+import { Plus, Search, Upload, Calendar, RefreshCw, Download, FileDown } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
 import { AccountsContent } from "./accounts-content"
 import { AccountsReceivablePage } from "./accounts-receivable-page"
 import { AccountsPayablePage } from "./accounts-payable-page"
 import { CashFlowPage } from "./cash-flow-page"
 import { FinancialDashboardContent } from "./dashboard/financial-dashboard-content"
 import { FinancialReports } from "./reports/financial-reports"
-import { DatePickerWithRange } from "../ui/date-range-picker"
+import { DateRangePicker } from "../ui/date-range-picker"
 import type { DateRange } from "react-day-picker"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { bankAccountsApi, accountsReceivableApi, accountsPayableApi } from "@/lib/api/financial"
+import { toast } from "@/hooks/use-toast"
 
 export function FinancialModule() {
   const [activeTab, setActiveTab] = useState("dashboard")
@@ -26,6 +26,8 @@ export function FinancialModule() {
   const [isAddReceivableDialogOpen, setIsAddReceivableDialogOpen] = useState(false)
   const [isAddPayableDialogOpen, setIsAddPayableDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [isImportReceivableDialogOpen, setIsImportReceivableDialogOpen] = useState(false)
+  const [isImportPayableDialogOpen, setIsImportPayableDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(2024, 0, 1),
@@ -33,45 +35,120 @@ export function FinancialModule() {
   })
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([])
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([])
-  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
 
-  // Dados de exemplo para contas e métodos de pagamento
-  const accounts = [
-    { id: "1", name: "Conta Principal" },
-    { id: "2", name: "Conta Poupança" },
-    { id: "3", name: "Conta Investimentos" },
-    { id: "4", name: "Caixa" },
-    { id: "5", name: "Cartão Corporativo" },
-  ]
-
-  const paymentMethods = [
-    { id: "1", name: "Transferência" },
-    { id: "2", name: "PIX" },
-    { id: "3", name: "Boleto" },
-    { id: "4", name: "Cartão de Crédito" },
-    { id: "5", name: "Dinheiro" },
-    { id: "6", name: "Cheque" },
-  ]
-
-  const handleAccountCheckboxChange = (accountId: string) => {
-    setSelectedAccounts((prev) =>
-      prev.includes(accountId) ? prev.filter((id) => id !== accountId) : [...prev, accountId],
-    )
+  // Funções para os botões de Excel
+  const handleExportToExcel = async () => {
+    try {
+      setIsExporting(true)
+      await bankAccountsApi.exportToExcel({ activeOnly: true })
+      toast({
+        title: "Sucesso",
+        description: "Contas bancárias exportadas com sucesso",
+      })
+    } catch (error: any) {
+      console.error('Erro ao exportar:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao exportar contas bancárias",
+        variant: "destructive"
+      })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
-  const handlePaymentMethodCheckboxChange = (methodId: string) => {
-    setSelectedPaymentMethods((prev) =>
-      prev.includes(methodId) ? prev.filter((id) => id !== methodId) : [...prev, methodId],
-    )
+  const handleDownloadTemplate = async () => {
+    try {
+      await bankAccountsApi.downloadTemplate()
+      toast({
+        title: "Sucesso",
+        description: "Template baixado com sucesso",
+      })
+    } catch (error: any) {
+      console.error('Erro ao baixar template:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao baixar template",
+        variant: "destructive"
+      })
+    }
   }
 
-  const clearFilters = () => {
-    setSelectedAccounts([])
-    setSelectedPaymentMethods([])
-    setDateRange({
-      from: new Date(2024, 0, 1),
-      to: new Date(),
-    })
+  // Handlers para Contas a Receber
+  const handleExportReceivablesToExcel = async () => {
+    try {
+      setIsExporting(true)
+      await accountsReceivableApi.exportToExcel()
+      toast({
+        title: "Sucesso",
+        description: "Contas a receber exportadas com sucesso",
+      })
+    } catch (error: any) {
+      console.error('Erro ao exportar contas a receber:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao exportar contas a receber",
+        variant: "destructive"
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleDownloadReceivableTemplate = async () => {
+    try {
+      await accountsReceivableApi.downloadTemplate()
+      toast({
+        title: "Sucesso",
+        description: "Template de contas a receber baixado com sucesso",
+      })
+    } catch (error: any) {
+      console.error('Erro ao baixar template de contas a receber:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao baixar template de contas a receber",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Handlers para Contas a Pagar
+  const handleExportPayablesToExcel = async () => {
+    try {
+      setIsExporting(true)
+      await accountsPayableApi.exportToExcel()
+      toast({
+        title: "Sucesso",
+        description: "Contas a pagar exportadas com sucesso",
+      })
+    } catch (error: any) {
+      console.error('Erro ao exportar contas a pagar:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao exportar contas a pagar",
+        variant: "destructive"
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleDownloadPayableTemplate = async () => {
+    try {
+      await accountsPayableApi.downloadTemplate()
+      toast({
+        title: "Sucesso",
+        description: "Template de contas a pagar baixado com sucesso",
+      })
+    } catch (error: any) {
+      console.error('Erro ao baixar template de contas a pagar:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao baixar template de contas a pagar",
+        variant: "destructive"
+      })
+    }
   }
 
   const getActionButton = () => {
@@ -85,24 +162,114 @@ export function FinancialModule() {
         )
       case "accounts":
         return (
-          <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => setIsAddAccountDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Conta
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={handleDownloadTemplate}
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              Template
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportToExcel}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar Excel
+                </>
+              )}
+            </Button>
+            <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Importar Excel
+            </Button>
+            <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => setIsAddAccountDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova Conta
+            </Button>
+          </>
         )
       case "receivable":
         return (
-          <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => setIsAddReceivableDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Conta a Receber
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={handleDownloadReceivableTemplate}
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              Template
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportReceivablesToExcel}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar Excel
+                </>
+              )}
+            </Button>
+            <Button variant="outline" onClick={() => setIsImportReceivableDialogOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Importar Excel
+            </Button>
+            <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => setIsAddReceivableDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova Conta a Receber
+            </Button>
+          </>
         )
       case "payable":
         return (
-          <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => setIsAddPayableDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Conta a Pagar
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={handleDownloadPayableTemplate}
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              Template
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportPayablesToExcel}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar Excel
+                </>
+              )}
+            </Button>
+            <Button variant="outline" onClick={() => setIsImportPayableDialogOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Importar Excel
+            </Button>
+            <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => setIsAddPayableDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova Conta a Pagar
+            </Button>
+          </>
         )
       case "cash-flow":
         return null // Botão já existe na própria página
@@ -126,10 +293,6 @@ export function FinancialModule() {
           <p className="text-gray-600">Gerencie contas, receitas, despesas e análises financeiras</p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
-            <Upload className="mr-2 h-4 w-4" />
-            Importar
-          </Button>
           {getActionButton()}
         </div>
       </div>
@@ -168,77 +331,13 @@ export function FinancialModule() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-              </PopoverContent>
-            </Popover>
-
-            {/* Filtros Avançados */}
-            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[160px]">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Filtros
-                  {(selectedAccounts.length > 0 || selectedPaymentMethods.length > 0) && (
-                    <span className="ml-2 bg-primary-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                      {selectedAccounts.length + selectedPaymentMethods.length}
-                    </span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[350px] p-4">
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-sm">Contas</h4>
-                      <ChevronDown className="h-4 w-4" />
-                    </div>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {accounts.map((account) => (
-                        <div key={account.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`account-${account.id}`}
-                            checked={selectedAccounts.includes(account.id)}
-                            onCheckedChange={() => handleAccountCheckboxChange(account.id)}
-                          />
-                          <Label htmlFor={`account-${account.id}`}>{account.name}</Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-sm">Formas de Pagamento</h4>
-                      <ChevronDown className="h-4 w-4" />
-                    </div>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {paymentMethods.map((method) => (
-                        <div key={method.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`method-${method.id}`}
-                            checked={selectedPaymentMethods.includes(method.id)}
-                            onCheckedChange={() => handlePaymentMethodCheckboxChange(method.id)}
-                          />
-                          <Label htmlFor={`method-${method.id}`}>{method.name}</Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between pt-2">
-                    <Button variant="outline" size="sm" onClick={clearFilters}>
-                      <X className="mr-2 h-3 w-3" />
-                      Limpar Filtros
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="bg-primary-500 hover:bg-primary-600"
-                      onClick={() => setIsFilterOpen(false)}
-                    >
-                      Aplicar Filtros
-                    </Button>
-                  </div>
-                </div>
+                <DateRangePicker 
+                  date={dateRange} 
+                  onDateChange={setDateRange}
+                  placeholder="Selecionar período"
+                  showPresets={true}
+                  align="start"
+                />
               </PopoverContent>
             </Popover>
           </div>
@@ -286,6 +385,8 @@ export function FinancialModule() {
             selectedPaymentMethods={selectedPaymentMethods}
             isAddDialogOpen={isAddReceivableDialogOpen}
             setIsAddDialogOpen={setIsAddReceivableDialogOpen}
+            isImportDialogOpen={isImportReceivableDialogOpen}
+            setIsImportDialogOpen={setIsImportReceivableDialogOpen}
           />
         </TabsContent>
 
@@ -297,20 +398,22 @@ export function FinancialModule() {
             selectedPaymentMethods={selectedPaymentMethods}
             isAddDialogOpen={isAddPayableDialogOpen}
             setIsAddDialogOpen={setIsAddPayableDialogOpen}
+            isImportDialogOpen={isImportPayableDialogOpen}
+            setIsImportDialogOpen={setIsImportPayableDialogOpen}
           />
         </TabsContent>
 
         <TabsContent value="cash-flow">
-          <CashFlowPage />
-        </TabsContent>
-
-        <TabsContent value="reports">
-          <FinancialReports
+          <CashFlowPage
+            searchTerm={searchTerm}
             dateRange={dateRange}
             selectedAccounts={selectedAccounts}
             selectedPaymentMethods={selectedPaymentMethods}
-            searchTerm={searchTerm}
           />
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <FinancialReports />
         </TabsContent>
       </Tabs>
     </div>

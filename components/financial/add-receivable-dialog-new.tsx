@@ -24,9 +24,7 @@ import { toast } from "@/hooks/use-toast"
 import { 
   accountsReceivableApi, 
   bankAccountsApi,
-  type CreateAccountReceivableData,
-  PAYMENT_METHODS,
-  RECEIVABLE_CATEGORIES
+  type CreateAccountReceivableData
 } from "@/lib/api/financial"
 
 interface AddReceivableDialogProps {
@@ -47,7 +45,6 @@ export function AddReceivableDialog({ isOpen, onClose, onSave }: AddReceivableDi
     customerEmail: "",
     customerPhone: "",
     observations: "",
-    paymentMethod: undefined,
     installmentNumber: 1,
     totalInstallments: 1,
     bankAccountId: "",
@@ -65,68 +62,33 @@ export function AddReceivableDialog({ isOpen, onClose, onSave }: AddReceivableDi
     }
   }, [isOpen])
 
-  // Dados mock para fallback das contas bancárias
-  const getMockBankAccounts = () => {
-    return [
-      {
-        id: "1",
-        nome: "Conta Principal",
-        banco: "Banco do Brasil",
-        codigoBanco: "001",
-        agencia: "1234",
-        numero: "56789",
-        digitoVerificador: "0",
-        tipoConta: "CORRENTE" as const,
-        saldo: 10000,
-        isActive: true,
-        isMain: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: "2",
-        nome: "Conta Poupança",
-        banco: "Itaú",
-        codigoBanco: "341",
-        agencia: "5678",
-        numero: "12345",
-        digitoVerificador: "6",
-        tipoConta: "POUPANCA" as const,
-        saldo: 5000,
-        isActive: true,
-        isMain: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ]
-  }
-
   const loadBankAccounts = async () => {
     try {
       setLoadingAccounts(true)
-      const response = await bankAccountsApi.getAll().catch(() => getMockBankAccounts())
-      
-      // Verificar se response é um array ou um objeto com dados
-      const accounts = Array.isArray(response) 
-        ? response 
-        : response?.data || response?.items || getMockBankAccounts()
-      
+      const accounts = await bankAccountsApi.getAll()
       setBankAccounts(accounts)
     } catch (error) {
       console.error("Erro ao carregar contas bancárias:", error)
-      setBankAccounts(getMockBankAccounts()) // Use dados mock como fallback
     } finally {
       setLoadingAccounts(false)
     }
   }
 
+  const categories = [
+    { value: "MENSALIDADE", label: "Mensalidade" },
+    { value: "MATERIAL", label: "Material" },
+    { value: "CERTIFICADO", label: "Certificado" },
+    { value: "SERVICOS", label: "Serviços" },
+    { value: "OUTROS", label: "Outros" }
+  ] as const
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.customerName || !formData.amount || !formData.dueDate || !formData.bankAccountId) {
+    if (!formData.customerName || !formData.amount || !formData.dueDate) {
       toast({
         title: "Erro",
-        description: "Preencha todos os campos obrigatórios (Cliente, Valor, Data de Vencimento e Conta Bancária)",
+        description: "Preencha todos os campos obrigatórios",
         variant: "destructive",
       })
       return
@@ -135,16 +97,7 @@ export function AddReceivableDialog({ isOpen, onClose, onSave }: AddReceivableDi
     try {
       setLoading(true)
       
-      // Limpar campos vazios antes de enviar
-      const dataToSend = { ...formData }
-      if (!dataToSend.bankAccountId) {
-        delete dataToSend.bankAccountId
-      }
-      if (!dataToSend.paymentMethod) {
-        delete dataToSend.paymentMethod
-      }
-      
-      const newReceivable = await accountsReceivableApi.create(dataToSend)
+      const newReceivable = await accountsReceivableApi.create(formData)
       onSave(newReceivable)
       handleClose()
       
@@ -176,7 +129,6 @@ export function AddReceivableDialog({ isOpen, onClose, onSave }: AddReceivableDi
       customerEmail: "",
       customerPhone: "",
       observations: "",
-      paymentMethod: undefined,
       installmentNumber: 1,
       totalInstallments: 1,
       bankAccountId: "",
@@ -287,7 +239,7 @@ export function AddReceivableDialog({ isOpen, onClose, onSave }: AddReceivableDi
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  {RECEIVABLE_CATEGORIES.map(category => (
+                  {categories.map(category => (
                     <SelectItem key={category.value} value={category.value}>
                       {category.label}
                     </SelectItem>
@@ -295,30 +247,6 @@ export function AddReceivableDialog({ isOpen, onClose, onSave }: AddReceivableDi
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Forma de Pagamento */}
-            <div className="space-y-2">
-              <Label>Forma de Pagamento</Label>
-              <Select 
-                value={formData.paymentMethod || ""} 
-                onValueChange={(value: any) => setFormData(prev => ({ ...prev, paymentMethod: value || undefined }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a forma" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_METHODS.map(method => (
-                    <SelectItem key={method.value} value={method.value}>
-                      {method.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Campo de status removido - será definido automaticamente como PENDENTE */}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -361,17 +289,16 @@ export function AddReceivableDialog({ isOpen, onClose, onSave }: AddReceivableDi
 
             {/* Conta Bancária */}
             <div className="space-y-2">
-              <Label>Conta de Recebimento *</Label>
+              <Label>Conta de Recebimento</Label>
               <Select 
                 value={formData.bankAccountId} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, bankAccountId: value }))}
-                required
               >
                 <SelectTrigger>
                   <SelectValue placeholder={loadingAccounts ? "Carregando..." : "Selecione a conta"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Array.isArray(bankAccounts) ? bankAccounts : []).map(account => (
+                  {bankAccounts.map(account => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.nome} - {account.banco}
                     </SelectItem>
