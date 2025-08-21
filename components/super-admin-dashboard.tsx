@@ -17,10 +17,11 @@ import {
   UserCheck,
   CheckCircle,
 } from "lucide-react"
-import { getDashboardData, DashboardData } from "@/lib/api/superadmin"
+import { getDashboardData, DashboardData, getOpenClasses, OpenClass, OpenClassesResponse } from "@/lib/api/superadmin"
 
 export function SuperAdminDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const [openClasses, setOpenClasses] = useState<OpenClass[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -28,8 +29,12 @@ export function SuperAdminDashboard() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
-        const data = await getDashboardData()
-        setDashboardData(data)
+        const [dashboardResponse, openClassesResponse] = await Promise.all([
+          getDashboardData(),
+          getOpenClasses(1, 5) // Buscar as primeiras 5 turmas em aberto
+        ])
+        setDashboardData(dashboardResponse)
+        setOpenClasses(openClassesResponse.classes)
       } catch (error) {
         console.error('Erro ao buscar dados do dashboard:', error)
         setError('Erro ao carregar dados do dashboard')
@@ -230,57 +235,6 @@ export function SuperAdminDashboard() {
         )}
       </div>
 
-      {/* Aulas Agendadas */}
-      {dashboardData && dashboardData.scheduledLessons.length > 0 && (
-        <Card className="border-none shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold flex items-center">
-              <CalendarIcon className="h-5 w-5 mr-2" />
-              Próximas Aulas
-            </CardTitle>
-            <CardDescription>Aulas agendadas para os próximos dias</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {dashboardData.scheduledLessons.map((lesson) => (
-                <div
-                  key={lesson.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">{lesson.title}</h3>
-                    <p className="text-sm text-gray-600">{lesson.description}</p>
-                    <div className="flex items-center mt-2 text-xs text-gray-500 space-x-4">
-                      <span>Instrutor: {lesson.instructorName}</span>
-                      <span>Cliente: {lesson.clientName}</span>
-                      <span>Turma: {lesson.className}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900">
-                      {new Date(lesson.startDate).toLocaleDateString('pt-BR')}
-                    </div>
-                    <div className="text-xs text-gray-600">
-                      {new Date(lesson.startDate).toLocaleTimeString('pt-BR', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </div>
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full mt-1 ${
-                      lesson.status === 'AGENDADA' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {lesson.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Calendário com Aulas Agendadas */}
       {dashboardData && (
         <CalendarWithEvents
@@ -293,14 +247,14 @@ export function SuperAdminDashboard() {
 
       {/* Agenda e Atividades */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Próximas Aulas */}
+        {/* Treinamentos em Aberto */}
         <Card className="border-none shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl font-bold flex items-center">
-              <Clock className="h-5 w-5 mr-2 text-blue-600" />
-              Próximas Aulas
+              <Target className="h-5 w-5 mr-2 text-green-600" />
+              Treinamentos em Aberto
             </CardTitle>
-            <CardDescription>Aulas agendadas para os próximos dias</CardDescription>
+            <CardDescription>Turmas que ainda não foram concluídas</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -315,38 +269,37 @@ export function SuperAdminDashboard() {
                   </div>
                 ))}
               </div>
-            ) : dashboardData && dashboardData.scheduledLessons.length > 0 ? (
+            ) : openClasses.length > 0 ? (
               <div className="space-y-4">
-                {dashboardData.scheduledLessons.slice(0, 5).map((lesson) => (
+                {openClasses.map((classItem) => (
                   <div
-                    key={lesson.id}
+                    key={classItem.id}
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{lesson.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{lesson.description}</p>
+                      <h3 className="font-medium text-gray-900">{classItem.training.title}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{classItem.training.description}</p>
                       <div className="flex items-center mt-2 text-xs text-gray-500 space-x-4">
-                        <span>🧑‍🏫 {lesson.instructorName}</span>
-                        <span>🏢 {lesson.clientName}</span>
-                        <span>📚 {lesson.className}</span>
+                        <span>🧑‍🏫 {classItem.instructor.name}</span>
+                        <span>🏢 {classItem.client.name}</span>
+                        <span>� {classItem.location || 'Online'}</span>
                       </div>
                     </div>
                     <div className="text-right ml-4">
                       <div className="text-sm font-medium text-gray-900">
-                        {new Date(lesson.startDate).toLocaleDateString('pt-BR')}
+                        {new Date(classItem.startDate).toLocaleDateString('pt-BR')}
                       </div>
                       <div className="text-xs text-gray-600">
-                        {new Date(lesson.startDate).toLocaleTimeString('pt-BR', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
+                        {classItem.type}
                       </div>
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full mt-1 ${
-                        lesson.status === 'AGENDADA' 
-                          ? 'bg-blue-100 text-blue-800' 
+                        classItem.status === 'EM_ABERTO' 
+                          ? 'bg-orange-100 text-orange-800' 
+                          : classItem.status === 'EM_ANDAMENTO'
+                          ? 'bg-blue-100 text-blue-800'
                           : 'bg-green-100 text-green-800'
                       }`}>
-                        {lesson.status}
+                        {classItem.status.replace('_', ' ')}
                       </span>
                     </div>
                   </div>
@@ -354,8 +307,8 @@ export function SuperAdminDashboard() {
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <CalendarIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p>Nenhuma aula agendada</p>
+                <Target className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p>Nenhum treinamento em aberto</p>
               </div>
             )}
           </CardContent>

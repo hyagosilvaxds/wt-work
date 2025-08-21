@@ -1049,6 +1049,69 @@ export const patchClass = async (id: string, updateData: Partial<UpdateClassData
   }
 }
 
+// Interface para turmas em aberto
+export interface OpenClass {
+  id: string
+  status: string
+  startDate: string
+  endDate: string
+  type: string
+  location: string | null
+  observations: string | null
+  createdAt: string
+  updatedAt: string
+  training: {
+    id: string
+    title: string
+    description: string
+    durationHours: number
+    validityDays: number
+  }
+  instructor: {
+    id: string
+    name: string
+    email: string
+    corporateName: string | null
+  }
+  client: {
+    id: string
+    name: string
+    email: string
+    cpf: string | null
+    cnpj: string | null
+  }
+}
+
+export interface OpenClassesResponse {
+  classes: OpenClass[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
+// Buscar turmas em aberto
+export const getOpenClasses = async (page: number = 1, limit: number = 10, search?: string): Promise<OpenClassesResponse> => {
+  try {
+    const params: any = { page, limit }
+    
+    if (search && search.trim() !== '') {
+      params.search = search.trim()
+    }
+    
+    const response = await api.get('/superadmin/classes/open', {
+      params
+    })
+    
+    return response.data
+  } catch (error) {
+    console.error('Erro ao buscar turmas em aberto:', error)
+    throw error
+  }
+}
+
 // Deletar classe
 export const deleteClass = async (id: string) => {
   try {
@@ -1567,7 +1630,7 @@ export const downloadInstructorDocument = async (documentPath: string, fileName?
     console.log('- fileName:', fileName)
     
     // Construir a URL do arquivo baseada no path do documento
-    const baseUrl = 'https://api.olimpustech.com'
+    const baseUrl = 'worktreinamentos.olimpustech.com'
     const fileUrl = `${baseUrl}${documentPath}`
     console.log('- fileUrl:', fileUrl)
     
@@ -2553,6 +2616,7 @@ export interface TechnicalResponsibleCreateData {
 export interface TechnicalResponsibleUpdateData {
   name?: string
   email?: string
+  cpf?: string
   rg?: string
   profession?: string
   professionalRegistry?: string

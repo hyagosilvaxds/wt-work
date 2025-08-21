@@ -41,6 +41,7 @@ export function TechnicalResponsibleEditModal({
   const [formData, setFormData] = useState<TechnicalResponsibleUpdateData>({
     name: "",
     email: "",
+    cpf: "",
     rg: "",
     profession: "",
     professionalRegistry: "",
@@ -64,6 +65,7 @@ export function TechnicalResponsibleEditModal({
       setFormData({
         name: data.name,
         email: data.email,
+        cpf: data.cpf || "",
         rg: data.rg || "",
         profession: data.profession,
         professionalRegistry: data.professionalRegistry || "",
@@ -115,6 +117,19 @@ export function TechnicalResponsibleEditModal({
       return
     }
 
+    // Validar CPF se fornecido
+    if (formData.cpf && formData.cpf.trim()) {
+      const cpfClean = formData.cpf.replace(/\D/g, '')
+      if (cpfClean.length !== 11) {
+        toast({
+          title: "Erro de validação",
+          description: "CPF deve ter 11 dígitos",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     // Validar formato do email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
@@ -134,6 +149,7 @@ export function TechnicalResponsibleEditModal({
       
       if (formData.name?.trim()) dataToSend.name = formData.name.trim()
       if (formData.email?.trim()) dataToSend.email = formData.email.trim()
+      if (formData.cpf?.trim()) dataToSend.cpf = formData.cpf.replace(/\D/g, '')
       if (formData.rg?.trim()) dataToSend.rg = formData.rg.trim()
       if (formData.profession?.trim()) dataToSend.profession = formData.profession.trim()
       if (formData.professionalRegistry?.trim()) dataToSend.professionalRegistry = formData.professionalRegistry.trim()
@@ -197,6 +213,12 @@ export function TechnicalResponsibleEditModal({
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  // Função para formatar CPF
+  const formatCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, '')
+    return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+
   // Função para formatar telefone
   const formatPhone = (value: string) => {
     const numbers = value.replace(/\D/g, '')
@@ -256,6 +278,23 @@ export function TechnicalResponsibleEditModal({
                 onChange={(e) => handleInputChange("email", e.target.value)}
                 placeholder="joao.silva@empresa.com"
                 required
+              />
+            </div>
+
+            {/* CPF */}
+            <div>
+              <Label htmlFor="cpf">CPF</Label>
+              <Input
+                id="cpf"
+                value={formatCPF(formData.cpf || "")}
+                onChange={(e) => {
+                  const numbers = e.target.value.replace(/\D/g, '')
+                  if (numbers.length <= 11) {
+                    handleInputChange("cpf", numbers)
+                  }
+                }}
+                placeholder="000.000.000-00"
+                maxLength={14}
               />
             </div>
 

@@ -158,25 +158,8 @@ export function LessonEditModal({ isOpen, onClose, onSuccess, lesson, turma }: L
       }
     }
 
-    // Validar se a data está dentro do período da turma
-    if (formData.date && turma) {
-      const lessonDate = new Date(formData.date)
-      const turmaStart = new Date(turma.startDate)
-      const turmaEnd = new Date(turma.endDate)
-      
-      // Normalizar todas as datas para o mesmo horário (meio-dia) para evitar problemas de timezone
-      lessonDate.setHours(12, 0, 0, 0)
-      turmaStart.setHours(12, 0, 0, 0)
-      turmaEnd.setHours(12, 0, 0, 0)
-      
-      // Verificar se a data está dentro do período da turma
-      if (lessonDate < turmaStart) {
-        errors.push(`A data da aula não pode ser anterior ao início da turma: ${format(turmaStart, 'dd/MM/yyyy')}`)
-      }
-      else if (lessonDate > turmaEnd) {
-        errors.push(`A data da aula não pode ser posterior ao fim da turma: ${format(turmaEnd, 'dd/MM/yyyy')}`)
-      }
-    }
+    // Removido: Validação de data dentro do período da turma
+    // Agora permite qualquer data (anterior, posterior, etc.)
 
     return errors
   }
@@ -351,19 +334,12 @@ export function LessonEditModal({ isOpen, onClose, onSuccess, lesson, turma }: L
                       }
                     }}
                     className="pl-10"
-                    min={turma ? (() => {
-                      const today = new Date()
-                      const turmaStart = new Date(turma.startDate)
-                      const minDate = today > turmaStart ? today : turmaStart
-                      return format(minDate, "yyyy-MM-dd")
-                    })() : format(new Date(), "yyyy-MM-dd")}
-                    max={turma ? format(new Date(turma.endDate), "yyyy-MM-dd") : undefined}
                     required
                   />
                 </div>
                 {turma && (
                   <p className="text-xs text-gray-500">
-                    Período da turma: {format(new Date(turma.startDate), 'dd/MM/yyyy', { locale: ptBR })} - {format(new Date(turma.endDate), 'dd/MM/yyyy', { locale: ptBR })}
+                    Período da turma: {format(new Date(turma.startDate), 'dd/MM/yyyy', { locale: ptBR })} - {format(new Date(turma.endDate), 'dd/MM/yyyy', { locale: ptBR })} (informativo)
                   </p>
                 )}
               </div>

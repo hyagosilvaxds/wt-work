@@ -20,7 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
 import { AddReceivableDialog } from "./add-receivable-dialog"
-import { accountsReceivableApi, type AccountReceivable, type ReceivableStatistics, PAYMENT_METHODS, STATUS_OPTIONS, RECEIVABLE_CATEGORIES } from "@/lib/api/financial"
+import { accountsReceivableApi, type AccountReceivable, type ReceivableStatistics, PAYMENT_METHODS, STATUS_OPTIONS, RECEIVABLE_CATEGORIES, bankAccountsApi, type BankAccount } from "@/lib/api/financial"
 import type { DateRange } from "react-day-picker"
 import { format, isWithinInterval, parseISO } from "date-fns"
 
@@ -53,17 +53,102 @@ export function AccountsReceivablePage({
   const [selectedReceivables, setSelectedReceivables] = useState<string[]>([])
   const [receivablesList, setReceivablesList] = useState<AccountReceivable[]>([])
   const [statistics, setStatistics] = useState<ReceivableStatistics | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
   const [loading, setLoading] = useState(true)
   const [settling, setSettling] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [loadingBankAccounts, setLoadingBankAccounts] = useState(false)
 
   // Carregar dados da API
   useEffect(() => {
     loadReceivablesData()
+    loadBankAccounts()
   }, [])
+
+  // Função para carregar contas bancárias
+  const loadBankAccounts = async () => {
+    try {
+      setLoadingBankAccounts(true)
+      
+      // Usar a mesma abordagem que funciona no AddReceivableDialog
+      const response = await bankAccountsApi.getAll().catch(() => {
+        return getMockBankAccounts()
+      })
+      
+      // Verificar se response é um array ou um objeto com dados (mesma lógica do AddReceivableDialog)
+      const accounts = Array.isArray(response) 
+        ? response 
+        : response?.accounts || response?.data || response?.items || getMockBankAccounts()
+      
+      setBankAccounts(accounts)
+    } catch (error) {
+      console.error('Erro ao carregar contas bancárias:', error)
+      setBankAccounts(getMockBankAccounts()) // Use dados mock como fallback
+      toast({
+        title: "Erro ao carregar contas bancárias",
+        description: "Usando dados de exemplo. Verifique a conexão com o servidor.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingBankAccounts(false)
+    }
+  }
+
+  // Função para dados mock (mesma do AddReceivableDialog)
+  const getMockBankAccounts = (): BankAccount[] => {
+    return [
+      {
+        id: "mock-1",
+        nome: "Conta Principal",
+        banco: "Banco do Brasil",
+        codigoBanco: "001",
+        agencia: "1234",
+        numero: "12345",
+        digitoVerificador: "6",
+        tipoConta: "CORRENTE" as const,
+        saldo: 0,
+        isActive: true,
+        isMain: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "mock-2", 
+        nome: "Conta Poupança",
+        banco: "Itaú",
+        codigoBanco: "341",
+        agencia: "5678",
+        numero: "67890",
+        digitoVerificador: "1",
+        tipoConta: "POUPANCA" as const,
+        saldo: 0,
+        isActive: true,
+        isMain: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "mock-3",
+        nome: "Conta Investimentos", 
+        banco: "Nubank",
+        codigoBanco: "260",
+        agencia: "0001",
+        numero: "11111",
+        digitoVerificador: "2",
+        tipoConta: "CORRENTE" as const,
+        saldo: 0,
+        isActive: true,
+        isMain: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ]
+  }
 
   // Dados mock para fallback
   const getMockData = () => {
@@ -117,7 +202,9 @@ export function AccountsReceivablePage({
       setLoading(true)
       
       const [receivablesResponse, statisticsResponse] = await Promise.all([
-        accountsReceivableApi.getAll().catch((error) => {
+        accountsReceivableApi.getAll({ 
+          limit: 1000 // Carregar até 1000 registros para paginação local
+        }).catch((error) => {
           console.log('⚠️ API de contas a receber falhou, usando dados mock:', error.message)
           return getMockData()
         }),
@@ -234,8 +321,8 @@ export function AccountsReceivablePage({
     }
   }
 
-  // Aplicar filtros - garantir que receivablesList seja sempre um array
-  const filteredReceivables = (Array.isArray(receivablesList) ? receivablesList : []).filter((invoice) => {
+  // Aplicar filtros primeiro - garantir que receivablesList seja sempre um array
+  const allFilteredReceivables = (Array.isArray(receivablesList) ? receivablesList : []).filter((invoice) => {
     // Filtro de busca - só aplicar se houver termo de busca
     const searchFilter = !searchTerm || 
       invoice.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -275,6 +362,18 @@ export function AccountsReceivablePage({
     return searchFilter && dateFilter && accountFilter && paymentMethodFilter
   })
 
+  // Aplicar paginação aos dados filtrados
+  const totalItems = allFilteredReceivables.length
+  const totalPages = Math.ceil(totalItems / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const filteredReceivables = allFilteredReceivables.slice(startIndex, endIndex)
+
+  // Reset página quando filtros mudam
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, dateRange, selectedAccounts, selectedPaymentMethods])
+
   const handleViewInvoice = (invoice: AccountReceivable) => {
     setSelectedInvoice(invoice)
     setIsViewDialogOpen(true)
@@ -291,6 +390,19 @@ export function AccountsReceivablePage({
     try {
       setEditLoading(true)
 
+      // Validar bankAccountId se fornecido
+      if (formData.bankAccountId && formData.bankAccountId.trim() !== '') {
+        const bankAccountExists = bankAccounts.some(account => account.id === formData.bankAccountId)
+        if (!bankAccountExists) {
+          toast({
+            title: "Erro de validação",
+            description: "A conta bancária selecionada não é válida.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+
       const updateData = {
         description: formData.description,
         amount: parseFloat(formData.amount),
@@ -302,7 +414,10 @@ export function AccountsReceivablePage({
         customerEmail: formData.customerEmail,
         customerPhone: formData.customerPhone,
         observations: formData.observations,
-        bankAccountId: formData.bankAccountId,
+        // Só incluir bankAccountId se for válido e não vazio
+        ...(formData.bankAccountId && formData.bankAccountId.trim() !== '' ? {
+          bankAccountId: formData.bankAccountId
+        } : {}),
         installmentNumber: formData.installmentNumber ? parseInt(formData.installmentNumber) : 1,
         totalInstallments: formData.totalInstallments ? parseInt(formData.totalInstallments) : 1,
       }
@@ -495,7 +610,7 @@ export function AccountsReceivablePage({
           <div className="flex justify-between items-center">
             <div>
               <CardTitle>Contas a Receber</CardTitle>
-              <CardDescription>{filteredReceivables.length} conta(s) encontrada(s)</CardDescription>
+              <CardDescription>{totalItems} conta(s) encontrada(s)</CardDescription>
             </div>
             <div className="flex gap-2 items-center">
               {/* Botões de ação em lote */}
@@ -586,6 +701,70 @@ export function AccountsReceivablePage({
           </Table>
         </CardContent>
       </Card>
+
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <div className="bg-white border rounded-lg p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+            {/* Informações da Paginação */}
+            <div className="text-sm text-gray-600">
+              Mostrando {Math.min(startIndex + 1, totalItems)} até{' '}
+              {Math.min(endIndex, totalItems)} de {totalItems} contas a receber
+            </div>
+            
+            {/* Controles de Paginação */}
+            <div className="flex items-center space-x-2">
+              {/* Botão Anterior */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                ← Anterior
+              </Button>
+              
+              {/* Números das Páginas */}
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNumber
+                  if (totalPages <= 5) {
+                    pageNumber = i + 1
+                  } else if (currentPage <= 3) {
+                    pageNumber = i + 1
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNumber = totalPages - 4 + i
+                  } else {
+                    pageNumber = currentPage - 2 + i
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNumber}
+                      variant={pageNumber === currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNumber)}
+                      className="w-10 h-10 p-0"
+                    >
+                      {pageNumber}
+                    </Button>
+                  )
+                })}
+              </div>
+              
+              {/* Botão Próxima */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Próxima →
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Dialog para visualizar conta */}
       {selectedInvoice && (
@@ -812,12 +991,22 @@ export function AccountsReceivablePage({
                     name="bankAccountId"
                     defaultValue={editingInvoice.bankAccountId || ''}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={loadingBankAccounts}
                   >
                     <option value="">Selecione uma conta...</option>
-                    <option value="cme20bqrz0000vbmx4fkszseb">Conta 1 - BB</option>
-                    <option value="2">Conta Poupança - Itaú</option>
-                    <option value="3">Conta Investimentos</option>
+                    {bankAccounts
+                      .filter(account => account.isActive) // Só mostrar contas ativas
+                      .map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.nome} - {account.banco}
+                        </option>
+                      ))
+                    }
+                    {loadingBankAccounts && (
+                      <option value="" disabled>Carregando contas...</option>
+                    )}
                   </select>
+                  
                 </div>
               </div>
 
@@ -927,16 +1116,24 @@ export function AccountsReceivablePage({
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="account">Conta</Label>
+                <Label htmlFor="account">Conta Bancária</Label>
                 <select
                   id="account"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={loadingBankAccounts}
                 >
-                  <option value="1">Conta Principal</option>
-                  <option value="2">Conta Poupança</option>
-                  <option value="3">Conta Investimentos</option>
-                  <option value="4">Caixa</option>
-                  <option value="5">Cartão Corporativo</option>
+                  <option value="">Selecione uma conta...</option>
+                  {bankAccounts
+                    .filter(account => account.isActive) // Só mostrar contas ativas
+                    .map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.nome} - {account.banco}
+                      </option>
+                    ))
+                  }
+                  {loadingBankAccounts && (
+                    <option value="" disabled>Carregando contas...</option>
+                  )}
                 </select>
               </div>
             </div>

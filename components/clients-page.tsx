@@ -916,6 +916,31 @@ export function ClientsPage() {
                   />
                 </div>
               </div>
+              
+              {/* Registros Fiscais */}
+              {clientForm.personType === 'JURIDICA' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="municipalRegistration">Inscrição Municipal</Label>
+                    <Input
+                      id="municipalRegistration"
+                      value={clientForm.municipalRegistration}
+                      onChange={(e) => setClientForm(prev => ({ ...prev, municipalRegistration: e.target.value }))}
+                      placeholder="Digite a inscrição municipal"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="stateRegistration">Inscrição Estadual</Label>
+                    <Input
+                      id="stateRegistration"
+                      value={clientForm.stateRegistration}
+                      onChange={(e) => setClientForm(prev => ({ ...prev, stateRegistration: e.target.value }))}
+                      placeholder="Digite a inscrição estadual"
+                    />
+                  </div>
+                </div>
+              )}
+              
               <div className="flex items-center space-x-2">
                 <Switch
                   id="isActive"
@@ -1013,6 +1038,51 @@ export function ClientsPage() {
                   />
                 </div>
               </div>
+              
+              {/* Telefones */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Telefone Fixo</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-2">
+                      <Input
+                        value={clientForm.landlineAreaCode}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, landlineAreaCode: e.target.value }))}
+                        placeholder="11"
+                        maxLength={2}
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Input
+                        value={clientForm.landlineNumber}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, landlineNumber: e.target.value }))}
+                        placeholder="99999-9999"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone Celular</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-2">
+                      <Input
+                        value={clientForm.mobileAreaCode}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, mobileAreaCode: e.target.value }))}
+                        placeholder="11"
+                        maxLength={2}
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Input
+                        value={clientForm.mobileNumber}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, mobileNumber: e.target.value }))}
+                        placeholder="99999-9999"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="responsibleEmail">Email do Responsável</Label>
@@ -1146,6 +1216,31 @@ export function ClientsPage() {
                   />
                 </div>
               </div>
+              
+              {/* Registros Fiscais */}
+              {clientForm.personType === 'JURIDICA' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-municipalRegistration">Inscrição Municipal</Label>
+                    <Input
+                      id="edit-municipalRegistration"
+                      value={clientForm.municipalRegistration}
+                      onChange={(e) => setClientForm(prev => ({ ...prev, municipalRegistration: e.target.value }))}
+                      placeholder="Digite a inscrição municipal"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-stateRegistration">Inscrição Estadual</Label>
+                    <Input
+                      id="edit-stateRegistration"
+                      value={clientForm.stateRegistration}
+                      onChange={(e) => setClientForm(prev => ({ ...prev, stateRegistration: e.target.value }))}
+                      placeholder="Digite a inscrição estadual"
+                    />
+                  </div>
+                </div>
+              )}
+              
               <div className="flex items-center space-x-2">
                 <Switch
                   id="edit-isActive"
@@ -1153,6 +1248,161 @@ export function ClientsPage() {
                   onCheckedChange={(checked) => setClientForm(prev => ({ ...prev, isActive: checked }))}
                 />
                 <Label htmlFor="edit-isActive">Cliente Ativo</Label>
+              </div>
+            </div>
+
+            {/* Endereço */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Endereço</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-zipCode">CEP</Label>
+                  <Input
+                    id="edit-zipCode"
+                    value={clientForm.zipCode}
+                    onChange={(e) => setClientForm(prev => ({ ...prev, zipCode: e.target.value }))}
+                    placeholder="00000-000"
+                  />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="edit-address">Endereço</Label>
+                  <Input
+                    id="edit-address"
+                    value={clientForm.address}
+                    onChange={(e) => setClientForm(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="Rua, Avenida, etc."
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-number">Número</Label>
+                  <Input
+                    id="edit-number"
+                    value={clientForm.number}
+                    onChange={(e) => setClientForm(prev => ({ ...prev, number: e.target.value }))}
+                    placeholder="123"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-neighborhood">Bairro</Label>
+                  <Input
+                    id="edit-neighborhood"
+                    value={clientForm.neighborhood}
+                    onChange={(e) => setClientForm(prev => ({ ...prev, neighborhood: e.target.value }))}
+                    placeholder="Bairro"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-city">Cidade</Label>
+                  <Input
+                    id="edit-city"
+                    value={clientForm.city}
+                    onChange={(e) => setClientForm(prev => ({ ...prev, city: e.target.value }))}
+                    placeholder="Cidade"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-state">Estado</Label>
+                  <Input
+                    id="edit-state"
+                    value={clientForm.state}
+                    onChange={(e) => setClientForm(prev => ({ ...prev, state: e.target.value }))}
+                    placeholder="SP"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Contatos */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Contatos</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email">Email</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={clientForm.email}
+                    onChange={(e) => setClientForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-responsibleName">Nome do Responsável</Label>
+                  <Input
+                    id="edit-responsibleName"
+                    value={clientForm.responsibleName}
+                    onChange={(e) => setClientForm(prev => ({ ...prev, responsibleName: e.target.value }))}
+                    placeholder="Nome do responsável"
+                  />
+                </div>
+              </div>
+              
+              {/* Telefones */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Telefone Fixo</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-2">
+                      <Input
+                        value={clientForm.landlineAreaCode}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, landlineAreaCode: e.target.value }))}
+                        placeholder="11"
+                        maxLength={2}
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Input
+                        value={clientForm.landlineNumber}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, landlineNumber: e.target.value }))}
+                        placeholder="99999-9999"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone Celular</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-2">
+                      <Input
+                        value={clientForm.mobileAreaCode}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, mobileAreaCode: e.target.value }))}
+                        placeholder="11"
+                        maxLength={2}
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Input
+                        value={clientForm.mobileNumber}
+                        onChange={(e) => setClientForm(prev => ({ ...prev, mobileNumber: e.target.value }))}
+                        placeholder="99999-9999"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-responsibleEmail">Email do Responsável</Label>
+                  <Input
+                    id="edit-responsibleEmail"
+                    type="email"
+                    value={clientForm.responsibleEmail}
+                    onChange={(e) => setClientForm(prev => ({ ...prev, responsibleEmail: e.target.value }))}
+                    placeholder="responsavel@exemplo.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-responsiblePhone">Telefone do Responsável</Label>
+                  <Input
+                    id="edit-responsiblePhone"
+                    value={clientForm.responsiblePhone}
+                    onChange={(e) => setClientForm(prev => ({ ...prev, responsiblePhone: e.target.value }))}
+                    placeholder="(11) 99999-9999"
+                  />
+                </div>
               </div>
             </div>
 

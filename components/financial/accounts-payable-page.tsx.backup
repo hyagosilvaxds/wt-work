@@ -35,6 +35,16 @@ import {
   BankAccount 
 } from "@/lib/api/financial"
 
+interface AccountsPayableResponse {
+  data: AccountPayable[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 interface AccountsPayablePageProps {
   searchTerm: string
   dateRange: DateRange | undefined
@@ -63,10 +73,15 @@ export function AccountsPayablePage({
   const [editingInvoice, setEditingInvoice] = useState<AccountPayable | null>(null)
   const [selectedPayables, setSelectedPayables] = useState<string[]>([])
   const [payablesList, setPayablesList] = useState<AccountPayable[]>([])
+  const [allPayables, setAllPayables] = useState<AccountPayable[]>([]) // Todos os dados
   const [statistics, setStatistics] = useState<AccountsPayableStatistics | null>(null)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(10)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1
+  })
   const [loading, setLoading] = useState(true)
   const [editLoading, setEditLoading] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
@@ -78,15 +93,40 @@ export function AccountsPayablePage({
     loadPayables()
     loadStatistics()
     loadBankAccounts()
-  }, [])
+  }, []) // Remove dependência de pagination
+
+  // Efeito separado para atualizar paginação quando filtros mudam
+  useEffect(() => {
+    // Reset para primeira página quando filtros mudam
+    setPagination(prev => ({ ...prev, page: 1 }))
+  }, [searchTerm, dateRange, selectedAccounts, selectedPaymentMethods])
 
   const loadPayables = async () => {
     try {
       setLoading(true)
-      const data = await accountsPayableApi.getAll({ 
-        limit: 1000 // Carregar até 1000 registros para paginação local
-      })
-      setPayablesList(data)
+      const response = await accountsPayableApi.getAll() // Sem parâmetros de paginação
+      
+      console.log('API Response:', response) // Debug
+      
+      // Verifica se a resposta tem estrutura de paginação
+      if (response && typeof response === 'object' && 'data' in response && 'pagination' in response) {
+        const paginatedResponse = response as AccountsPayableResponse
+        console.log('API suporta paginação:', paginatedResponse) // Debug
+        setPayablesList(paginatedResponse.data)
+        setPagination(paginatedResponse.pagination)
+        setAllPayables(paginatedResponse.data) // Para filtros locais
+      } else {
+        // API não suporta paginação - implementa paginação local
+        const data = Array.isArray(response) ? response : []
+        console.log('Implementando paginação local para', data.length, 'registros') // Debug
+        
+        setAllPayables(data)
+        setPagination(prev => ({ 
+          ...prev,
+          total: data.length, 
+          totalPages: Math.ceil(data.length / prev.limit) 
+        }))
+      }
     } catch (error) {
       console.error('Erro ao carregar contas a pagar:', error)
       toast({
@@ -94,11 +134,13 @@ export function AccountsPayablePage({
         description: "Não foi possível carregar as contas a pagar. Usando dados de exemplo.",
         variant: "destructive",
       })
-      // Fallback para dados de exemplo
       setPayablesList([])
+      setAllPayables([])
     } finally {
       setLoading(false)
     }
+  }
+
   }
 
   const loadStatistics = async () => {
@@ -112,11 +154,87 @@ export function AccountsPayablePage({
 
   const loadBankAccounts = async () => {
     try {
-      const accounts = await bankAccountsApi.getAll()
+      // Usar a mesma abordagem que funciona no AddReceivableDialog
+      const response = await bankAccountsApi.getAll().catch(() => {
+        return getMockBankAccounts()
+      })
+      
+      // Verificar se response é um array ou um objeto com dados
+      const accounts = Array.isArray(response) 
+        ? response 
+        : response?.accounts || response?.data || response?.items || getMockBankAccounts()
+      
       setBankAccounts(accounts)
     } catch (error) {
       console.error('Erro ao carregar contas bancárias:', error)
+      setBankAccounts(getMockBankAccounts()) // Use dados mock como fallback
+      toast({
+        title: "Erro ao carregar contas bancárias",
+        description: "Usando dados de exemplo. Verifique a conexão com o servidor.",
+        variant: "destructive",
+      })
     }
+  }
+
+  // Função para dados mock
+  const getMockBankAccounts = (): BankAccount[] => {
+    return [
+      {
+        id: "mock-1",
+        nome: "Conta Principal",
+        banco: "Banco do Brasil",
+        codigoBanco: "001",
+        agencia: "1234",
+        numero: "12345",
+        digitoVerificador: "6",
+        tipoConta: "CORRENTE" as const,
+        saldo: 0,
+        isActive: true,
+        isMain: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "mock-2", 
+        nome: "Conta Poupança",
+        banco: "Itaú",
+        codigoBanco: "341",
+        agencia: "5678",
+        numero: "67890",
+        digitoVerificador: "1",
+        tipoConta: "POUPANCA" as const,
+        saldo: 0,
+        isActive: true,
+        isMain: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "mock-3",
+        nome: "Conta Investimentos", 
+        banco: "Nubank",
+        codigoBanco: "260",
+        agencia: "0001",
+        numero: "11111",
+        digitoVerificador: "2",
+        tipoConta: "CORRENTE" as const,
+        saldo: 0,
+        isActive: true,
+        isMain: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ]
+  }
+
+  // Função para navegar entre páginas
+  const goToPage = async (page: number) => {
+    if (page < 1 || page > pagination.totalPages || page === pagination.page) {
+      return
+    }
+    
+    setPagination(prev => ({ ...prev, page }))
+    // O useEffect vai chamar applyLocalPagination automaticamente
   }
 
   // Função para marcar/desmarcar conta a pagar
@@ -308,8 +426,8 @@ export function AccountsPayablePage({
     }
   }
 
-  // Aplicar filtros primeiro
-  const allFilteredPayables = payablesList.filter((invoice) => {
+  // Aplicar filtros ANTES da paginação
+  const allFilteredPayables = allPayables.filter((invoice) => {
     // Filtro de busca - usar os nomes corretos das propriedades da API
     const searchFilter = !searchTerm || 
       invoice.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -343,17 +461,19 @@ export function AccountsPayablePage({
     return searchFilter && dateFilter && accountFilter && paymentMethodFilter
   })
 
-  // Aplicar paginação aos dados filtrados
-  const totalItems = allFilteredPayables.length
-  const totalPages = Math.ceil(totalItems / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
+  // Calcular paginação baseada nos dados filtrados
+  const totalFilteredRecords = allFilteredPayables.length
+  const totalPages = Math.ceil(totalFilteredRecords / pagination.limit)
+  const startIndex = (pagination.page - 1) * pagination.limit
+  const endIndex = startIndex + pagination.limit
   const filteredPayables = allFilteredPayables.slice(startIndex, endIndex)
 
-  // Reset página quando filtros mudam
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, dateRange, selectedAccounts, selectedPaymentMethods])
+  // Atualizar o estado de paginação com os valores corretos
+  const currentPagination = {
+    ...pagination,
+    total: totalFilteredRecords,
+    totalPages: totalPages
+  }
 
   const handleViewInvoice = (invoice: AccountPayable) => {
     setSelectedInvoice(invoice)
@@ -404,6 +524,24 @@ export function AccountsPayablePage({
         variant: "destructive",
       })
       return
+    }
+
+    // Validar bankAccountId se fornecido e não for "none"
+    if (editedData.bankAccountId && editedData.bankAccountId !== 'none') {
+      const bankAccountExists = bankAccounts.some(account => account.id === editedData.bankAccountId)
+      if (!bankAccountExists) {
+        toast({
+          title: "Erro de validação",
+          description: "A conta bancária selecionada não é válida.",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
+    // Remover bankAccountId se for "none" ou inválido
+    if (editedData.bankAccountId === 'none' || !editedData.bankAccountId) {
+      delete editedData.bankAccountId
     }
 
     try {
@@ -518,7 +656,7 @@ export function AccountsPayablePage({
           <div className="flex justify-between items-center">
             <div>
               <CardTitle>Contas a Pagar</CardTitle>
-              <CardDescription>{totalItems} conta(s) encontrada(s)</CardDescription>
+              <CardDescription>{currentPagination.total} conta(s) encontrada(s)</CardDescription>
             </div>
             <div className="flex gap-2 items-center">
               {/* Botões de ação em lote */}
@@ -611,63 +749,119 @@ export function AccountsPayablePage({
       </Card>
 
       {/* Paginação */}
-      {totalPages > 1 && (
+      {currentPagination.totalPages > 1 && (
         <div className="bg-white border rounded-lg p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
             {/* Informações da Paginação */}
             <div className="text-sm text-gray-600">
-              Mostrando {Math.min(startIndex + 1, totalItems)} até{' '}
-              {Math.min(endIndex, totalItems)} de {totalItems} contas a pagar
+              Mostrando {Math.min((currentPagination.page - 1) * currentPagination.limit + 1, currentPagination.total)} até{' '}
+              {Math.min(currentPagination.page * currentPagination.limit, currentPagination.total)} de {currentPagination.total} contas a pagar
             </div>
             
             {/* Controles de Paginação */}
             <div className="flex items-center space-x-2">
+              {/* Botão Primeira Página */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(1)}
+                disabled={currentPagination.page === 1}
+                className="hidden sm:flex"
+              >
+                Primeira
+              </Button>
+              
               {/* Botão Anterior */}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
+                onClick={() => goToPage(currentPagination.page - 1)}
+                disabled={currentPagination.page === 1}
               >
                 ← Anterior
               </Button>
               
               {/* Números das Páginas */}
               <div className="flex items-center space-x-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNumber
-                  if (totalPages <= 5) {
-                    pageNumber = i + 1
-                  } else if (currentPage <= 3) {
-                    pageNumber = i + 1
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNumber = totalPages - 4 + i
-                  } else {
-                    pageNumber = currentPage - 2 + i
+                {(() => {
+                  const pages = []
+                  const startPage = Math.max(1, currentPagination.page - 2)
+                  const endPage = Math.min(currentPagination.totalPages, currentPagination.page + 2)
+                  
+                  // Primeira página se não estiver no range
+                  if (startPage > 1) {
+                    pages.push(
+                      <Button
+                        key={1}
+                        variant={1 === currentPagination.page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPage(1)}
+                        className="w-10 h-10 p-0"
+                      >
+                        1
+                      </Button>
+                    )
+                    if (startPage > 2) {
+                      pages.push(<span key="ellipsis1" className="px-2 text-gray-400">...</span>)
+                    }
                   }
                   
-                  return (
-                    <Button
-                      key={pageNumber}
-                      variant={pageNumber === currentPage ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(pageNumber)}
-                      className="w-10 h-10 p-0"
-                    >
-                      {pageNumber}
-                    </Button>
-                  )
-                })}
+                  // Páginas no range
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <Button
+                        key={i}
+                        variant={i === currentPagination.page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPage(i)}
+                        className="w-10 h-10 p-0"
+                      >
+                        {i}
+                      </Button>
+                    )
+                  }
+                  
+                  // Última página se não estiver no range
+                  if (endPage < currentPagination.totalPages) {
+                    if (endPage < currentPagination.totalPages - 1) {
+                      pages.push(<span key="ellipsis2" className="px-2 text-gray-400">...</span>)
+                    }
+                    pages.push(
+                      <Button
+                        key={currentPagination.totalPages}
+                        variant={currentPagination.totalPages === currentPagination.page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPage(currentPagination.totalPages)}
+                        className="w-10 h-10 p-0"
+                      >
+                        {currentPagination.totalPages}
+                      </Button>
+                    )
+                  }
+                  
+                  return pages
+                })()}
               </div>
               
               {/* Botão Próxima */}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
+                onClick={() => goToPage(currentPagination.page + 1)}
+                disabled={currentPagination.page === currentPagination.totalPages}
               >
                 Próxima →
+              </Button>
+              
+              {/* Botão Última Página */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPagination.totalPages)}
+                disabled={currentPagination.page === currentPagination.totalPages}
+                className="hidden sm:flex"
+              >
+                Última
               </Button>
             </div>
           </div>
@@ -788,8 +982,13 @@ export function AccountsPayablePage({
                 category: (formData.get('category') as string) || undefined,
                 paymentMethod: (formData.get('paymentMethod') as string) || undefined,
                 isRecurrent: formData.get('isRecurrent') === 'on',
-                bankAccountId: (formData.get('bankAccountId') as string) || undefined,
                 observations: (formData.get('observations') as string) || undefined,
+              }
+
+              // Tratar bankAccountId especialmente
+              const bankAccountIdValue = formData.get('bankAccountId') as string
+              if (bankAccountIdValue && bankAccountIdValue !== '' && bankAccountIdValue !== 'none') {
+                (editedData as any).bankAccountId = bankAccountIdValue
               }
 
               // Remover propriedades undefined para não enviar valores vazios
@@ -934,12 +1133,19 @@ export function AccountsPayablePage({
                         <SelectValue placeholder="Selecione uma conta bancária" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Nenhuma conta selecionada</SelectItem>
-                        {bankAccounts.map((account) => (
-                          <SelectItem key={account.id} value={account.id}>
-                            {account.nome} - {account.banco}
-                          </SelectItem>
-                        ))}
+                        {bankAccounts
+                          .filter(account => account.isActive) // Só mostrar contas ativas
+                          .map((account) => (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.nome} - {account.banco}
+                            </SelectItem>
+                          ))
+                        }
+                        {bankAccounts.length === 0 && (
+                          <div className="p-2 text-sm text-muted-foreground text-center">
+                            Carregando contas...
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

@@ -78,7 +78,7 @@ export const deleteCertificate = async (id: string): Promise<void> => {
 // Função para gerar relatório
 export const generateEvidenceReport = async (classId: string): Promise<void> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'worktreinamentos.olimpustech.com'
     // Usar a mesma lógica de obtenção de token do client.ts
     const token = Cookies.get("jwtToken")
     
@@ -155,7 +155,7 @@ export const generateEvidenceReport = async (classId: string): Promise<void> => 
 // Função para verificar se uma turma está apta para gerar relatório
 export const checkClassEligibility = async (classId: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'}/certificado/eligibility/${classId}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'worktreinamentos.olimpustech.com'}/certificado/eligibility/${classId}`, {
       headers: {
         'Authorization': `Bearer ${Cookies.get("jwtToken")}`
       }
@@ -190,7 +190,7 @@ export interface CustomCoverResponse {
 // Função para fazer upload de capa personalizada
 export const uploadCustomCover = async (classId: string, file: File): Promise<CustomCoverResponse> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'worktreinamentos.olimpustech.com'
     const token = Cookies.get("jwtToken")
     
     console.log('🔄 Fazendo upload de capa personalizada para turma:', classId)
@@ -245,7 +245,7 @@ export const uploadCustomCover = async (classId: string, file: File): Promise<Cu
 // Função para verificar se uma turma possui capa personalizada
 export const checkCustomCover = async (classId: string): Promise<CustomCoverResponse> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'worktreinamentos.olimpustech.com'
     const token = Cookies.get("jwtToken")
     
     console.log('🔍 Verificando capa personalizada para turma:', classId)
@@ -283,7 +283,7 @@ export const checkCustomCover = async (classId: string): Promise<CustomCoverResp
 // Função para remover capa personalizada
 export const removeCustomCover = async (classId: string): Promise<CustomCoverResponse> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'worktreinamentos.olimpustech.com'
     const token = Cookies.get("jwtToken")
     
     console.log('🗑️ Removendo capa personalizada para turma:', classId)
