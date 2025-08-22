@@ -97,7 +97,7 @@ if (isErasing) {
 ### URL Base
 ```typescript
 const api = axios.create({
-  baseURL: "api.olimpustech.com",
+  baseURL: "https://api.olimpustech.com",
   // ...
 })
 ```

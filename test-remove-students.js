@@ -5,7 +5,7 @@ const testRemoveStudents = async () => {
   try {
     console.log('Testando remoção de alunos...');
     
-    const response = await axios.delete('api.olimpustech.com/superadmin/classes/cmd4g775x0001vbd0u2hzlcue/students', {
+    const response = await axios.delete('https://api.olimpustech.com/superadmin/classes/cmd4g775x0001vbd0u2hzlcue/students', {
       data: {
         studentIds: ['cmcxv2jz3006mvbxl183metkj']
       },

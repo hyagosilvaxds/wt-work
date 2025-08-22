@@ -6,7 +6,7 @@ async function testBatchCertificates() {
   
   try {
     // Primeiro vamos listar as turmas concluídas
-    const classesResponse = await axios.get('api.olimpustech.com/api/classes');
+    const classesResponse = await axios.get('https://api.olimpustech.com/api/classes');
     const classes = classesResponse.data;
     
     // Procurar por turmas concluídas
@@ -24,7 +24,7 @@ async function testBatchCertificates() {
     console.log(`🎯 Testando com turma: ${testClass.name}`);
     
     // Buscar alunos da turma
-    const studentsResponse = await axios.get(`api.olimpustech.com/api/classes/${testClass.id}/students`);
+    const studentsResponse = await axios.get(`https://api.olimpustech.com/api/classes/${testClass.id}/students`);
     const students = studentsResponse.data;
     
     console.log(`👥 Encontrados ${students.length} alunos na turma`);
@@ -35,7 +35,7 @@ async function testBatchCertificates() {
     }
     
     // Buscar presenças para verificar quais alunos são elegíveis
-    const attendanceResponse = await axios.get(`api.olimpustech.com/api/classes/${testClass.id}/attendance`);
+    const attendanceResponse = await axios.get(`https://api.olimpustech.com/api/classes/${testClass.id}/attendance`);
     const attendance = attendanceResponse.data;
     
     console.log(`📊 Registros de presença: ${attendance.length}`);
