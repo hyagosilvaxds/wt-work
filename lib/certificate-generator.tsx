@@ -13,7 +13,7 @@ import html2canvas from 'html2canvas'
 import { getSignatureByInstructorId } from './api/superadmin'
 
 // Constante para a URL base da API
-const API_BASE_URL = 'worktreinamentos.olimpustech.com'
+const API_BASE_URL = 'api.olimpustech.com'
 
 // Função utilitária para construir URLs de imagens
 const buildImageUrl = (imagePath: string) => {

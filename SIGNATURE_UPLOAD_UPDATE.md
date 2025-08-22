@@ -10,7 +10,7 @@ O sistema de upload de assinaturas dos instrutores foi atualizado para usar a no
 
 **Payload:**
 ```bash
-curl --location 'worktreinamentos.olimpustech.com/upload/image' \
+curl --location 'api.olimpustech.com/upload/image' \
 --header 'Authorization: Bearer [TOKEN]' \
 --form 'file=@"/path/to/image.png"'
 ```

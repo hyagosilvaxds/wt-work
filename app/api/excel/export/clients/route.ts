@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     queryParams.append('limit', '999999')
     queryParams.append('includeStats', 'true')
 
-    const response = await axios.get(`worktreinamentos.olimpustech.com/superadmin/clients?${queryParams.toString()}`, {
+    const response = await axios.get(`api.olimpustech.com/superadmin/clients?${queryParams.toString()}`, {
       headers: {
         'Authorization': request.headers.get('Authorization') || ''
       }

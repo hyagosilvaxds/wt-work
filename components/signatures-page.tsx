@@ -181,7 +181,7 @@ export function SignaturesPage() {
                     
                     <div className="border rounded-lg p-2 bg-gray-50">
                       <img 
-                        src={`worktreinamentos.olimpustech.com${signature.pngPath}`} 
+                        src={`api.olimpustech.com${signature.pngPath}`} 
                         alt={`Assinatura de ${signature.instructor.name}`}
                         className="w-full h-20 object-contain"
                       />
