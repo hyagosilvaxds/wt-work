@@ -339,7 +339,7 @@ export function LessonEditModal({ isOpen, onClose, onSuccess, lesson, turma }: L
                 </div>
                 {turma && (
                   <p className="text-xs text-gray-500">
-                    Período da turma: {format(new Date(turma.startDate), 'dd/MM/yyyy', { locale: ptBR })} - {format(new Date(turma.endDate), 'dd/MM/yyyy', { locale: ptBR })} (informativo)
+                    Período da turma: {format(new Date(turma.startDate), 'dd/MM/yyyy', { locale: ptBR })} - {format(new Date(turma.endDate), 'dd/MM/yyyy', { locale: ptBR })} (apenas informativo - você pode escolher qualquer data)
                   </p>
                 )}
               </div>

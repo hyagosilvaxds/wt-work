@@ -65,6 +65,13 @@ export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma, readOn
   const [actionLoading, setActionLoading] = useState(false)
   const [initializingLesson, setInitializingLesson] = useState(false)
 
+  const formatCPF = (cpf: string) => {
+    if (!cpf) return "-"
+    const cleanCPF = cpf.replace(/\D/g, '')
+    if (cleanCPF.length !== 11) return cpf
+    return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+
   // Carregar presenças quando o modal abrir
   useEffect(() => {
     if (isOpen && turma) {
@@ -334,7 +341,7 @@ export function ClassAttendanceModal({ isOpen, onClose, onSuccess, turma, readOn
                             </div>
                             <div>
                               <h4 className="font-medium">{student.name}</h4>
-                              <p className="text-sm text-gray-500">CPF: {student.cpf}</p>
+                              <p className="text-sm text-gray-500">CPF: {formatCPF(student.cpf)}</p>
                             </div>
                           </div>
                           

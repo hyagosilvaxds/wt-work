@@ -169,6 +169,13 @@ export function StudentsPage() {
     return `(${areaCode}) ${number}`
   }
 
+  const formatCPF = (cpf: string) => {
+    if (!cpf) return "-"
+    const cleanCPF = cpf.replace(/\D/g, '')
+    if (cleanCPF.length !== 11) return cpf
+    return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -237,7 +244,7 @@ export function StudentsPage() {
                 {students.map((student) => (
                   <TableRow key={student.id}>
                     <TableCell className="font-medium">{student.name}</TableCell>
-                    <TableCell>{student.cpf}</TableCell>
+                    <TableCell>{formatCPF(student.cpf)}</TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         {student.email && (

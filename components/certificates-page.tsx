@@ -121,6 +121,30 @@ export function CertificatesPage() {
     }
   }
 
+  // Função para converter data brasileira (DD/MM/YYYY) para Date válido
+  const parseBrazilianDate = (dateString: string): Date | null => {
+    if (!dateString || typeof dateString !== 'string') return null
+    
+    // Se já está em formato ISO, usar diretamente
+    if (dateString.includes('-')) {
+      const date = new Date(dateString)
+      return isNaN(date.getTime()) ? null : date
+    }
+    
+    // Converter formato brasileiro DD/MM/YYYY
+    const parts = dateString.split('/')
+    if (parts.length !== 3) return null
+    
+    const day = parseInt(parts[0], 10)
+    const month = parseInt(parts[1], 10) - 1 // Mês é 0-indexed
+    const year = parseInt(parts[2], 10)
+    
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return null
+    
+    const date = new Date(year, month, day)
+    return isNaN(date.getTime()) ? null : date
+  }
+
   useEffect(() => {
     if (clientId) {
       loadFinishedClasses()
@@ -263,13 +287,45 @@ export function CertificatesPage() {
 
   // Função para calcular se a turma está próxima do vencimento
   const calculateExpirationStatus = (classItem: any) => {
+    // Validar se os dados necessários existem
+    if (!classItem.endDate) {
+      return {
+        daysUntilExpiration: 0,
+        isExpired: false,
+        isExpiringSoon: false,
+        expirationDate: null,
+        hasValidData: false
+      }
+    }
+
     const today = new Date()
-    const endDate = new Date(classItem.endDate)
-    const validityDays = classItem.training?.validityDays || 365 // fallback para 365 dias
+    const endDate = parseBrazilianDate(classItem.endDate)
+    
+    // Verificar se a data é válida
+    if (!endDate) {
+      return {
+        daysUntilExpiration: 0,
+        isExpired: false,
+        isExpiringSoon: false,
+        expirationDate: null,
+        hasValidData: false
+      }
+    }
+
+    // Buscar validityDays corretamente - tentar diferentes caminhos
+    let validityDays = classItem.training?.validityDays || 
+                      classItem.certificateValidityDays || 
+                      classItem.training?.certificate_validity_days ||
+                      365 // fallback padrão
+
+    // Garantir que validityDays é um número válido
+    if (isNaN(Number(validityDays))) {
+      validityDays = 365
+    }
     
     // Calcular a data de vencimento da validade (fim da turma + dias de validade)
     const expirationDate = new Date(endDate)
-    expirationDate.setDate(expirationDate.getDate() + validityDays)
+    expirationDate.setDate(expirationDate.getDate() + Number(validityDays))
     
     // Calcular a diferença em dias
     const diffTime = expirationDate.getTime() - today.getTime()
@@ -278,8 +334,9 @@ export function CertificatesPage() {
     return {
       daysUntilExpiration,
       isExpired: daysUntilExpiration <= 0,
-      isExpiringSoon: daysUntilExpiration > 0 && daysUntilExpiration <= 30, // Considerar "próximo do vencimento" se restam 30 dias ou menos
-      expirationDate
+      isExpiringSoon: daysUntilExpiration > 0 && daysUntilExpiration <= 30,
+      expirationDate,
+      hasValidData: true
     }
   }
 
@@ -776,8 +833,20 @@ export function CertificatesPage() {
                       <div>
                         <p className="text-sm font-medium">Período</p>
                         <p className="text-sm text-gray-600">
-                          {classItem.startDate && new Date(classItem.startDate).toLocaleDateString("pt-BR")}
-                          {classItem.endDate && ` - ${new Date(classItem.endDate).toLocaleDateString("pt-BR")}`}
+                          {(() => {
+                            const startDate = parseBrazilianDate(classItem.startDate)
+                            const endDate = parseBrazilianDate(classItem.endDate)
+                            
+                            if (startDate && endDate) {
+                              return `${startDate.toLocaleDateString("pt-BR")} - ${endDate.toLocaleDateString("pt-BR")}`
+                            } else if (startDate) {
+                              return `${startDate.toLocaleDateString("pt-BR")} - Data final não disponível`
+                            } else if (endDate) {
+                              return `Data inicial não disponível - ${endDate.toLocaleDateString("pt-BR")}`
+                            } else {
+                              return "Período não disponível"
+                            }
+                          })()}
                         </p>
                       </div>
                     </div>
@@ -799,12 +868,17 @@ export function CertificatesPage() {
                         <p className="text-sm font-medium">Validade do Certificado</p>
                         {(() => {
                           const expirationStatus = calculateExpirationStatus(classItem)
+                          
+                          if (!expirationStatus.hasValidData) {
+                            return <p className="text-sm text-gray-500">Dados de validade não disponíveis</p>
+                          }
+                          
                           if (expirationStatus.isExpired) {
-                            return <p className="text-sm text-red-600 font-medium">Expirado</p>
+                            return <p className="text-sm text-red-600 font-medium">🔴 Certificado Vencido</p>
                           } else if (expirationStatus.isExpiringSoon) {
-                            return <p className="text-sm text-yellow-600 font-medium">Expira em {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}</p>
+                            return <p className="text-sm text-yellow-600 font-medium">⚠️ Expira em {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}</p>
                           } else {
-                            return <p className="text-sm text-green-600 font-medium">Válido por {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}</p>
+                            return <p className="text-sm text-green-600 font-medium">✅ Válido por {expirationStatus.daysUntilExpiration} dia{expirationStatus.daysUntilExpiration !== 1 ? 's' : ''}</p>
                           }
                         })()}
                       </div>

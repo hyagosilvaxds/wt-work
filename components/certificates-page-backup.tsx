@@ -115,6 +115,13 @@ export function CertificatesPage() {
   })
   const [eligibilityMode, setEligibilityMode] = useState(true) // Usar nova API por padrão
 
+  const formatCPF = (cpf: string) => {
+    if (!cpf) return "-"
+    const cleanCPF = cpf.replace(/\D/g, '')
+    if (cleanCPF.length !== 11) return cpf
+    return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+
   useEffect(() => {
     if (isClient && user?.id) {
       loadClientId()
@@ -759,7 +766,7 @@ export function CertificatesPage() {
                               <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">CPF:</span>
-                                  <span className="font-medium">{student.cpf || 'N/A'}</span>
+                                  <span className="font-medium">{formatCPF(student.cpf) || 'N/A'}</span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Email:</span>

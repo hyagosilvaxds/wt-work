@@ -66,6 +66,13 @@ export function InstructorDetailsModal({ instructorId, open, onOpenChange }: Ins
     description: ""
   })
 
+  const formatCPF = (cpf: string) => {
+    if (!cpf) return "-"
+    const cleanCPF = cpf.replace(/\D/g, '')
+    if (cleanCPF.length !== 11) return cpf
+    return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+
   // Carregar dados do instrutor quando o modal abre
   useEffect(() => {
     if (open && instructorId) {
@@ -344,7 +351,7 @@ export function InstructorDetailsModal({ instructorId, open, onOpenChange }: Ins
                       {instructor.cpf && (
                         <div>
                           <label className="text-sm font-medium text-gray-600">CPF</label>
-                          <p className="text-base">{instructor.cpf}</p>
+                          <p className="text-base">{formatCPF(instructor.cpf)}</p>
                         </div>
                       )}
 

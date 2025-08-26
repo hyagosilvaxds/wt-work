@@ -47,6 +47,13 @@ export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma, readOnly
   const [actionLoading, setActionLoading] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
 
+  const formatCPF = (cpf: string) => {
+    if (!cpf) return "-"
+    const cleanCPF = cpf.replace(/\D/g, '')
+    if (cleanCPF.length !== 11) return cpf
+    return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+
   // Carregar estudantes quando o modal abrir ou quando buscar
   useEffect(() => {
     if (isOpen) {
@@ -274,7 +281,7 @@ export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma, readOnly
                       <div>
                         <p className="font-medium">{student.name}</p>
                         <p className="text-sm text-gray-600">
-                          {student.email} • CPF: {student.cpf}
+                          {student.email} • CPF: {formatCPF(student.cpf)}
                         </p>
                       </div>
                       {!readOnly && (
@@ -388,7 +395,7 @@ export function ClassStudentsModal({ isOpen, onClose, onSuccess, turma, readOnly
                                   <div className="flex-1">
                                     <p className="font-medium">{student.name}</p>
                                     <p className="text-sm text-gray-600">
-                                      {student.email ? `${student.email} • ` : ''}CPF: {student.cpf}
+                                      {student.email ? `${student.email} • ` : ''}CPF: {formatCPF(student.cpf)}
                                     </p>
                                   </div>
                                 </div>

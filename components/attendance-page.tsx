@@ -50,6 +50,13 @@ export function AttendancePage({ lessonId, lessonTitle }: AttendancePageProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
 
+  const formatCPF = (cpf: string) => {
+    if (!cpf) return "-"
+    const cleanCPF = cpf.replace(/\D/g, '')
+    if (cleanCPF.length !== 11) return cpf
+    return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+
   // Carregar presenças e estudantes
   const loadData = async () => {
     setLoading(true)
@@ -262,7 +269,7 @@ export function AttendancePage({ lessonId, lessonTitle }: AttendancePageProps) {
                       />
                       <div>
                         <p className="font-medium">{student.name}</p>
-                        <p className="text-sm text-gray-600">CPF: {student.cpf}</p>
+                        <p className="text-sm text-gray-600">CPF: {formatCPF(student.cpf)}</p>
                         {student.email && (
                           <p className="text-sm text-gray-600">Email: {student.email}</p>
                         )}

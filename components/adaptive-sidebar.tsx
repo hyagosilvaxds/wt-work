@@ -172,11 +172,8 @@ export function AdaptiveSidebar({ activeTab, setActiveTab }: SidebarProps) {
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div
-            className="flex items-center justify-center h-20 bg-[#78BA00] z-50"
-            style={{ backgroundColor: '#78BA00' }}
-          >
-            <img src="/logoWT.png" alt="wt Work Treinamentos" className="h-12 w-auto" />
+          <div className="flex items-center justify-center h-28 bg-white z-50 p-2">
+            <img src="/logo-work.jpeg" alt="wt Work Treinamentos" className="h-full w-full object-cover object-bottom rounded-lg" />
           </div>
 
           {/* Search - disponível para todos */}

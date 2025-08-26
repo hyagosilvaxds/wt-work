@@ -91,6 +91,13 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma, readOnly = false
   const [formData, setFormData] = useState<EvaluationFormData>({})
   const [searchTerm, setSearchTerm] = useState("")
 
+  const formatCPF = (cpf: string) => {
+    if (!cpf) return "-"
+    const cleanCPF = cpf.replace(/\D/g, '')
+    if (cleanCPF.length !== 11) return cpf
+    return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+
   // Carregar dados quando o modal abrir
   useEffect(() => {
     if (isOpen && turma) {
@@ -386,7 +393,7 @@ export function ClassEvaluationsModal({ isOpen, onClose, turma, readOnly = false
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <h4 className="font-medium">{student.name}</h4>
-                            <p className="text-sm text-gray-600">{student.cpf}</p>
+                            <p className="text-sm text-gray-600">{formatCPF(student.cpf)}</p>
                           </div>
                           
                           <div className="flex items-center gap-3">

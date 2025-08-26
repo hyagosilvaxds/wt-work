@@ -32,6 +32,7 @@ export function CalendarWithEvents({ selectedDate, onDateSelect, lessons = [], c
   const [currentDate, setCurrentDate] = useState(selectedDate || new Date())
   const [showEventDetails, setShowEventDetails] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<Lesson | null>(null)
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
 
   const months = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -134,6 +135,20 @@ export function CalendarWithEvents({ selectedDate, onDateSelect, lessons = [], c
     return format(new Date(dateString), "HH:mm", { locale: ptBR })
   }
 
+  const toggleDayExpansion = (dayKey: string) => {
+    const newExpandedDays = new Set(expandedDays)
+    if (newExpandedDays.has(dayKey)) {
+      newExpandedDays.delete(dayKey)
+    } else {
+      newExpandedDays.add(dayKey)
+    }
+    setExpandedDays(newExpandedDays)
+  }
+
+  const getDayKey = (date: Date) => {
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+  }
+
   const days = getDaysInMonth(currentDate)
 
   return (
@@ -181,56 +196,84 @@ export function CalendarWithEvents({ selectedDate, onDateSelect, lessons = [], c
 
           {/* Grade do calendário */}
           <div className="grid grid-cols-7 gap-1">
-            {days.map((day, index) => (
-              <div
-                key={index}
-                className={`
-                  relative min-h-[80px] p-1 rounded-lg border transition-all duration-200 hover:shadow-md cursor-pointer
-                  ${day.isCurrentMonth ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100'}
-                  ${day.isToday ? 'border-blue-500 bg-blue-50' : ''}
-                  ${day.isSelected ? 'ring-2 ring-blue-500 bg-blue-100' : ''}
-                `}
-                onClick={() => handleDateClick(day.date)}
-              >
-                {/* Número do dia */}
-                <div className={`
-                  flex items-center justify-center w-6 h-6 rounded-full text-sm font-medium mb-1
-                  ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
-                  ${day.isToday ? 'bg-blue-600 text-white' : ''}
-                  ${day.isSelected && !day.isToday ? 'bg-blue-600 text-white' : ''}
-                `}>
-                  {day.date.getDate()}
-                </div>
+            {days.map((day, index) => {
+              const dayKey = getDayKey(day.date)
+              const isExpanded = expandedDays.has(dayKey)
+              const visibleLessons = isExpanded ? day.lessons : day.lessons.slice(0, 2)
+              const hasMoreEvents = day.lessons.length > 2
 
-                {/* Eventos do dia */}
-                <div className="space-y-1">
-                  {day.lessons.slice(0, 2).map((lesson, lessonIndex) => (
-                    <div
-                      key={lessonIndex}
-                      className={`
-                        px-2 py-1 rounded-md text-xs font-medium text-white truncate
-                        ${getStatusColor(lesson.status)}
-                        hover:opacity-80 transition-opacity
-                      `}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedEvent(lesson)
-                        setShowEventDetails(true)
-                      }}
-                      title={lesson.title}
-                    >
-                      {formatTime(lesson.startDate)} {lesson.title}
-                    </div>
-                  ))}
-                  
-                  {day.lessons.length > 2 && (
-                    <div className="px-2 py-1 rounded-md text-xs font-medium bg-gray-200 text-gray-700 truncate">
-                      +{day.lessons.length - 2} mais
-                    </div>
-                  )}
+              return (
+                <div
+                  key={index}
+                  className={`
+                    relative p-1 rounded-lg border transition-all duration-200 hover:shadow-md cursor-pointer
+                    ${day.isCurrentMonth ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100'}
+                    ${day.isToday ? 'border-blue-500 bg-blue-50' : ''}
+                    ${day.isSelected ? 'ring-2 ring-blue-500 bg-blue-100' : ''}
+                    ${isExpanded ? 'min-h-[120px]' : 'min-h-[80px]'}
+                  `}
+                  onClick={() => handleDateClick(day.date)}
+                >
+                  {/* Número do dia */}
+                  <div className={`
+                    flex items-center justify-center w-6 h-6 rounded-full text-sm font-medium mb-1
+                    ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
+                    ${day.isToday ? 'bg-blue-600 text-white' : ''}
+                    ${day.isSelected && !day.isToday ? 'bg-blue-600 text-white' : ''}
+                  `}>
+                    {day.date.getDate()}
+                  </div>
+
+                  {/* Eventos do dia */}
+                  <div className="space-y-1">
+                    {visibleLessons.map((lesson, lessonIndex) => (
+                      <div
+                        key={lessonIndex}
+                        className={`
+                          px-2 py-1 rounded-md text-xs font-medium text-white truncate
+                          ${getStatusColor(lesson.status)}
+                          hover:opacity-80 transition-opacity
+                        `}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedEvent(lesson)
+                          setShowEventDetails(true)
+                        }}
+                        title={lesson.title}
+                      >
+                        {formatTime(lesson.startDate)} {lesson.title}
+                      </div>
+                    ))}
+                    
+                    {hasMoreEvents && !isExpanded && (
+                      <div 
+                        className="px-2 py-1 rounded-md text-xs font-medium bg-gray-500 text-white truncate cursor-pointer hover:bg-gray-600 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleDayExpansion(dayKey)
+                        }}
+                        title="Clique para ver todos os eventos"
+                      >
+                        +{day.lessons.length - 2} mais
+                      </div>
+                    )}
+
+                    {hasMoreEvents && isExpanded && (
+                      <div 
+                        className="px-2 py-1 rounded-md text-xs font-medium bg-gray-600 text-white truncate cursor-pointer hover:bg-gray-700 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleDayExpansion(dayKey)
+                        }}
+                        title="Clique para recolher"
+                      >
+                        Recolher
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Legenda */}

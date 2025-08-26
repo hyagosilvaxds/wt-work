@@ -80,6 +80,13 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
     observations: ""
   })
 
+  const formatCPF = (cpf: string) => {
+    if (!cpf) return "-"
+    const cleanCPF = cpf.replace(/\D/g, '')
+    if (cleanCPF.length !== 11) return cpf
+    return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+
   // Carregar notas da turma
   const loadGrades = async () => {
     if (!turma) return
@@ -340,7 +347,7 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
                                 <div className="flex items-center justify-between">
                                   <div>
                                     <h4 className="font-medium">{student.name}</h4>
-                                    <p className="text-sm text-gray-500">{student.cpf}</p>
+                                    <p className="text-sm text-gray-500">{formatCPF(student.cpf)}</p>
                                   </div>
                                   <div className="flex gap-2">
                                     <Button 
@@ -428,7 +435,7 @@ export function ClassGradesModal({ isOpen, onClose, turma, onSuccess, readOnly =
                                       </div>
                                     )}
                                   </div>
-                                  <p className="text-sm text-gray-500 mb-2">{student.cpf}</p>
+                                  <p className="text-sm text-gray-500 mb-2">{formatCPF(student.cpf)}</p>
                                   
                                   {grade ? (
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">

@@ -127,6 +127,14 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
   const [comboboxOpen, setComboboxOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [studentsLoading, setStudentsLoading] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
+
+  const formatCPF = (cpf: string) => {
+    if (!cpf) return "-"
+    const cleanCPF = cpf.replace(/\D/g, '')
+    if (cleanCPF.length !== 11) return cpf
+    return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
 
   useEffect(() => {
     if (isOpen) {
@@ -136,24 +144,82 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
       setStudentsToRemove([])
       setSearchTerm("")
       setComboboxOpen(false)
-      if (activeTab === "students") {
-        loadAllStudents()
-      }
+      setAllStudents([])
     }
   }, [isOpen])
 
   // Carregar quando a aba de alunos for ativada
   useEffect(() => {
     if (activeTab === "students" && isOpen) {
-      loadAllStudents()
+      // Não carregar estudantes automaticamente, apenas quando houver busca
+      setAllStudents([])
     }
   }, [activeTab, isOpen])
 
-  const loadAllStudents = async () => {
-    setStudentsLoading(true)
+  // Buscar estudantes com debounce - mesmo sistema da página de alunos
+  useEffect(() => {
+    if (!isOpen || activeTab !== "students") return
+
+    console.log('🔍 useEffect disparado - searchTerm:', `"${searchTerm}"`, 'length:', searchTerm.length)
+
+    // Remover a verificação de tamanho mínimo para testar
+    if (searchTerm.trim() !== "") {
+      setSearchLoading(true)
+    }
+
+    const timer = setTimeout(() => {
+      console.log('⏰ Timer executado - searchTerm:', `"${searchTerm.trim()}"`)
+      if (searchTerm.trim() !== "") {
+        loadStudents()
+      } else {
+        setAllStudents([])
+        setSearchLoading(false)
+      }
+    }, 500) // Usar o mesmo tempo da página de alunos
+
+    return () => clearTimeout(timer)
+  }, [searchTerm, isOpen, activeTab])
+
+  const loadStudents = async () => {
+    const trimmedSearch = searchTerm.trim()
+    
+    console.log('🔍 loadStudents chamado com:', `"${trimmedSearch}"`, 'length:', trimmedSearch.length)
+    
+    if (trimmedSearch === "") {
+      setAllStudents([])
+      setSearchLoading(false)
+      return
+    }
+
+    setSearchLoading(true)
+    
     try {
-      const response = await getStudents(1, 1000) // Carregar uma quantidade grande
-      setAllStudents(response.students || [])
+      console.log('🔍 Carregando estudantes com busca:', trimmedSearch)
+      console.log('📊 Parâmetros da busca: page=1, limit=100, search=', trimmedSearch)
+      
+      const response = await getStudents(1, 100, trimmedSearch)
+      console.log('📥 Resposta da API:', response)
+      console.log('👥 Estudantes carregados total:', response.students?.length || 0)
+      
+      if (response.students?.length > 0) {
+        console.log('📝 Primeiros 3 nomes encontrados:', response.students.slice(0, 3).map((s: any) => s.name))
+      }
+      
+      // Filtrar estudantes que não estão na turma e que estão ativos
+      const availableStudents = (response.students || []).filter((student: any) => {
+        const isAlreadyInClass = turma?.students.some(classStudent => classStudent.id === student.id)
+        const isActive = student.isActive
+        
+        console.log(`🔍 Checando aluno ${student.name}: já na turma=${isAlreadyInClass}, ativo=${isActive}`)
+        
+        return !isAlreadyInClass && isActive
+      })
+      
+      console.log('✅ Estudantes disponíveis após filtro:', availableStudents.length)
+      if (availableStudents.length > 0) {
+        console.log('📝 Nomes disponíveis:', availableStudents.map((s: any) => s.name))
+      }
+      setAllStudents(availableStudents)
     } catch (error) {
       console.error('Erro ao carregar estudantes:', error)
       toast({
@@ -161,8 +227,9 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
         description: "Erro ao carregar estudantes",
         variant: "destructive"
       })
+      setAllStudents([])
     } finally {
-      setStudentsLoading(false)
+      setSearchLoading(false)
     }
   }
 
@@ -178,6 +245,12 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
       })
       setSelectedStudents([])
       setComboboxOpen(false)
+      
+      // Recarregar a lista de estudantes disponíveis se há uma busca ativa
+      if (searchTerm.trim().length >= 2) {
+        loadStudents()
+      }
+      
       if (onSuccess) {
         onSuccess()
       }
@@ -235,15 +308,8 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
     )
   }
 
-  // Filtrar estudantes que não estão na turma
-  const availableStudents = allStudents.filter(student => 
-    !turma?.students.some(classStudent => classStudent.id === student.id) &&
-    student.isActive &&
-    (searchTerm === "" || 
-     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     student.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     student.cpf.includes(searchTerm))
-  )
+  // Usar diretamente os estudantes já filtrados do backend
+  const availableStudents = allStudents
 
   const handleEditLesson = (lesson: any) => {
     setEditingLesson(lesson)
@@ -545,7 +611,7 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                           <label className="text-sm font-medium text-gray-500">CPF</label>
                           <p className="text-sm flex items-center gap-2">
                             <IdCard className="h-4 w-4" />
-                            {turma.instructor.cpf}
+                            {formatCPF(turma.instructor.cpf)}
                           </p>
                         </div>
                       )}
@@ -688,7 +754,7 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                                 {student.cpf && (
                                   <span className="flex items-center gap-1">
                                     <IdCard className="h-4 w-4" />
-                                    {student.cpf}
+                                    {formatCPF(student.cpf)}
                                   </span>
                                 )}
                               </div>
@@ -763,10 +829,10 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                             role="combobox"
                             aria-expanded={comboboxOpen}
                             className="w-full justify-between"
-                            disabled={studentsLoading}
+                            disabled={searchLoading}
                           >
                             {selectedStudents.length === 0 
-                              ? "Selecionar alunos..." 
+                              ? "Digite para buscar alunos..." 
                               : `${selectedStudents.length} aluno(s) selecionado(s)`
                             }
                             <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -774,14 +840,20 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput 
-                              placeholder="Buscar alunos..." 
-                              value={searchTerm}
-                              onValueChange={setSearchTerm}
-                            />
+                            <div className="p-2">
+                              <Input 
+                                placeholder="Buscar alunos..." 
+                                value={searchTerm}
+                                onChange={(e) => {
+                                  console.log('🎯 Input onChange:', `"${e.target.value}"`);
+                                  setSearchTerm(e.target.value);
+                                }}
+                                className="w-full"
+                              />
+                            </div>
                             <CommandList>
                               <CommandEmpty>
-                                {studentsLoading ? "Carregando..." : "Nenhum aluno encontrado"}
+                                {searchLoading ? "Carregando..." : searchTerm.trim() === "" ? "Digite o nome do aluno para buscar" : "Nenhum aluno encontrado"}
                               </CommandEmpty>
                               <CommandGroup>
                                 {availableStudents.map((student) => (
@@ -800,7 +872,7 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                                       <div className="flex-1">
                                         <p className="font-medium">{student.name}</p>
                                         <p className="text-sm text-gray-600">
-                                          {student.email} • CPF: {student.cpf}
+                                          {student.email} • CPF: {formatCPF(student.cpf)}
                                         </p>
                                       </div>
                                     </div>

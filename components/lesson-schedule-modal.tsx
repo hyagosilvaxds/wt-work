@@ -102,13 +102,6 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
   // Reset form quando modal abre/fecha
   useEffect(() => {
     if (isOpen && turma) {
-      // Debug: verificar datas da turma
-      console.log('Turma startDate:', turma.startDate)
-      console.log('Turma endDate:', turma.endDate)
-      console.log('Turma startDate parsed:', new Date(turma.startDate))
-      console.log('Turma endDate parsed:', new Date(turma.endDate))
-      console.log('Current date:', new Date())
-      
       setFormData({
         title: `Aula - ${turma.training.title}`,
         description: turma.training.description || "",
@@ -168,44 +161,7 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
       }
     }
 
-    // Validar se a data está dentro do período da turma
-    if (formData.date && turma) {
-      const lessonDate = new Date(formData.date)
-      const turmaStart = new Date(turma.startDate)
-      const turmaEnd = new Date(turma.endDate)
-      const today = new Date()
-      
-      // Normalizar todas as datas para o mesmo horário (meio-dia) para evitar problemas de timezone
-      lessonDate.setHours(12, 0, 0, 0)
-      turmaStart.setHours(12, 0, 0, 0)
-      turmaEnd.setHours(12, 0, 0, 0)
-      today.setHours(12, 0, 0, 0)
-      
-      // Debug: mostrar as datas sendo comparadas
-      console.log('Validação de datas:')
-      console.log('Data da aula:', format(lessonDate, 'dd/MM/yyyy'))
-      console.log('Hoje:', format(today, 'dd/MM/yyyy'))
-      console.log('Início da turma:', format(turmaStart, 'dd/MM/yyyy'))
-      console.log('Fim da turma:', format(turmaEnd, 'dd/MM/yyyy'))
-      
-      // Verificar se as datas da turma são válidas
-      if (turmaStart >= turmaEnd) {
-        errors.push(`Erro: Data de início da turma (${format(turmaStart, 'dd/MM/yyyy')}) deve ser anterior à data de fim (${format(turmaEnd, 'dd/MM/yyyy')})`)
-      }
-      
-      // Verificar se a data não é no passado
-      if (lessonDate < today) {
-        errors.push(`A data da aula não pode ser no passado. Data mínima: ${format(today, 'dd/MM/yyyy')}`)
-      }
-      // Verificar se a data não é anterior ao início da turma
-      else if (lessonDate < turmaStart) {
-        errors.push(`A data da aula não pode ser anterior ao início da turma: ${format(turmaStart, 'dd/MM/yyyy')}`)
-      }
-      // Verificar se a data não é posterior ao fim da turma
-      else if (lessonDate > turmaEnd) {
-        errors.push(`A data da aula não pode ser posterior ao fim da turma: ${format(turmaEnd, 'dd/MM/yyyy')}`)
-      }
-    }
+    // Validações de data removidas - usuário pode escolher qualquer data
 
     return errors
   }
@@ -396,19 +352,12 @@ export function LessonScheduleModal({ isOpen, onClose, onSuccess, turma }: Lesso
                           }
                         }}
                         className="pl-10"
-                        min={turma ? (() => {
-                          const today = new Date()
-                          const turmaStart = new Date(turma.startDate)
-                          const minDate = today > turmaStart ? today : turmaStart
-                          return format(minDate, "yyyy-MM-dd")
-                        })() : format(new Date(), "yyyy-MM-dd")}
-                        max={turma ? format(new Date(turma.endDate), "yyyy-MM-dd") : undefined}
                         required
                       />
                     </div>
                     {turma && (
                       <p className="text-xs text-gray-500">
-                        Período da turma: {format(new Date(turma.startDate), 'dd/MM/yyyy', { locale: ptBR })} - {format(new Date(turma.endDate), 'dd/MM/yyyy', { locale: ptBR })}
+                        Período da turma: {format(new Date(turma.startDate), 'dd/MM/yyyy', { locale: ptBR })} - {format(new Date(turma.endDate), 'dd/MM/yyyy', { locale: ptBR })} (apenas informativo - você pode escolher qualquer data)
                       </p>
                     )}
                   </div>
