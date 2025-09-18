@@ -180,26 +180,47 @@ export const bankAccountsApi = {
     document.body.removeChild(a)
   },
 
-  downloadTemplate: async () => {
-    const response = await api({
-      url: '/api/financial/bank-accounts/excel/template',
-      method: 'GET',
-      responseType: 'blob',
+  // Transferência entre contas bancárias
+  transferBetweenAccounts: async (data: TransferBetweenAccountsDto): Promise<TransferResponse> => {
+    // Validação básica no cliente
+    if (!data.fromAccountId || !data.toAccountId) {
+      throw new Error('fromAccountId e toAccountId são obrigatórios')
+    }
+    if (data.fromAccountId === data.toAccountId) {
+      throw new Error('fromAccountId e toAccountId devem ser contas diferentes')
+    }
+    if (!data.amount || typeof data.amount !== 'number' || data.amount <= 0) {
+      throw new Error('amount deve ser um número positivo')
+    }
+
+    const response = await apiRequest('/api/financial/bank-accounts/transfer', {
+      method: 'POST',
+      data,
     })
 
-    // Retorna o blob para download
-    const blob = new Blob([response.data], { 
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-    })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'template-contas-bancarias.xlsx'
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
+    return response as TransferResponse
   },
+
+   downloadTemplate: async () => {
+     const response = await api({
+       url: '/api/financial/bank-accounts/excel/template',
+       method: 'GET',
+       responseType: 'blob',
+     })
+
+     // Retorna o blob para download
+     const blob = new Blob([response.data], { 
+       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+     })
+     const url = window.URL.createObjectURL(blob)
+     const a = document.createElement('a')
+     a.href = url
+     a.download = 'template-contas-bancarias.xlsx'
+     document.body.appendChild(a)
+     a.click()
+     window.URL.revokeObjectURL(url)
+     document.body.removeChild(a)
+   },
 
   importFromExcel: async (file: File) => {
     const formData = new FormData()
@@ -216,6 +237,84 @@ export const bankAccountsApi = {
 
     return response.data
   },
+
+  // Listar transferências com paginação e filtro por conta
+  listTransfers: async (params?: { page?: number; limit?: number; accountId?: string }) => {
+    const query = new URLSearchParams()
+    if (params?.page) query.append('page', params.page.toString())
+    if (params?.limit) query.append('limit', params.limit.toString())
+    if (params?.accountId) query.append('accountId', params.accountId)
+
+  const endpoint = `/api/financial/bank-accounts/transfers${query.toString() ? `?${query.toString()}` : ''}`
+  // DEBUG: log do endpoint utilizado para listagem de transferências
+  console.log('[bankAccountsApi.listTransfers] endpoint:', endpoint)
+  return apiRequest(endpoint)
+  },
+
+  // Buscar transferência por ID
+  getTransferById: async (id: string) => {
+    if (!id) throw new Error('id é obrigatório')
+    return apiRequest(`/api/financial/bank-accounts/transfers/${id}`)
+  },
+}
+
+// Interfaces para listagem de transferências
+export interface TransferItem {
+  id: string
+  fromAccountId: string
+  toAccountId: string
+  amount: number
+  description?: string
+  createdAt: string
+  fromAccount?: {
+    id: string
+    nome: string
+    banco?: string
+  }
+  toAccount?: {
+    id: string
+    nome: string
+    banco?: string
+  }
+}
+
+export interface TransfersListResponse {
+  data: TransferItem[]
+  pagination?: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
+// DTOs para transferência entre contas
+export interface TransferBetweenAccountsDto {
+  fromAccountId: string
+  toAccountId: string
+  amount: number
+  description?: string
+}
+
+export interface TransferAccountInfo {
+  id: string
+  name: string
+  previousBalance: number
+  newBalance: number
+}
+
+export interface TransferDetails {
+  fromAccount: TransferAccountInfo
+  toAccount: TransferAccountInfo
+  amount: number
+  description?: string
+  timestamp: string
+}
+
+export interface TransferResponse {
+  success: boolean
+  message: string
+  transfer: TransferDetails
 }
 
 // 💰 CONTAS A RECEBER
@@ -1280,7 +1379,7 @@ export interface CashFlowEntriesExits {
 export interface DailyCashFlow {
   date: string
   entradas: number
-  saidas: number
+  saídas: number
   saldoDia: number
   saldoAcumulado: number
 }

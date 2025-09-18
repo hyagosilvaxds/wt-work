@@ -5,12 +5,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Upload, Calendar, RefreshCw, Download, FileDown } from "lucide-react"
+import { Plus, Search, Upload, Calendar, RefreshCw, Download, FileDown, ArrowLeftRight } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AccountsContent } from "./accounts-content"
 import { AccountsReceivablePage } from "./accounts-receivable-page"
 import { AccountsPayablePage } from "./accounts-payable-page"
 import { CashFlowPage } from "./cash-flow-page"
+import { TransfersPage } from "./transfers-page"
 import { FinancialDashboardContent } from "./dashboard/financial-dashboard-content"
 import { FinancialReports } from "./reports/financial-reports"
 import { DateRangePicker } from "../ui/date-range-picker"
@@ -25,6 +26,7 @@ export function FinancialModule() {
   const [isAddAccountDialogOpen, setIsAddAccountDialogOpen] = useState(false)
   const [isAddReceivableDialogOpen, setIsAddReceivableDialogOpen] = useState(false)
   const [isAddPayableDialogOpen, setIsAddPayableDialogOpen] = useState(false)
+  const [isAddTransferDialogOpen, setIsAddTransferDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [isImportReceivableDialogOpen, setIsImportReceivableDialogOpen] = useState(false)
   const [isImportPayableDialogOpen, setIsImportPayableDialogOpen] = useState(false)
@@ -271,6 +273,15 @@ export function FinancialModule() {
             </Button>
           </>
         )
+      case "transfers":
+        return (
+          <>
+            <Button className="bg-primary-500 hover:bg-primary-600" onClick={() => setIsAddTransferDialogOpen(true)}>
+              <ArrowLeftRight className="mr-2 h-4 w-4" />
+              Nova Transferência
+            </Button>
+          </>
+        )
       case "cash-flow":
         return null // Botão já existe na própria página
       case "reports":
@@ -346,11 +357,12 @@ export function FinancialModule() {
 
       {/* Conteúdo Principal */}
       <Tabs defaultValue="dashboard" className="w-full" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-6 w-full max-w-4xl mb-4">
+        <TabsList className="grid grid-cols-7 w-full max-w-5xl mb-4">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="accounts">Contas</TabsTrigger>
           <TabsTrigger value="receivable">Contas a Receber</TabsTrigger>
           <TabsTrigger value="payable">Contas a Pagar</TabsTrigger>
+          <TabsTrigger value="transfers">Transferências</TabsTrigger>
           <TabsTrigger value="cash-flow">Fluxo de Caixa</TabsTrigger>
           <TabsTrigger value="reports">Relatórios</TabsTrigger>
         </TabsList>
@@ -400,6 +412,14 @@ export function FinancialModule() {
             setIsAddDialogOpen={setIsAddPayableDialogOpen}
             isImportDialogOpen={isImportPayableDialogOpen}
             setIsImportDialogOpen={setIsImportPayableDialogOpen}
+          />
+        </TabsContent>
+
+        <TabsContent value="transfers">
+          <TransfersPage
+            searchTerm={searchTerm}
+            isAddDialogOpen={isAddTransferDialogOpen}
+            setIsAddDialogOpen={setIsAddTransferDialogOpen}
           />
         </TabsContent>
 
