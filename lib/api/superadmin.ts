@@ -1470,7 +1470,10 @@ export const markAllStudentsAbsent = async (classId: string, lessonId: string) =
 // Função para buscar turmas do cliente (para usuários do tipo CLIENTE)
 export const getClientClasses = async () => {
     try {
+        console.log('📡 Fazendo requisição para /superadmin/my-classes')
         const response = await api.get('/superadmin/my-classes');
+        console.log('✅ getClientClasses response status:', response.status)
+        console.log('✅ getClientClasses response.data:', response.data)
         return response.data;
     } catch (error) {
         console.error('Erro ao buscar turmas do cliente:', error);
@@ -1630,7 +1633,7 @@ export const downloadInstructorDocument = async (documentPath: string, fileName?
     console.log('- fileName:', fileName)
     
     // Construir a URL do arquivo baseada no path do documento
-    const baseUrl = 'https://api.olimpustech.com'
+    const baseUrl = 'http://localhost:4000'
     const fileUrl = `${baseUrl}${documentPath}`
     console.log('- fileUrl:', fileUrl)
     
@@ -4464,6 +4467,40 @@ export const deleteCompanyEvaluation = async (classId: string): Promise<{ id: st
     return response.data
   } catch (error: any) {
     console.error('Erro ao remover avaliação da empresa:', error)
+    throw error
+  }
+}
+
+// ============ CLASS CLOSING DATE MANAGEMENT ============
+
+export interface UpdateClosingDateDto {
+  closingDate?: string | null // Data em formato ISO 8601 ou null para remover
+}
+
+export interface ClosingDateResponseDto {
+  classId: string        // ID da turma
+  closingDate: Date | null // Data de encerramento personalizada (null se não definida)
+  endDate: Date          // Data final da turma (para referência)
+}
+
+// Atualizar data de encerramento de uma turma
+export const updateClassClosingDate = async (classId: string, data: UpdateClosingDateDto): Promise<ClosingDateResponseDto> => {
+  try {
+    const response = await api.patch(`/superadmin/classes/${classId}/closing-date`, data)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao atualizar data de encerramento:', error)
+    throw error
+  }
+}
+
+// Consultar data de encerramento de uma turma
+export const getClassClosingDate = async (classId: string): Promise<ClosingDateResponseDto> => {
+  try {
+    const response = await api.get(`/superadmin/classes/${classId}/closing-date`)
+    return response.data
+  } catch (error: any) {
+    console.error('Erro ao buscar data de encerramento:', error)
     throw error
   }
 }

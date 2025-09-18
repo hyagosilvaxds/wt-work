@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { getStudents, addStudentsToClass, removeStudentsFromClass } from "@/lib/api/superadmin"
+import { getClassById } from "@/lib/api/superadmin"
 import {
   Users,
   Calendar,
@@ -123,6 +124,7 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
   const [allStudents, setAllStudents] = useState<any[]>([])
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
   const [studentsToRemove, setStudentsToRemove] = useState<string[]>([])
+  const [turmaStudents, setTurmaStudents] = useState<any[]>(turma ? turma.students : [])
   const [searchTerm, setSearchTerm] = useState("")
   const [comboboxOpen, setComboboxOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
@@ -144,7 +146,8 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
       setStudentsToRemove([])
       setSearchTerm("")
       setComboboxOpen(false)
-      setAllStudents([])
+  setAllStudents([])
+  setTurmaStudents(turma ? turma.students : [])
     }
   }, [isOpen])
 
@@ -152,7 +155,8 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
   useEffect(() => {
     if (activeTab === "students" && isOpen) {
       // Não carregar estudantes automaticamente, apenas quando houver busca
-      setAllStudents([])
+  setAllStudents([])
+  setTurmaStudents(turma ? turma.students : [])
     }
   }, [activeTab, isOpen])
 
@@ -207,7 +211,7 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
       
       // Filtrar estudantes que não estão na turma e que estão ativos
       const availableStudents = (response.students || []).filter((student: any) => {
-        const isAlreadyInClass = turma?.students.some(classStudent => classStudent.id === student.id)
+        const isAlreadyInClass = (turmaStudents || turma?.students || []).some(classStudent => classStudent.id === student.id)
         const isActive = student.isActive
         
         console.log(`🔍 Checando aluno ${student.name}: já na turma=${isAlreadyInClass}, ativo=${isActive}`)
@@ -233,6 +237,17 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
     }
   }
 
+    // Reload turma students from API
+    const reloadTurmaStudents = async () => {
+      if (!turma) return
+      try {
+        const refreshed = await getClassById(turma.id)
+        setTurmaStudents(refreshed.students || [])
+      } catch (error) {
+        console.error('Erro ao recarregar estudantes da turma:', error)
+      }
+    }
+
   const handleAddStudents = async () => {
     if (!turma || selectedStudents.length === 0) return
 
@@ -250,6 +265,9 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
       if (searchTerm.trim().length >= 2) {
         loadStudents()
       }
+
+      // Recarregar os estudantes da turma para refletir a adição
+      await reloadTurmaStudents()
       
       if (onSuccess) {
         onSuccess()
@@ -277,6 +295,8 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
         description: `${studentsToRemove.length} aluno(s) removido(s) da turma`,
       })
       setStudentsToRemove([])
+      // Recarregar estudantes da turma para refletir remoção
+      await reloadTurmaStudents()
       if (onSuccess) {
         onSuccess()
       }
@@ -547,15 +567,15 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Users className="h-5 w-5" />
-                        Alunos ({turma.students.length})
+                        Alunos ({(turmaStudents || []).length})
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {turma.students.length === 0 ? (
+                      {(turmaStudents || []).length === 0 ? (
                         <p className="text-sm text-gray-500">Nenhum aluno matriculado</p>
                       ) : (
                         <div className="space-y-3">
-                          {turma.students.map((student) => (
+                          {(turmaStudents || []).map((student) => (
                             <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                               <div>
                                 <p className="font-medium">{student.name}</p>
@@ -718,18 +738,18 @@ export function ClassDetailsModal({ isOpen, onClose, turma, onEdit, onScheduleLe
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
-                    Alunos Matriculados ({turma.students.length})
+                    Alunos Matriculados ({(turmaStudents || []).length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {turma.students.length === 0 ? (
+                  {(turmaStudents || []).length === 0 ? (
                     <div className="text-center py-8">
                       <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-500">Nenhum aluno matriculado nesta turma</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {turma.students.map((student: any) => (
+                      {(turmaStudents || []).map((student: any) => (
                         <div 
                           key={student.id} 
                           className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 ${

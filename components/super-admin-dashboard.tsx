@@ -33,7 +33,9 @@ export function SuperAdminDashboard() {
           getDashboardData(),
           getOpenClasses(1, 5) // Buscar as primeiras 5 turmas em aberto
         ])
-        setDashboardData(dashboardResponse)
+  // Log fetched dashboard response for debugging agenda data
+  console.log('Fetched dashboardResponse:', dashboardResponse)
+  setDashboardData(dashboardResponse)
         setOpenClasses(openClassesResponse.classes)
       } catch (error) {
         console.error('Erro ao buscar dados do dashboard:', error)
@@ -45,6 +47,13 @@ export function SuperAdminDashboard() {
 
     fetchDashboardData()
   }, [])
+
+  // Log scheduled lessons whenever dashboardData updates for debugging
+  useEffect(() => {
+    if (dashboardData && dashboardData.scheduledLessons) {
+      console.log('Scheduled lessons:', dashboardData.scheduledLessons)
+    }
+  }, [dashboardData])
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -96,74 +105,77 @@ export function SuperAdminDashboard() {
     return [
       {
         title: "Total de Alunos",
-        value: dashboardData.totalStudents.toString(),
+        value: (dashboardData.totalStudents ?? 0).toString(),
         description: "Estudantes cadastrados",
         icon: Users,
         color: "from-blue-500 to-blue-600",
         textColor: "text-blue-600",
         bgColor: "bg-blue-50",
-        trend: dashboardData.totalStudents.toString(),
+        trend: (dashboardData.totalStudents ?? 0).toString(),
         trendColor: "text-blue-600",
       },
       {
         title: "Turmas Ativas",
-        value: dashboardData.totalClasses.toString(),
+        value: (dashboardData.totalClasses ?? 0).toString(),
         description: "Turmas em andamento",
         icon: Target,
         color: "from-green-500 to-green-600",
         textColor: "text-green-600",
         bgColor: "bg-green-50",
-        trend: dashboardData.totalClasses.toString(),
+        trend: (dashboardData.totalClasses ?? 0).toString(),
         trendColor: "text-green-600",
       },
       {
         title: "Aulas Agendadas",
-        value: dashboardData.totalScheduledLessons.toString(),
+        value: (dashboardData.totalScheduledLessons ?? 0).toString(),
         description: "Próximas aulas",
         icon: CalendarIcon,
         color: "from-purple-500 to-purple-600",
         textColor: "text-purple-600",
         bgColor: "bg-purple-50",
-        trend: dashboardData.totalScheduledLessons.toString(),
+        trend: (dashboardData.totalScheduledLessons ?? 0).toString(),
         trendColor: "text-purple-600",
       },
       {
         title: "Treinamentos",
-        value: dashboardData.totalTrainings.toString(),
+        value: (dashboardData.totalTrainings ?? 0).toString(),
         description: "Treinamentos disponíveis",
         icon: BookOpen,
         color: "from-orange-500 to-orange-600",
         textColor: "text-orange-600",
         bgColor: "bg-orange-50",
-        trend: dashboardData.totalTrainings.toString(),
+        trend: (dashboardData.totalTrainings ?? 0).toString(),
         trendColor: "text-orange-600",
       },
       {
         title: "Instrutores",
-        value: dashboardData.totalInstructors.toString(),
+        value: (dashboardData.totalInstructors ?? 0).toString(),
         description: "Instrutores cadastrados",
         icon: UserCheck,
         color: "from-indigo-500 to-indigo-600",
         textColor: "text-indigo-600",
         bgColor: "bg-indigo-50",
-        trend: dashboardData.totalInstructors.toString(),
+        trend: (dashboardData.totalInstructors ?? 0).toString(),
         trendColor: "text-indigo-600",
       },
       {
         title: "Clientes",
-        value: dashboardData.totalClients.toString(),
+        value: (dashboardData.totalClients ?? 0).toString(),
         description: "Empresas parceiras",
         icon: Building2,
         color: "from-pink-500 to-pink-600",
         textColor: "text-pink-600",
         bgColor: "bg-pink-50",
-        trend: dashboardData.totalClients.toString(),
+        trend: (dashboardData.totalClients ?? 0).toString(),
         trendColor: "text-pink-600",
       },
     ]
   }
 
   const stats = getStats()
+
+  // Normalize lessons: some API responses use `scheduledLessons`, others use `lessons`.
+  const agendaLessons = dashboardData ? (dashboardData.scheduledLessons ?? (dashboardData as any).lessons ?? []) : []
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -240,7 +252,7 @@ export function SuperAdminDashboard() {
         <CalendarWithEvents
           selectedDate={new Date()}
           onDateSelect={() => {}}
-          lessons={dashboardData.scheduledLessons}
+          lessons={agendaLessons}
           className="w-full"
         />
       )}
@@ -346,7 +358,7 @@ export function SuperAdminDashboard() {
                     <span className="text-sm font-medium">Aulas Agendadas</span>
                   </div>
                   <span className="text-lg font-bold text-blue-600">
-                    {dashboardData.scheduledLessons.filter(lesson => lesson.status === 'AGENDADA').length}
+                    {(dashboardData.scheduledLessons || []).filter(lesson => lesson.status === 'AGENDADA').length}
                   </span>
                 </div>
                 
@@ -356,7 +368,7 @@ export function SuperAdminDashboard() {
                     <span className="text-sm font-medium">Aulas Realizadas</span>
                   </div>
                   <span className="text-lg font-bold text-green-600">
-                    {dashboardData.scheduledLessons.filter(lesson => lesson.status === 'REALIZADA').length}
+                    {(dashboardData.scheduledLessons || []).filter(lesson => lesson.status === 'REALIZADA').length}
                   </span>
                 </div>
                 
@@ -366,7 +378,7 @@ export function SuperAdminDashboard() {
                     <span className="text-sm font-medium">Aulas Canceladas</span>
                   </div>
                   <span className="text-lg font-bold text-red-600">
-                    {dashboardData.scheduledLessons.filter(lesson => lesson.status === 'CANCELADA').length}
+                    {(dashboardData.scheduledLessons || []).filter(lesson => lesson.status === 'CANCELADA').length}
                   </span>
                 </div>
                 
@@ -376,7 +388,7 @@ export function SuperAdminDashboard() {
                     <span className="text-sm font-medium">Total de Aulas</span>
                   </div>
                   <span className="text-lg font-bold text-purple-600">
-                    {dashboardData.scheduledLessons.length}
+                    {(dashboardData.scheduledLessons || []).length}
                   </span>
                 </div>
               </div>
@@ -414,7 +426,7 @@ export function SuperAdminDashboard() {
                   <div className="h-3 bg-gray-200 rounded w-16"></div>
                 </div>
               ))
-            ) : dashboardData && dashboardData.recentActivities.length > 0 ? (
+            ) : dashboardData && dashboardData.recentActivities && dashboardData.recentActivities.length > 0 ? (
               dashboardData.recentActivities.slice(0, 5).map((activity, index) => (
                 <div
                   key={index}
@@ -437,7 +449,7 @@ export function SuperAdminDashboard() {
                 Nenhuma atividade recente encontrada
               </div>
             )}
-            {dashboardData && dashboardData.recentActivities.length > 5 && (
+            {dashboardData && dashboardData.recentActivities && dashboardData.recentActivities.length > 5 && (
               <Button
                 variant="ghost"
                 size="sm"

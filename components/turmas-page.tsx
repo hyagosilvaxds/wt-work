@@ -86,6 +86,7 @@ interface TurmaData {
     id: string
     name: string
     email?: string
+    cnpj?: string
     corporateName?: string
     personType: string
     isActive: boolean
@@ -160,7 +161,9 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
       // Se for visualização de cliente (isClientView) ou se o usuário é cliente (isClient)
       if (isClientView || isClient) {
         // Para usuários do tipo CLIENTE, usar getClientClasses
+        console.log('📡 Chamando getClientClasses para usuário CLIENTE')
         const clientClasses = await getClientClasses()
+        console.log('📦 Resposta da API getClientClasses:', clientClasses)
         let classes = clientClasses.classes || clientClasses || []
         
         // Aplicar filtro de busca localmente para usuários CLIENTE
@@ -209,6 +212,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
         })
         
         response = await getClasses(currentPageToUse, limit, searchParam, classId)
+        console.log('📦 Resposta da API getClasses:', response)
       }
       
       // A API retorna: { classes: [...], pagination: { page, limit, total, totalPages } }
@@ -695,9 +699,19 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                         {turma.training.description}
                       </p>
                       {turma.client && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Cliente: {turma.client.name}
-                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Building2 className="h-4 w-4 text-blue-600" />
+                          <div className="flex flex-col">
+                            <p className="text-sm font-medium text-blue-900 bg-blue-50 px-2 py-1 rounded">
+                              {turma.client.name}
+                            </p>
+                            {turma.client.cnpj && (
+                              <p className="text-xs text-blue-700 mt-1 px-2">
+                                CNPJ: {turma.client.cnpj}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       )}
                       <p className="text-xs text-gray-400 mt-1 font-mono">
                         ID: {turma.id}
@@ -748,6 +762,25 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
                 
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Informações da Empresa/Cliente */}
+                    {turma.client && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Building2 className="h-4 w-4" />
+                          Empresa
+                        </div>
+                        <div>
+                          <p className="font-medium">{turma.client.name}</p>
+                          {turma.client.cnpj && (
+                            <p className="text-sm text-gray-500">CNPJ: {turma.client.cnpj}</p>
+                          )}
+                          {turma.client.corporateName && turma.client.corporateName !== turma.client.name && (
+                            <p className="text-sm text-gray-500">{turma.client.corporateName}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Informações do Instrutor */}
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-sm text-gray-500">

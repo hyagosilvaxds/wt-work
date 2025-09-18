@@ -17,9 +17,10 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Package
+  Package,
+  Building2
 } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import {
   AlertDialog,
@@ -48,6 +49,7 @@ import {
   type CompletedClassWithEligibility,
   type ClientEligibleClassesResponse
 } from "@/lib/api/superadmin"
+import { getCompletedClassesFiltered, type CompletedClassesResponseDto } from "@/lib/api/certificates"
 import { CertificateGeneratorModal } from "./certificate-generator-modal"
 import { CertificatePreviewModal } from "./certificate-preview-modal"
 import { toast } from "sonner"
@@ -56,6 +58,8 @@ import { useAuth } from "@/hooks/use-auth"
 export function CertificatesPage() {
   const { user, isClient, isInstructor } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
+  const [searchFocused, setSearchFocused] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<string[]>([])
   const [finishedClasses, setFinishedClasses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,7 +74,7 @@ export function CertificatesPage() {
   const [clientId, setClientId] = useState<string | null>(null)
   const [instructorId, setInstructorId] = useState<string | null>(null)
   
-  // Novos estados para a API de elegibilidade
+  // Estados para o modal de preview
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean
     classId: string
@@ -84,7 +88,6 @@ export function CertificatesPage() {
     studentName: '',
     trainingTitle: ''
   })
-  const [eligibilityMode, setEligibilityMode] = useState(true) // Usar nova API por padrão
 
   useEffect(() => {
     if (isClient && user?.id) {
@@ -160,128 +163,99 @@ export function CertificatesPage() {
   // Recarregar quando o termo de busca mudar
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (isClient && clientId) {
-        loadFinishedClasses()
-      } else if (isInstructor) {
-        // Para instrutor, carregar sempre que instructorId estiver disponível
-        loadFinishedClasses()
-      } else if (!isClient && !isInstructor) {
-        loadFinishedClasses()
+      // Reset para página 1 quando há busca
+      if (currentPage !== 1) {
+        setCurrentPage(1)
+      } else {
+        if (isClient && clientId) {
+          loadFinishedClasses()
+        } else if (isInstructor) {
+          // Para instrutor, carregar sempre que instructorId estiver disponível
+          loadFinishedClasses()
+        } else if (!isClient && !isInstructor) {
+          loadFinishedClasses()
+        }
       }
-    }, 500) // Debounce de 500ms
+  }, 1000) // Debounce de 1000ms (aumentado)
 
     return () => clearTimeout(timeoutId)
   }, [searchTerm, instructorId])
 
   const loadFinishedClasses = async () => {
+    let hadFocus = false
     try {
+      // Preserve whether the search input had focus so we can restore it after load
+      hadFocus = !!(searchInputRef.current && document.activeElement === searchInputRef.current)
+
       setLoading(true)
-      let classes: any[] = []
       
-      if (eligibilityMode) {
-        // Usar nova API de elegibilidade
-        if (isClient && clientId) {
-          const response = await getClientEligibleClasses(clientId)
-          classes = response.classes.map(cls => ({
-            id: cls.classId,
-            training: { 
-              title: cls.trainingName,
-              durationHours: cls.trainingDurationHours,
-              validityDays: cls.certificateValidityDays
-            },
-            startDate: cls.startDate,
-            endDate: cls.endDate,
-            status: cls.status,
-            location: cls.location,
-            students: cls.students.map(student => ({
-              id: student.studentId,
-              name: student.studentName,
-              cpf: student.studentCpf,
-              email: student.studentEmail,
-              practicalGrade: student.practicalGrade,
-              theoreticalGrade: student.theoreticalGrade,
-              averageGrade: student.averageGrade,
-              totalLessons: student.totalLessons,
-              attendedLessons: student.attendedLessons,
-              absences: student.absences,
-              isEligible: student.isEligible,
-              eligibilityReason: student.reason,
-              hasAbsences: student.absences > 0
-            }))
-          }))
-        } else if (!isClient) {
-          // Admin/Instrutor - usar API geral de turmas concluídas
-          const response = await getCompletedClassesWithEligibility()
-          classes = response.map(cls => ({
-            id: cls.classId,
-            training: { 
-              title: cls.trainingName,
-              durationHours: cls.trainingDurationHours,
-              validityDays: cls.certificateValidityDays
-            },
-            startDate: cls.startDate,
-            endDate: cls.endDate,
-            status: cls.status,
-            location: cls.location,
-            students: cls.students.map(student => ({
-              id: student.studentId,
-              name: student.studentName,
-              cpf: student.studentCpf,
-              email: student.studentEmail,
-              practicalGrade: student.practicalGrade,
-              theoreticalGrade: student.theoreticalGrade,
-              averageGrade: student.averageGrade,
-              totalLessons: student.totalLessons,
-              attendedLessons: student.attendedLessons,
-              absences: student.absences,
-              isEligible: student.isEligible,
-              eligibilityReason: student.reason,
-              hasAbsences: student.absences > 0
-            }))
-          }))
-          
-          // Filtrar por instrutor se necessário
-          if (isInstructor && instructorId) {
-            classes = classes.filter((classItem: any) => 
-              classItem.instructor?.id === instructorId || classItem.instructorId === instructorId
-            )
-          }
-        }
-      } else {
-        // Usar API antiga (manter compatibilidade)
-        let response
-        
-        if (isClient) {
-          if (!clientId) {
-            console.log('Aguardando clientId para carregar turmas...')
-            return
-          }
-          response = await getFinishedClassesByClient(clientId, currentPage, 10, searchTerm)
-        } else if (isInstructor) {
-          response = await getFinishedClasses(currentPage, 10, searchTerm)
-        } else {
-          response = await getFinishedClasses(currentPage, 10, searchTerm)
-        }
-        
-        classes = response.classes || []
-        
-        // Filtrar classes do instrutor no frontend
-        if (isInstructor && instructorId) {
-          classes = classes.filter((classItem: any) => {
-            const isInstructorClass = classItem.instructor?.id === instructorId || classItem.instructorId === instructorId
-            return isInstructorClass
-          })
-        }
-        
-        setTotalPages(response.pagination?.totalPages || 1)
+      // Usar o novo endpoint de turmas concluídas com filtros
+      const filters: any = {
+        page: currentPage,
+        limit: 10,
+        sortBy: 'endDate',
+        sortOrder: 'desc'
       }
       
+      // Adicionar filtro de busca se houver usando o parâmetro search
+      if (searchTerm.trim()) {
+        filters.search = searchTerm.trim()
+      }
+      
+      const response = await getCompletedClassesFiltered(filters)
+      
+      // Transformar dados para o formato esperado pelo componente
+      const classes = response.classes.map(cls => ({
+        id: cls.classId,
+        training: { 
+          title: cls.trainingName,
+          durationHours: cls.trainingDurationHours,
+          validityDays: cls.certificateValidityDays
+        },
+        startDate: cls.startDate,
+        endDate: cls.endDate,
+        status: cls.status,
+        location: cls.location,
+        client: cls.client,
+        instructor: cls.instructor,
+        totalStudents: cls.totalStudents,
+        students: cls.students.map(student => ({
+          id: student.studentId,
+          name: student.studentName,
+          cpf: student.cpf,
+          email: '', // Não fornecido pelo novo endpoint
+          practicalGrade: student.practicalGrade,
+          theoreticalGrade: student.preTestGrade, // Mapear preTestGrade para theoreticalGrade
+          averageGrade: student.postTestGrade, // Mapear postTestGrade para averageGrade
+          totalLessons: cls.totalLessons || 0, // Usar totalLessons da turma
+          attendedLessons: student.totalPresences,
+          absences: student.absences,
+          isEligible: student.isEligible,
+          eligibilityReason: student.reason,
+          hasAbsences: student.absences > 0
+        }))
+      }))
+      
       setFinishedClasses(classes)
+      setTotalPages(response.pagination.totalPages)
+      
     } catch (error) {
       console.error('Erro ao carregar turmas concluídas:', error)
       toast.error('Erro ao carregar turmas concluídas')
     } finally {
       setLoading(false)
+      // Restaurar foco ao campo de busca se estava focado antes da requisição
+      if (hadFocus && searchInputRef.current) {
+        requestAnimationFrame(() => {
+          try {
+            searchInputRef.current!.focus()
+            const val = searchInputRef.current!.value
+            searchInputRef.current!.setSelectionRange(val.length, val.length)
+          } catch (e) {
+            // ignore
+          }
+        })
+      }
     }
   }
 
@@ -341,47 +315,26 @@ export function CertificatesPage() {
   }
 
   const handleGenerateCertificate = (student: any, classData: any) => {
-    if (eligibilityMode) {
-      // Nova abordagem: usar elegibilidade da API
-      if (!student.isEligible) {
-        // Se for cliente, não permitir geração para alunos não elegíveis
-        if (isClient) {
-          toast.error(`Não é possível gerar certificado: ${student.eligibilityReason}`)
-          return
-        }
-        
-        // Para admin/instrutor, mostrar toast informativo mas permitir continuar
-        toast.warning(`Atenção: ${student.eligibilityReason}. Gerando certificado mesmo assim.`)
-      }
-      
-      // Abrir modal de preview do certificado
-      setPreviewModal({
-        isOpen: true,
-        classId: classData.id,
-        studentId: student.id,
-        studentName: student.name,
-        trainingTitle: classData.training.title
-      })
-    } else {
-      // Abordagem antiga: verificar se o estudante tem faltas
-      const hasAbsences = student.hasAbsences || student.totalAbsences > 0
-      
-      // Se for cliente e o estudante tiver faltas, não permitir geração
-      if (isClient && hasAbsences) {
-        toast.error('Não é possível gerar certificado para estudante com faltas')
+    // Usar elegibilidade da API
+    if (!student.isEligible) {
+      // Se for cliente, não permitir geração para alunos não elegíveis
+      if (isClient) {
+        toast.error(`Não é possível gerar certificado: ${student.eligibilityReason}`)
         return
       }
       
-      // Se for instrutor ou admin e o estudante tiver faltas, mostrar dialog de confirmação
-      if ((isInstructor || (!isClient && !isInstructor)) && hasAbsences) {
-        setPendingCertificate({ student, classData })
-        setShowConfirmDialog(true)
-        return
-      }
-      
-      // Se não há faltas ou é um caso permitido, gerar certificado diretamente
-      proceedWithCertificateGeneration(student, classData)
+      // Para admin/instrutor, mostrar toast informativo mas permitir continuar
+      toast.warning(`Atenção: ${student.eligibilityReason}. Gerando certificado mesmo assim.`)
     }
+    
+    // Abrir modal de preview do certificado
+    setPreviewModal({
+      isOpen: true,
+      classId: classData.id,
+      studentId: student.id,
+      studentName: student.name,
+      trainingTitle: classData.training.title
+    })
   }
 
   const handleCloseCertificatePreview = () => {
@@ -414,26 +367,12 @@ export function CertificatesPage() {
   }
 
   const getAttendanceInfo = (student: any) => {
-    // Usar dados da nova API de elegibilidade se disponível
-    if (eligibilityMode && student.totalLessons !== undefined) {
-      return {
-        totalLessons: student.totalLessons,
-        presentCount: student.attendedLessons,
-        absentCount: student.absences,
-        hasAbsences: student.absences > 0
-      }
-    }
-    
-    // Fallback para API antiga
-    const totalLessons = student.attendances ? student.attendances.length : 0
-    const presentCount = student.attendances ? student.attendances.filter((att: any) => att.status === 'PRESENTE').length : 0
-    const absentCount = student.totalAbsences || 0
-    
+    // Usar dados da nova API sempre
     return {
-      totalLessons,
-      presentCount,
-      absentCount,
-      hasAbsences: student.hasAbsences || absentCount > 0
+      totalLessons: 0, // Será calculado baseado nos dados da turma
+      presentCount: student.attendedLessons || 0,
+      absentCount: student.absences || 0,
+      hasAbsences: (student.absences || 0) > 0
     }
   }
 
@@ -445,10 +384,8 @@ export function CertificatesPage() {
     return hasAbsences ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />
   }
 
-  // Nova função para obter informações de notas (conforme nova API)
+  // Função para obter informações de notas
   const getGradesInfo = (student: any) => {
-    if (!eligibilityMode) return null
-    
     // Verificar se pelo menos uma nota existe e é um número válido
     const hasPracticalGrade = student.practicalGrade !== null && student.practicalGrade !== undefined && !isNaN(Number(student.practicalGrade))
     const hasTheoreticalGrade = student.theoreticalGrade !== null && student.theoreticalGrade !== undefined && !isNaN(Number(student.theoreticalGrade))
@@ -467,7 +404,7 @@ export function CertificatesPage() {
 
   // Função para determinar o status de elegibilidade baseado no motivo
   const getEligibilityStatus = (student: any) => {
-    if (!eligibilityMode || student.isEligible) {
+    if (student.isEligible) {
       return {
         type: 'eligible',
         label: 'Apto para certificado',
@@ -477,7 +414,7 @@ export function CertificatesPage() {
       }
     }
     
-    const reason = student.eligibilityReason.toLowerCase()
+    const reason = student.eligibilityReason?.toLowerCase() || ''
     
     if (reason.includes('nota')) {
       return {
@@ -587,20 +524,6 @@ export function CertificatesPage() {
     }
   }
 
-  // Filtragem de grupos e certificados com base no termo de busca
-  const filteredGroups = finishedClasses.filter((classItem) => {
-    const classMatches =
-      classItem.training?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      classItem.instructor?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      classItem.client?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const studentMatches = classItem.students?.some((student: any) =>
-      student.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-
-    return classMatches || studentMatches
-  })
-
   // Estatísticas de certificados
   const totalStudents = finishedClasses.reduce((sum, classItem) => sum + (classItem.students?.length || 0), 0)
 
@@ -627,7 +550,10 @@ export function CertificatesPage() {
         </div>
         
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => loadFinishedClasses()}>
+          <Button variant="outline" onClick={() => {
+            setCurrentPage(1)
+            loadFinishedClasses()
+          }}>
             🔄 Atualizar
           </Button>
         </div>
@@ -657,6 +583,9 @@ export function CertificatesPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 placeholder="Buscar por aluno, turma, treinamento..."
+                ref={(el) => { searchInputRef.current = el }}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -672,7 +601,7 @@ export function CertificatesPage() {
 
       {/* Certificados agrupados por turma */}
       <div className="space-y-6">
-        {filteredGroups.map((classItem) => (
+        {finishedClasses.map((classItem) => (
           <Card key={classItem.id} className="border-none shadow-md hover:shadow-lg transition-all duration-300">
             <CardHeader className="bg-gray-50">
               <div className="flex items-center justify-between">
@@ -684,10 +613,14 @@ export function CertificatesPage() {
                     <Award className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">{classItem.training?.title || 'Treinamento'}</CardTitle>
+                    <CardTitle className="text-lg">
+                      {classItem.training?.title || 'Treinamento'}
+                      {classItem.client?.name && ` - ${classItem.client.name}`}
+                    </CardTitle>
                     <CardDescription>
                       {classItem.instructor?.name && `Instrutor: ${classItem.instructor.name}`}
-                      {classItem.client?.name && ` | Cliente: ${classItem.client.name}`}
+                      {classItem.client?.cnpj && ` | CNPJ: ${classItem.client.cnpj}`}
+                      {classItem.id && ` | Turma: ${classItem.id}`}
                     </CardDescription>
                   </div>
                 </div>
@@ -718,47 +651,45 @@ export function CertificatesPage() {
                     let buttonColor = "outline"
                     let shouldShowButton = true
                     
-                    if (eligibilityMode) {
-                      // Nova lógica: incluir todos os estudantes, mas distinguir elegíveis
-                      const allStudents = classItem.students || []
-                      const trulyEligible = allStudents.filter((student: any) => student.isEligible)
-                      const notEligible = allStudents.filter((student: any) => !student.isEligible)
-                      
-                      if (allStudents.length > 0) {
-                        if (trulyEligible.length === allStudents.length) {
-                          // Todos elegíveis
-                          eligibleStudents = allStudents
-                          buttonText = `Gerar Lote (${allStudents.length})`
-                        } else if (trulyEligible.length > 0) {
-                          // Misturado: alguns elegíveis, alguns não
-                          if (isClient) {
-                            // Para clientes, só mostrar os elegíveis
-                            eligibleStudents = trulyEligible
-                            buttonText = `Gerar Lote (${trulyEligible.length} elegíveis)`
-                            if (trulyEligible.length === 0) {
-                              shouldShowButton = false
-                            }
-                          } else {
-                            // Para admin/instrutor, incluir todos
-                            eligibleStudents = allStudents
-                            buttonText = `Gerar Lote (${trulyEligible.length} elegíveis + ${notEligible.length} não elegíveis)`
-                            buttonColor = "yellow"
+                    // Nova lógica: incluir todos os estudantes, mas distinguir elegíveis
+                    const allStudents = classItem.students || []
+                    const trulyEligible = allStudents.filter((student: any) => student.isEligible)
+                    const notEligible = allStudents.filter((student: any) => !student.isEligible)
+                    
+                    if (allStudents.length > 0) {
+                      if (trulyEligible.length === allStudents.length) {
+                        // Todos elegíveis
+                        eligibleStudents = allStudents
+                        buttonText = `Gerar Lote (${allStudents.length})`
+                      } else if (trulyEligible.length > 0) {
+                        // Misturado: alguns elegíveis, alguns não
+                        if (isClient) {
+                          // Para clientes, só mostrar os elegíveis
+                          eligibleStudents = trulyEligible
+                          buttonText = `Gerar Lote (${trulyEligible.length} elegíveis)`
+                          if (trulyEligible.length === 0) {
+                            shouldShowButton = false
                           }
                         } else {
-                          // Nenhum elegível
-                          if (isClient) {
-                            // Para clientes, não mostrar o botão se nenhum for elegível
-                            shouldShowButton = false
-                          } else {
-                            // Para admin/instrutor, permitir geração mesmo assim
-                            eligibleStudents = allStudents
-                            buttonText = `Gerar Lote (${allStudents.length} não elegíveis)`
-                            buttonColor = "yellow"
-                          }
+                          // Para admin/instrutor, incluir todos
+                          eligibleStudents = allStudents
+                          buttonText = `Gerar Lote (${trulyEligible.length} elegíveis + ${notEligible.length} não elegíveis)`
+                          buttonColor = "yellow"
+                        }
+                      } else {
+                        // Nenhum elegível
+                        if (isClient) {
+                          // Para clientes, não mostrar o botão se nenhum for elegível
+                          shouldShowButton = false
+                        } else {
+                          // Para admin/instrutor, permitir geração mesmo assim
+                          eligibleStudents = allStudents
+                          buttonText = `Gerar Lote (${allStudents.length} não elegíveis)`
+                          buttonColor = "yellow"
                         }
                       }
                     } else {
-                      // Lógica antiga: verificar faltas
+                      // Fallback: verificar faltas
                       eligibleStudents = classItem.students?.filter((student: any) => {
                         const attendanceInfo = getAttendanceInfo(student)
                         return !attendanceInfo.hasAbsences
@@ -816,12 +747,44 @@ export function CertificatesPage() {
                 <div className="space-y-6">
                   {/* Informações da turma */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+                    {/* Informações da Empresa/Cliente */}
+                    {classItem.client && (
+                      <div className="md:col-span-3 mb-4">
+                        <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Informações da Empresa
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-3 rounded border">
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">Nome da Empresa</p>
+                            <p className="text-sm text-gray-900">{classItem.client.name}</p>
+                          </div>
+                          {classItem.client.cnpj && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">CNPJ</p>
+                              <p className="text-sm text-gray-900">{classItem.client.cnpj}</p>
+                            </div>
+                          )}
+                          {classItem.client.email && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Email</p>
+                              <p className="text-sm text-gray-900">{classItem.client.email}</p>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">ID da Turma</p>
+                            <p className="text-sm text-gray-900 font-mono text-xs">{classItem.id}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="flex items-center space-x-2">
                       <Users className="h-4 w-4 text-gray-500" />
                       <div>
                         <p className="text-sm font-medium">Alunos</p>
                         <p className="text-sm text-gray-600">
-                          {eligibilityMode && classItem.totalStudents 
+                          {classItem.totalStudents 
                             ? `${classItem.totalStudents} participantes`
                             : `${classItem.students?.length || 0} participantes`
                           }
@@ -855,7 +818,7 @@ export function CertificatesPage() {
                       <div>
                         <p className="text-sm font-medium">Carga Horária</p>
                         <p className="text-sm text-gray-600">
-                          {eligibilityMode && classItem.training?.durationHours 
+                          {classItem.training?.durationHours 
                             ? `${classItem.training.durationHours}h`
                             : `${classItem.training?.durationHours || 0}h`
                           }
@@ -886,21 +849,11 @@ export function CertificatesPage() {
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="h-4 w-4 text-green-500" />
                       <div>
-                        <p className="text-sm font-medium">
-                          {eligibilityMode ? 'Alunos Elegíveis' : 'Sem Faltas'}
-                        </p>
+                        <p className="text-sm font-medium">Alunos Elegíveis</p>
                         <p className="text-sm text-green-600">
                           {(() => {
-                            if (eligibilityMode) {
-                              const eligibleStudents = classItem.students?.filter((student: any) => student.isEligible) || []
-                              return `${eligibleStudents.length} estudante${eligibleStudents.length !== 1 ? 's' : ''}`
-                            } else {
-                              const eligibleStudents = classItem.students?.filter((student: any) => {
-                                const attendanceInfo = getAttendanceInfo(student)
-                                return !attendanceInfo.hasAbsences
-                              }) || []
-                              return `${eligibleStudents.length} estudante${eligibleStudents.length !== 1 ? 's' : ''}`
-                            }
+                            const eligibleStudents = classItem.students?.filter((student: any) => student.isEligible) || []
+                            return `${eligibleStudents.length} estudante${eligibleStudents.length !== 1 ? 's' : ''}`
                           })()}
                         </p>
                       </div>
@@ -908,21 +861,11 @@ export function CertificatesPage() {
                     <div className="flex items-center space-x-2">
                       <XCircle className="h-4 w-4 text-red-500" />
                       <div>
-                        <p className="text-sm font-medium">
-                          {eligibilityMode ? 'Não Elegíveis' : 'Com Faltas'}
-                        </p>
+                        <p className="text-sm font-medium">Não Elegíveis</p>
                         <p className="text-sm text-red-600">
                           {(() => {
-                            if (eligibilityMode) {
-                              const ineligibleStudents = classItem.students?.filter((student: any) => !student.isEligible) || []
-                              return `${ineligibleStudents.length} estudante${ineligibleStudents.length !== 1 ? 's' : ''}`
-                            } else {
-                              const studentsWithAbsences = classItem.students?.filter((student: any) => {
-                                const attendanceInfo = getAttendanceInfo(student)
-                                return attendanceInfo.hasAbsences
-                              }) || []
-                              return `${studentsWithAbsences.length} estudante${studentsWithAbsences.length !== 1 ? 's' : ''}`
-                            }
+                            const ineligibleStudents = classItem.students?.filter((student: any) => !student.isEligible) || []
+                            return `${ineligibleStudents.length} estudante${ineligibleStudents.length !== 1 ? 's' : ''}`
                           })()}
                         </p>
                       </div>
@@ -1028,28 +971,19 @@ export function CertificatesPage() {
                                       </div>
                                       <div className="flex justify-between items-center">
                                         <span className="text-gray-600">Status:</span>
-                                        {eligibilityMode ? (
-                                          <div className={`flex items-center gap-1`}>
-                                            {(() => {
-                                              const eligibilityStatus = getEligibilityStatus(student)
-                                              return (
-                                                <div className={`flex items-center gap-1 ${eligibilityStatus.color}`}>
-                                                  {eligibilityStatus.icon}
-                                                  <span className="font-medium text-xs">
-                                                    {eligibilityStatus.label}
-                                                  </span>
-                                                </div>
-                                              )
-                                            })()}
-                                          </div>
-                                        ) : (
-                                          <div className={`flex items-center gap-1 ${getAttendanceStatusColor(attendanceInfo.hasAbsences)}`}>
-                                            {getAttendanceStatusIcon(attendanceInfo.hasAbsences)}
-                                            <span className="font-medium">
-                                              {attendanceInfo.hasAbsences ? `${attendanceInfo.absentCount} falta(s)` : 'Sem faltas'}
-                                            </span>
-                                          </div>
-                                        )}
+                                        <div className={`flex items-center gap-1`}>
+                                          {(() => {
+                                            const eligibilityStatus = getEligibilityStatus(student)
+                                            return (
+                                              <div className={`flex items-center gap-1 ${eligibilityStatus.color}`}>
+                                                {eligibilityStatus.icon}
+                                                <span className="font-medium text-xs">
+                                                  {eligibilityStatus.label}
+                                                </span>
+                                              </div>
+                                            )
+                                          })()}
+                                        </div>
                                       </div>
                                     </>
                                   )
@@ -1058,99 +992,54 @@ export function CertificatesPage() {
 
                               <div className="flex gap-2 pt-3">
                                 {(() => {
-                                  if (eligibilityMode) {
-                                    // Nova lógica: usar elegibilidade da API
-                                    const eligibilityStatus = getEligibilityStatus(student)
-                                    
-                                    if (!student.isEligible) {
-                                      // Se for cliente, mostrar botão desabilitado
-                                      if (isClient) {
-                                        return (
-                                          <Button 
-                                            size="sm" 
-                                            className="flex-1 bg-gray-400 cursor-not-allowed"
-                                            disabled
-                                            title={`Não é possível gerar certificado: ${student.eligibilityReason}`}
-                                          >
-                                            <XCircle className="mr-1 h-3 w-3" />
-                                            <span className="text-xs">
-                                              Não Disponível
-                                            </span>
-                                          </Button>
-                                        )
-                                      }
-                                      
-                                      // Para admin/instrutor, permitir geração com aviso
-                                      return (
-                                        <Button 
-                                          size="sm" 
-                                          className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white"
-                                          onClick={() => handleGenerateCertificate(student, classItem)}
-                                          title={`Clique para gerar mesmo assim. Motivo: ${student.eligibilityReason}`}
-                                        >
-                                          <AlertTriangle className="mr-1 h-3 w-3" />
-                                          <span className="text-xs">
-                                            Não Apto - Gerar Assim Mesmo
-                                          </span>
-                                        </Button>
-                                      )
-                                    }
-                                    
-                                    // Elegível para certificado
-                                    return (
-                                      <Button 
-                                        size="sm" 
-                                        className="flex-1 bg-green-600 hover:bg-green-700"
-                                        onClick={() => handleGenerateCertificate(student, classItem)}
-                                      >
-                                        <Award className="mr-1 h-3 w-3" />
-                                        Gerar Certificado
-                                      </Button>
-                                    )
-                                  } else {
-                                    // Lógica antiga: verificar faltas
-                                    const attendanceInfo = getAttendanceInfo(student)
-                                    
-                                    // Se for cliente e o estudante tiver faltas, desabilitar o botão
-                                    if (isClient && attendanceInfo.hasAbsences) {
+                                  // Nova lógica: usar elegibilidade da API
+                                  const eligibilityStatus = getEligibilityStatus(student)
+                                  
+                                  if (!student.isEligible) {
+                                    // Se for cliente, mostrar botão desabilitado
+                                    if (isClient) {
                                       return (
                                         <Button 
                                           size="sm" 
                                           className="flex-1 bg-gray-400 cursor-not-allowed"
                                           disabled
+                                          title={`Não é possível gerar certificado: ${student.eligibilityReason}`}
                                         >
                                           <XCircle className="mr-1 h-3 w-3" />
-                                          Não Disponível (Faltas)
+                                          <span className="text-xs">
+                                            Não Disponível
+                                          </span>
                                         </Button>
                                       )
                                     }
                                     
-                                    // Se for instrutor/admin e o estudante tiver faltas, mostrar aviso
-                                    if ((isInstructor || (!isClient && !isInstructor)) && attendanceInfo.hasAbsences) {
-                                      return (
-                                        <Button 
-                                          size="sm" 
-                                          className="flex-1 bg-yellow-500 hover:bg-yellow-600"
-                                          onClick={() => handleGenerateCertificate(student, classItem)}
-                                        >
-                                          <AlertTriangle className="mr-1 h-3 w-3" />
-                                          Gerar com Faltas
-                                        </Button>
-                                      )
-                                    }
-                                    
-                                    // Caso padrão - sem faltas
+                                    // Para admin/instrutor, permitir geração com aviso
                                     return (
                                       <Button 
                                         size="sm" 
-                                        className="flex-1 bg-primary-500 hover:bg-primary-600"
+                                        className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white"
                                         onClick={() => handleGenerateCertificate(student, classItem)}
+                                        title={`Clique para gerar mesmo assim. Motivo: ${student.eligibilityReason}`}
                                       >
-                                        <Download className="mr-1 h-3 w-3" />
-                                        Gerar Certificado
+                                        <AlertTriangle className="mr-1 h-3 w-3" />
+                                        <span className="text-xs">
+                                          Não Apto - Gerar Assim Mesmo
+                                        </span>
                                       </Button>
                                     )
                                   }
+                                  
+                                  // Elegível para certificado
+                                  return (
+                                    <Button 
+                                      size="sm" 
+                                      className="flex-1 bg-green-600 hover:bg-green-700"
+                                      onClick={() => handleGenerateCertificate(student, classItem)}
+                                    >
+                                      <Award className="mr-1 h-3 w-3" />
+                                      Gerar Certificado
+                                    </Button>
+                                  )
                                 })()}
                               </div>
                             </CardContent>
@@ -1171,7 +1060,7 @@ export function CertificatesPage() {
           </Card>
         ))}
 
-        {filteredGroups.length === 0 && (
+        {finishedClasses.length === 0 && (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <Award className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-medium text-gray-600">
@@ -1190,28 +1079,7 @@ export function CertificatesPage() {
         )}
       </div>
 
-      {/* Paginação */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-6">
-          <Button
-            variant="outline"
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-          >
-            Anterior
-          </Button>
-          <span className="px-4 py-2 text-sm text-gray-600">
-            Página {currentPage} de {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
-          >
-            Próxima
-          </Button>
-        </div>
-      )}
+      {/* Modais */}
 
       {/* Dialog de Confirmação para Estudantes com Faltas */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>

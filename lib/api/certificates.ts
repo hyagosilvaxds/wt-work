@@ -1,5 +1,133 @@
 import Cookies from "js-cookie"
 
+// ========== INTERFACES PARA O NOVO ENDPOINT ==========
+
+// Filtros para buscar turmas concluídas
+export interface CompletedClassesFiltersDto {
+  search?: string        // Busca geral em nomes de treinamentos, clientes e instrutores
+  trainingName?: string
+  clientName?: string
+  classId?: string
+  instructorName?: string
+  location?: string
+  startDateFrom?: string // ISO 8601
+  startDateTo?: string   // ISO 8601
+  endDateFrom?: string   // ISO 8601
+  endDateTo?: string     // ISO 8601
+  page?: number          // default: 1
+  limit?: number         // default: 10
+  sortBy?: 'trainingName' | 'clientName' | 'startDate' | 'endDate' | 'instructorName' // default: 'endDate'
+  sortOrder?: 'asc' | 'desc' // default: 'desc'
+}
+
+// Dados do estudante com elegibilidade
+export interface StudentCertificateEligibilityDto {
+  studentId: string
+  studentName: string
+  cpf: string
+  isEligible: boolean
+  absences: number
+  totalPresences: number
+  attendancePercentage: number
+  hasGrade: boolean
+  preTestGrade?: number
+  postTestGrade?: number
+  practicalGrade?: number
+  reason: string
+}
+
+// Dados da turma concluída com informações completas
+export interface EnhancedClassCertificateStatusDto {
+  classId: string
+  trainingName: string
+  startDate: string
+  endDate: string
+  status: string
+  location?: string
+  trainingDurationHours: number
+  certificateValidityDays?: number
+  totalStudents: number
+  studentsWithoutAbsences: number
+  studentsWithAbsences: number
+  totalLessons: number
+
+  // Dados do cliente
+  client?: {
+    id: string
+    name: string
+    corporateName?: string
+    cnpj?: string
+  }
+
+  // Dados do instrutor
+  instructor?: {
+    id: string
+    name: string
+    registrationNumber?: string
+    email?: string
+  }
+
+  students: StudentCertificateEligibilityDto[]
+}
+
+// Resposta da API com paginação
+export interface CompletedClassesResponseDto {
+  classes: EnhancedClassCertificateStatusDto[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
+// Função para buscar turmas concluídas com filtros
+export const getCompletedClassesFiltered = async (filters: CompletedClassesFiltersDto = {}): Promise<CompletedClassesResponseDto> => {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+    const token = Cookies.get("jwtToken")
+    
+    console.log('🔄 Buscando turmas concluídas com filtros:', filters)
+    
+    if (!token) {
+      throw new Error('Token de autenticação não encontrado. Faça login novamente.')
+    }
+
+    // Construir query parameters
+    const params = new URLSearchParams()
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, String(value))
+      }
+    })
+
+    const response = await fetch(`${apiUrl}/certificado/completed-classes-filtered?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('📊 Status da resposta:', response.status)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Erro ao buscar turmas concluídas' }))
+      console.error('❌ Erro da API:', errorData)
+      throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`)
+    }
+
+    const result = await response.json()
+    console.log('✅ Turmas concluídas carregadas:', result.classes.length, 'turmas')
+    
+    return result
+  } catch (error: any) {
+    console.error('❌ Erro ao buscar turmas concluídas:', error)
+    throw error
+  }
+}
+
 // API para gerenciar certificados - implementação futura
 export interface CertificateData {
   id?: string
@@ -78,7 +206,7 @@ export const deleteCertificate = async (id: string): Promise<void> => {
 // Função para gerar relatório
 export const generateEvidenceReport = async (classId: string): Promise<void> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
     // Usar a mesma lógica de obtenção de token do client.ts
     const token = Cookies.get("jwtToken")
     
@@ -155,7 +283,7 @@ export const generateEvidenceReport = async (classId: string): Promise<void> => 
 // Função para verificar se uma turma está apta para gerar relatório
 export const checkClassEligibility = async (classId: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'}/certificado/eligibility/${classId}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/certificado/eligibility/${classId}`, {
       headers: {
         'Authorization': `Bearer ${Cookies.get("jwtToken")}`
       }
@@ -190,7 +318,7 @@ export interface CustomCoverResponse {
 // Função para fazer upload de capa personalizada
 export const uploadCustomCover = async (classId: string, file: File): Promise<CustomCoverResponse> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
     const token = Cookies.get("jwtToken")
     
     console.log('🔄 Fazendo upload de capa personalizada para turma:', classId)
@@ -245,7 +373,7 @@ export const uploadCustomCover = async (classId: string, file: File): Promise<Cu
 // Função para verificar se uma turma possui capa personalizada
 export const checkCustomCover = async (classId: string): Promise<CustomCoverResponse> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
     const token = Cookies.get("jwtToken")
     
     console.log('🔍 Verificando capa personalizada para turma:', classId)
@@ -283,7 +411,7 @@ export const checkCustomCover = async (classId: string): Promise<CustomCoverResp
 // Função para remover capa personalizada
 export const removeCustomCover = async (classId: string): Promise<CustomCoverResponse> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.olimpustech.com'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
     const token = Cookies.get("jwtToken")
     
     console.log('🗑️ Removendo capa personalizada para turma:', classId)

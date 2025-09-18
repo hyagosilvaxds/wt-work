@@ -57,7 +57,7 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
   const [loadingClients, setLoadingClients] = useState(false)
   const [formData, setFormData] = useState<UpdateStudentData>({
     name: "",
-    cpf: "",
+  cpf: "",
     rg: "",
     gender: "",
     birthDate: "",
@@ -77,6 +77,24 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
     clientId: "",
     isActive: true
   })
+
+  // Helper: remove non-digit chars
+  const unformatCpf = (value: string) => value.replace(/\D/g, "");
+
+  // Helper: format CPF as 000.000.000-00
+  const formatCpf = (value: string) => {
+    const digits = unformatCpf(value).slice(0, 11);
+    if (!digits) return "";
+    const part1 = digits.slice(0, 3);
+    const part2 = digits.slice(3, 6);
+    const part3 = digits.slice(6, 9);
+    const part4 = digits.slice(9, 11);
+    let formatted = part1;
+    if (part2) formatted += `.${part2}`;
+    if (part3) formatted += `.${part3}`;
+    if (part4) formatted += `-${part4}`;
+    return formatted;
+  }
 
   // Carregar clientes quando o modal abrir
   useEffect(() => {
@@ -106,7 +124,7 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
     if (student && open) {
       setFormData({
         name: student.name || "",
-        cpf: student.cpf || "",
+  cpf: student.cpf ? unformatCpf(student.cpf) : "",
         rg: student.rg || "",
         gender: student.gender || "",
         birthDate: student.birthDate ? new Date(student.birthDate).toISOString().split('T')[0] : "",
@@ -143,10 +161,12 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
       return
     }
 
-    if (formData.cpf && formData.cpf.length < 11) {
+    // Validate CPF digits count
+    const cpfDigits = unformatCpf(formData.cpf)
+    if (cpfDigits.length < 11) {
       toast({
         title: "Erro",
-        description: "CPF deve ter pelo menos 11 caracteres",
+        description: "CPF deve ter 11 dígitos",
         variant: "destructive"
       })
       return
@@ -167,7 +187,7 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
       // Preparar dados para envio - criando objeto limpo
       const submitData: Partial<UpdateStudentData> = {
         name: formData.name,
-        cpf: formData.cpf,
+        cpf: unformatCpf(formData.cpf),
         isActive: formData.isActive
       }
 
@@ -215,6 +235,13 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
   }
 
   const handleInputChange = (field: keyof UpdateStudentData, value: any) => {
+    // If CPF, store unformatted digits but keep display formatted
+    if (field === 'cpf') {
+      const digits = unformatCpf(String(value))
+      setFormData(prev => ({ ...prev, cpf: digits }))
+      return
+    }
+
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -251,7 +278,7 @@ export function StudentEditModal({ open, onOpenChange, onSuccess, student }: Stu
               <Label htmlFor="cpf">CPF *</Label>
               <Input
                 id="cpf"
-                value={formData.cpf}
+                value={formatCpf(formData.cpf)}
                 onChange={(e) => handleInputChange('cpf', e.target.value)}
                 placeholder="000.000.000-00"
                 required

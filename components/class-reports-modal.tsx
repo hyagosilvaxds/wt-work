@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Building2,
   FileText,
@@ -16,11 +18,17 @@ import {
   BarChart3,
   Calculator,
   Edit,
-  Upload
+  Upload,
+  Calendar,
+  Save,
+  X
 } from "lucide-react"
 import { ManualEvaluationStatsModal } from "./manual-evaluation-stats-modal"
 import { ManualEvaluationStatsViewModal } from "./manual-evaluation-stats-view-modal"
 import { CustomCoverModal } from "./custom-cover-modal"
+import { updateClassClosingDate, getClassClosingDate, type ClosingDateResponseDto } from "@/lib/api/superadmin"
+import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
 
 interface TurmaData {
   id: string
@@ -75,6 +83,63 @@ export function ClassReportsModal({
   const [manualStatsOpen, setManualStatsOpen] = useState(false)
   const [manualStatsViewOpen, setManualStatsViewOpen] = useState(false)
   const [customCoverOpen, setCustomCoverOpen] = useState(false)
+  const [closingDateData, setClosingDateData] = useState<ClosingDateResponseDto | null>(null)
+  const [editingClosingDate, setEditingClosingDate] = useState(false)
+  const [newClosingDate, setNewClosingDate] = useState("")
+  const [loadingClosingDate, setLoadingClosingDate] = useState(false)
+  const [savingClosingDate, setSavingClosingDate] = useState(false)
+
+  // Carregar data de encerramento quando o modal abrir
+  useEffect(() => {
+    if (isOpen && turma?.id && !isClientView) {
+      loadClosingDate()
+    }
+  }, [isOpen, turma?.id, isClientView])
+
+  const loadClosingDate = async () => {
+    if (!turma?.id) return
+    
+    setLoadingClosingDate(true)
+    try {
+      const data = await getClassClosingDate(turma.id)
+      setClosingDateData(data)
+      if (data.closingDate) {
+        setNewClosingDate(format(new Date(data.closingDate), 'yyyy-MM-dd'))
+      } else {
+        setNewClosingDate("")
+      }
+    } catch (error) {
+      console.error('Erro ao carregar data de encerramento:', error)
+    } finally {
+      setLoadingClosingDate(false)
+    }
+  }
+
+  const handleSaveClosingDate = async () => {
+    if (!turma?.id) return
+    
+    setSavingClosingDate(true)
+    try {
+      const closingDate = newClosingDate ? new Date(newClosingDate + 'T23:59:59').toISOString() : null
+      const data = await updateClassClosingDate(turma.id, { closingDate })
+      setClosingDateData(data)
+      setEditingClosingDate(false)
+    } catch (error) {
+      console.error('Erro ao salvar data de encerramento:', error)
+      alert('Erro ao salvar data de encerramento. Tente novamente.')
+    } finally {
+      setSavingClosingDate(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingClosingDate(false)
+    if (closingDateData?.closingDate) {
+      setNewClosingDate(format(new Date(closingDateData.closingDate), 'yyyy-MM-dd'))
+    } else {
+      setNewClosingDate("")
+    }
+  }
 
   const handleOptionClick = (callback: () => void) => {
     callback()
@@ -109,6 +174,101 @@ export function ClassReportsModal({
               </div>
             </div>
           </div>
+
+          {/* Data de Encerramento Personalizada */}
+          {!isClientView && (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-900">Data de Encerramento para Relatórios</span>
+                </div>
+                {!editingClosingDate && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingClosingDate(true)}
+                    className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    Editar
+                  </Button>
+                )}
+              </div>
+
+              {loadingClosingDate ? (
+                <div className="flex items-center gap-2 text-blue-700">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Carregando...</span>
+                </div>
+              ) : editingClosingDate ? (
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="closing-date" className="text-sm text-blue-900">
+                      Data de Encerramento Personalizada
+                    </Label>
+                    <Input
+                      id="closing-date"
+                      type="date"
+                      value={newClosingDate}
+                      onChange={(e) => setNewClosingDate(e.target.value)}
+                      className="mt-1"
+                      placeholder="Deixe vazio para usar a data padrão da turma"
+                    />
+                    <p className="text-xs text-blue-600 mt-1">
+                      Deixe vazio para usar a data de término da turma ({turma?.endDate ? format(new Date(turma.endDate), 'dd/MM/yyyy', { locale: ptBR }) : 'não definida'})
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleSaveClosingDate}
+                      disabled={savingClosingDate}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {savingClosingDate ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-3 w-3 mr-1" />
+                          Salvar
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelEdit}
+                      disabled={savingClosingDate}
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-blue-700">Data para relatórios:</span>
+                    <span className="font-medium text-blue-900">
+                      {closingDateData?.closingDate 
+                        ? format(new Date(closingDateData.closingDate), 'dd/MM/yyyy', { locale: ptBR })
+                        : `Padrão (${turma?.endDate ? format(new Date(turma.endDate), 'dd/MM/yyyy', { locale: ptBR }) : 'não definida'})`
+                      }
+                    </span>
+                  </div>
+                  {closingDateData?.closingDate && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      Data personalizada definida. Será usada nos relatórios.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Opções de Relatórios */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
