@@ -5,7 +5,7 @@
  * node test-class-evaluations-api.js
  */
 
-const API_BASE_URL = 'http://localhost:4000/api'
+const API_BASE_URL = 'https://api.olimpustech.com/api'
 
 // Substitua pelo seu token de autenticação
 const AUTH_TOKEN = 'your_jwt_token_here'
