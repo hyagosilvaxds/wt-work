@@ -239,7 +239,7 @@ test-class-photos.js         # Script de teste
 ### Variáveis de Ambiente
 ```env
 # Já configuradas no projeto
-NEXT_PUBLIC_API_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:4000
 ```
 
 ## 📖 Uso da API

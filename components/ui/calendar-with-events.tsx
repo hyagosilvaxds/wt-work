@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Calendar, Clock, User, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,13 +26,29 @@ interface CalendarWithEventsProps {
   onDateSelect?: (date: Date) => void
   lessons?: Lesson[]
   className?: string
+  onMonthYearChange?: (month: number, year: number) => void
 }
 
-export function CalendarWithEvents({ selectedDate, onDateSelect, lessons = [], className = '' }: CalendarWithEventsProps) {
-  const [currentDate, setCurrentDate] = useState(selectedDate || new Date())
+export function CalendarWithEvents({ selectedDate, onDateSelect, lessons = [], className = '', onMonthYearChange }: CalendarWithEventsProps) {
+  const initializedRef = useRef(false)
+  const [currentDate, setCurrentDate] = useState(() => selectedDate || new Date())
   const [showEventDetails, setShowEventDetails] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<Lesson | null>(null)
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
+
+  // Notificar quando mês/ano mudar
+  useEffect(() => {
+    if (onMonthYearChange && initializedRef.current) {
+      onMonthYearChange(currentDate.getMonth() + 1, currentDate.getFullYear())
+    }
+    if (!initializedRef.current) {
+      initializedRef.current = true
+      // Notificar estado inicial
+      if (onMonthYearChange) {
+        onMonthYearChange(currentDate.getMonth() + 1, currentDate.getFullYear())
+      }
+    }
+  }, [currentDate])
 
   const months = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',

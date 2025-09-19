@@ -128,7 +128,7 @@ export function SuperAdminDashboard() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-green-600 p-8 text-white">
         <div className="relative z-10">
           <h1 className="text-4xl font-bold mb-2">Dashboard Super Admin</h1>
-          <p className="text-blue-100 text-lg">Bem-vindo ao sistema de gestão de treinamentos</p>
+          <p className="text-blue-100 text-lg">Bem-vindo ao sistema de gestão de trsadfeinamentos</p>
           <div className="flex items-center mt-4 space-x-4">
             <div className="flex items-center space-x-2">
               <Clock className="h-5 w-5" />

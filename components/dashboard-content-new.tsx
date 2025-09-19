@@ -114,7 +114,7 @@ export default function DashboardContentNew() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600">Visão geral do seu centro de treinamento</p>
+          <p className="text-gray-600">Visão geral do seu centro deasdfa treinamento</p>
         </div>
         <Button>
           <Plus className="h-4 w-4 mr-2" />

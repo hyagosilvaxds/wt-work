@@ -10,21 +10,21 @@
 
 ### Listar turmas (para obter IDs)
 ```bash
-curl -X GET 'http://localhost:3000/api/superadmin/classes?page=1&limit=10' \
+curl -X GET 'http://localhost:4000/api/superadmin/classes?page=1&limit=10' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI'
 ```
 
 ### Listar alunos (para obter IDs)
 ```bash
-curl -X GET 'http://localhost:3000/api/superadmin/students?page=1&limit=10' \
+curl -X GET 'http://localhost:4000/api/superadmin/students?page=1&limit=10' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI'
 ```
 
 ### Obter uma turma específica (para ver estrutura atual)
 ```bash
-curl -X GET 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI' \
+curl -X GET 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI'
 ```
@@ -33,7 +33,7 @@ curl -X GET 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI' \
 
 ### Adicionar múltiplos alunos
 ```bash
-curl -X POST 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/students' \
+curl -X POST 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI/students' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI' \
   -d '{
@@ -43,7 +43,7 @@ curl -X POST 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/student
 
 ### Adicionar um único aluno
 ```bash
-curl -X POST 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/students' \
+curl -X POST 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI/students' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI' \
   -d '{
@@ -55,7 +55,7 @@ curl -X POST 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/student
 
 ### Remover múltiplos alunos
 ```bash
-curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/students' \
+curl -X DELETE 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI/students' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI' \
   -d '{
@@ -65,7 +65,7 @@ curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/stude
 
 ### Remover um único aluno
 ```bash
-curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/students' \
+curl -X DELETE 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI/students' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI' \
   -d '{
@@ -77,7 +77,7 @@ curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/stude
 
 ### Teste com array vazio (deve falhar)
 ```bash
-curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/students' \
+curl -X DELETE 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI/students' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI' \
   -d '{
@@ -87,7 +87,7 @@ curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/stude
 
 ### Teste sem studentIds (deve falhar)
 ```bash
-curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/students' \
+curl -X DELETE 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI/students' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI' \
   -d '{}'
@@ -95,7 +95,7 @@ curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/stude
 
 ### Teste com ID de turma inválido (deve falhar)
 ```bash
-curl -X DELETE 'http://localhost:3000/api/superadmin/classes/ID_INEXISTENTE/students' \
+curl -X DELETE 'http://localhost:4000/api/superadmin/classes/ID_INEXISTENTE/students' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI' \
   -d '{
@@ -105,7 +105,7 @@ curl -X DELETE 'http://localhost:3000/api/superadmin/classes/ID_INEXISTENTE/stud
 
 ### Teste com ID de aluno inválido (deve falhar)
 ```bash
-curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/students' \
+curl -X DELETE 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI/students' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI' \
   -d '{
@@ -117,7 +117,7 @@ curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/stude
 
 ### Verificar se os alunos foram removidos
 ```bash
-curl -X GET 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI' \
+curl -X GET 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI'
 ```
@@ -126,14 +126,14 @@ curl -X GET 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI' \
 
 ### 1. Obter turma antes da modificação
 ```bash
-curl -X GET 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI' \
+curl -X GET 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI'
 ```
 
 ### 2. Adicionar alunos
 ```bash
-curl -X POST 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/students' \
+curl -X POST 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI/students' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI' \
   -d '{
@@ -143,14 +143,14 @@ curl -X POST 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/student
 
 ### 3. Verificar se foram adicionados
 ```bash
-curl -X GET 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI' \
+curl -X GET 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI'
 ```
 
 ### 4. Remover alguns alunos
 ```bash
-curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/students' \
+curl -X DELETE 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI/students' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI' \
   -d '{
@@ -160,7 +160,7 @@ curl -X DELETE 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI/stude
 
 ### 5. Verificar se foi removido
 ```bash
-curl -X GET 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI' \
+curl -X GET 'http://localhost:4000/api/superadmin/classes/TURMA_ID_AQUI' \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer SEU_TOKEN_AQUI'
 ```
@@ -168,7 +168,7 @@ curl -X GET 'http://localhost:3000/api/superadmin/classes/TURMA_ID_AQUI' \
 ## 🛠️ Para usar no Postman:
 
 1. **Método**: DELETE
-2. **URL**: `http://localhost:3000/api/superadmin/classes/{classId}/students`
+2. **URL**: `http://localhost:4000/api/superadmin/classes/{classId}/students`
 3. **Headers**:
    - `Content-Type: application/json`
    - `Authorization: Bearer SEU_TOKEN_AQUI`

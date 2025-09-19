@@ -59,10 +59,23 @@ export interface DashboardData {
   recentActivities: RecentActivity[]
 }
 
-export const getDashboardData = async (): Promise<DashboardData> => {
+export const getDashboardData = async (filters?: { month?: number; year?: number }): Promise<DashboardData> => {
   try {
-    const response = await api.get('/superadmin/dashboard')
-    return response.data
+    const params = new URLSearchParams();
+
+    if (filters?.month && filters.month >= 1 && filters.month <= 12) {
+      params.append('month', filters.month.toString());
+    }
+
+    if (filters?.year && filters.year > 0) {
+      params.append('year', filters.year.toString());
+    }
+
+    const queryString = params.toString();
+    const url = queryString ? `/superadmin/dashboard?${queryString}` : '/superadmin/dashboard';
+
+    const response = await api.get(url);
+    return response.data;
   } catch (error) {
     console.error('Erro ao buscar dados do dashboard:', error)
     throw error
@@ -1633,7 +1646,7 @@ export const downloadInstructorDocument = async (documentPath: string, fileName?
     console.log('- fileName:', fileName)
     
     // Construir a URL do arquivo baseada no path do documento
-    const baseUrl = 'https://api.olimpustech.com'
+    const baseUrl = 'http://localhost:4000'
     const fileUrl = `${baseUrl}${documentPath}`
     console.log('- fileUrl:', fileUrl)
     

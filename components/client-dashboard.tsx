@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,9 +15,9 @@ import { ptBR } from 'date-fns/locale'
 interface ClientDashboardData {
   totalStudents: number
   totalClasses: number
-  totalScheduledLessons: number
+  totalLessons: number
   totalCompletedClasses: number
-  scheduledLessons: {
+  lessons: {
     id: string
     title: string
     description: string
@@ -35,13 +35,24 @@ export default function ClientDashboard() {
   const { user } = useAuth()
   const [dashboardData, setDashboardData] = useState<ClientDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingFilters, setLoadingFilters] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+  const [calendarMonth, setCalendarMonth] = useState<number>(new Date().getMonth() + 1)
+  const [calendarYear, setCalendarYear] = useState<number>(new Date().getFullYear())
+
+  const handleMonthYearChange = useCallback((month: number, year: number) => {
+    setCalendarMonth(month)
+    setCalendarYear(year)
+  }, [])
 
   console.log('ClientDashboard - user:', user)
 
+  // Buscar clientId inicialmente
+  const [clientId, setClientId] = useState<string | null>(null)
+
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchClientId = async () => {
       if (!user?.id) {
         setError('Usuário não encontrado')
         setLoading(false)
@@ -50,30 +61,56 @@ export default function ClientDashboard() {
 
       try {
         setLoading(true)
-        
+
         // Primeiro buscar o clientId do usuário
         const userClientData = await getUserClientId(user.id)
-        
+
         if (!userClientData.hasClient || !userClientData.clientId) {
           setError('Usuário não está associado a um cliente')
           setLoading(false)
           return
         }
 
-        // Depois buscar os dados do dashboard usando o clientId
-        const data = await getClientDashboard(userClientData.clientId)
-        setDashboardData(data)
+        setClientId(userClientData.clientId)
         setError(null)
       } catch (err) {
-        console.error('Erro ao carregar dados do dashboard:', err)
-        setError('Erro ao carregar dados do dashboard')
+        console.error('Erro ao carregar clientId:', err)
+        setError('Erro ao carregar dados do cliente')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchDashboardData()
+    fetchClientId()
   }, [user?.id])
+
+  // Buscar dados do dashboard quando filtros mudam
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!clientId) return
+
+      try {
+        setLoadingFilters(true)
+
+        // Preparar filtros automaticamente baseado no calendário
+        const filters = {
+          month: calendarMonth,
+          year: calendarYear
+        }
+
+        // Buscar os dados do dashboard usando o clientId
+        const data = await getClientDashboard(clientId, filters)
+        setDashboardData(data)
+      } catch (err) {
+        console.error('Erro ao carregar dados do dashboard:', err)
+        setError('Erro ao carregar dados do dashboard')
+      } finally {
+        setLoadingFilters(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [clientId, calendarMonth, calendarYear])
 
   if (loading) {
     return (
@@ -123,6 +160,11 @@ export default function ClientDashboard() {
     return format(new Date(dateString), "HH:mm", { locale: ptBR })
   }
 
+  const months = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ]
+
   const stats = [
     {
       title: "Total de Alunos",
@@ -142,7 +184,7 @@ export default function ClientDashboard() {
     },
     {
       title: "Aulas Agendadas",
-      value: dashboardData?.totalScheduledLessons || 0,
+      value: dashboardData?.totalLessons || 0,
       description: "Próximas aulas",
       icon: CalendarIcon,
       color: "text-purple-600",
@@ -167,6 +209,7 @@ export default function ClientDashboard() {
           <p className="text-gray-600">Acompanhe suas turmas e aulas agendadas</p>
         </div>
       </div>
+
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -198,10 +241,12 @@ export default function ClientDashboard() {
 
       {/* Calendar with Events */}
       <CalendarWithEvents
+        key="calendar"
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
-        lessons={dashboardData?.scheduledLessons || []}
+        lessons={dashboardData?.lessons || []}
         className="w-full"
+        onMonthYearChange={handleMonthYearChange}
       />
 
       {/* Weekly Summary */}
@@ -210,21 +255,26 @@ export default function ClientDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-blue-600" />
-              Próximas Aulas
+              Aulas de {months[calendarMonth - 1]} de {calendarYear}
             </CardTitle>
             <CardDescription>
-              Suas próximas 5 aulas agendadas
+              Aulas filtradas para {months[calendarMonth - 1]} de {calendarYear}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {dashboardData?.scheduledLessons.length === 0 ? (
+            {loadingFilters ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-gray-400 mr-2" />
+                <span className="text-sm text-gray-500">Carregando aulas...</span>
+              </div>
+            ) : (dashboardData?.lessons?.length || 0) === 0 ? (
               <div className="text-center py-8">
                 <CalendarIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">Nenhuma aula agendada</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {dashboardData?.scheduledLessons.slice(0, 5).map((lesson) => (
+                {(dashboardData?.lessons || []).map((lesson) => (
                   <div
                     key={lesson.id}
                     className="p-3 rounded-lg border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50 to-transparent transition-all duration-200 hover:shadow-md"
@@ -276,7 +326,7 @@ export default function ClientDashboard() {
                   <span className="text-sm font-medium">Aulas Agendadas</span>
                 </div>
                 <span className="text-lg font-bold text-blue-600">
-                  {dashboardData?.scheduledLessons.filter(lesson => lesson.status === 'AGENDADA').length || 0}
+                  {(dashboardData?.lessons || []).filter(lesson => lesson.status === 'AGENDADA').length}
                 </span>
               </div>
               
@@ -286,7 +336,7 @@ export default function ClientDashboard() {
                   <span className="text-sm font-medium">Aulas Realizadas</span>
                 </div>
                 <span className="text-lg font-bold text-green-600">
-                  {dashboardData?.scheduledLessons.filter(lesson => lesson.status === 'REALIZADA').length || 0}
+                  {(dashboardData?.lessons || []).filter(lesson => lesson.status === 'REALIZADA').length}
                 </span>
               </div>
               

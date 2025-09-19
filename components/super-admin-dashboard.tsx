@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CalendarWithEvents } from "@/components/ui/calendar-with-events"
@@ -23,30 +23,63 @@ export function SuperAdminDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [openClasses, setOpenClasses] = useState<OpenClass[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingFilters, setLoadingFilters] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [calendarMonth, setCalendarMonth] = useState<number>(new Date().getMonth() + 1)
+  const [calendarYear, setCalendarYear] = useState<number>(new Date().getFullYear())
 
+  const handleMonthYearChange = useCallback((month: number, year: number) => {
+    setCalendarMonth(month)
+    setCalendarYear(year)
+  }, [])
+
+  const months = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ]
+
+  // Carregamento inicial das turmas em aberto
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchOpenClasses = async () => {
       try {
         setLoading(true)
-        const [dashboardResponse, openClassesResponse] = await Promise.all([
-          getDashboardData(),
-          getOpenClasses(1, 5) // Buscar as primeiras 5 turmas em aberto
-        ])
-  // Log fetched dashboard response for debugging agenda data
-  console.log('Fetched dashboardResponse:', dashboardResponse)
-  setDashboardData(dashboardResponse)
+        const openClassesResponse = await getOpenClasses(1, 5)
         setOpenClasses(openClassesResponse.classes)
       } catch (error) {
-        console.error('Erro ao buscar dados do dashboard:', error)
-        setError('Erro ao carregar dados do dashboard')
+        console.error('Erro ao buscar turmas em aberto:', error)
+        setError('Erro ao carregar turmas em aberto')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchDashboardData()
+    fetchOpenClasses()
   }, [])
+
+  // Buscar dados do dashboard quando filtros mudam
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoadingFilters(true)
+
+        const filters = {
+          month: calendarMonth,
+          year: calendarYear
+        }
+
+        const dashboardResponse = await getDashboardData(filters)
+        console.log('Fetched dashboardResponse:', dashboardResponse)
+        setDashboardData(dashboardResponse)
+      } catch (error) {
+        console.error('Erro ao buscar dados do dashboard:', error)
+        setError('Erro ao carregar dados do dashboard')
+      } finally {
+        setLoadingFilters(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [calendarMonth, calendarYear])
 
   // Log scheduled lessons whenever dashboardData updates for debugging
   useEffect(() => {
@@ -254,6 +287,7 @@ export function SuperAdminDashboard() {
           onDateSelect={() => {}}
           lessons={agendaLessons}
           className="w-full"
+          onMonthYearChange={handleMonthYearChange}
         />
       )}
 
@@ -333,12 +367,12 @@ export function SuperAdminDashboard() {
               <div className="p-2 bg-purple-600 rounded-lg mr-3">
                 <Target className="h-5 w-5 text-white" />
               </div>
-              Resumo de Aulas
+              Resumo de Aulas - {months[calendarMonth - 1]} {calendarYear}
             </CardTitle>
-            <CardDescription className="text-gray-600 mt-2">Estatísticas das aulas por status</CardDescription>
+            <CardDescription className="text-gray-600 mt-2">Estatísticas das aulas filtradas por {months[calendarMonth - 1]} de {calendarYear}</CardDescription>
           </div>
           <CardContent className="p-6">
-            {loading ? (
+            {loadingFilters ? (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, index) => (
                   <div key={index} className="flex items-center justify-between p-3 animate-pulse">

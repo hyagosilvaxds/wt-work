@@ -337,9 +337,24 @@ export const getClientClasses = async () => {
 };
 
 // Função para buscar dados do dashboard do cliente
-export const getClientDashboard = async (clientId: string) => {
+export const getClientDashboard = async (clientId: string, filters?: { month?: number; year?: number }) => {
     try {
-        const response = await api.get(`/superadmin/clients/${clientId}/dashboard`);
+        const params = new URLSearchParams();
+
+        if (filters?.month && filters.month >= 1 && filters.month <= 12) {
+            params.append('month', filters.month.toString());
+        }
+
+        if (filters?.year && filters.year > 0) {
+            params.append('year', filters.year.toString());
+        }
+
+        const queryString = params.toString();
+        const url = queryString
+            ? `/superadmin/clients/${clientId}/dashboard?${queryString}`
+            : `/superadmin/clients/${clientId}/dashboard`;
+
+        const response = await api.get(url);
         console.log('Dados do dashboard do cliente:', response.data);
         return response.data;
     } catch (error) {

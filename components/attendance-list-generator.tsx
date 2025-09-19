@@ -23,7 +23,7 @@ export default function AttendanceListGenerator({
   const generateAttendanceListWithStudents = async () => {
     setGeneratingPDF('with-students')
     try {
-      const response = await fetch('https://api.olimpustech.com/certificado/attendance-list/with-students', {
+      const response = await fetch('http://localhost:4000/certificado/attendance-list/with-students', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -57,7 +57,7 @@ export default function AttendanceListGenerator({
   const generateAttendanceListEmpty = async () => {
     setGeneratingPDF('empty-fields')
     try {
-      const response = await fetch('https://api.olimpustech.com/certificado/attendance-list/empty-fields', {
+      const response = await fetch('http://localhost:4000/certificado/attendance-list/empty-fields', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
