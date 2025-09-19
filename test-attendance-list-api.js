@@ -10,7 +10,7 @@ async function testAttendanceListWithStudents() {
   console.log('1️⃣ Testando geração de lista com alunos...')
   
   try {
-    const response = await fetch('https://api.olimpustech.com.br/certificado/attendance-list/with-students', {
+    const response = await fetch('https://api.olimpustech.com/certificado/attendance-list/with-students', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -38,7 +38,7 @@ async function testAttendanceListEmpty() {
   console.log('2️⃣ Testando geração de lista vazia...')
   
   try {
-    const response = await fetch('https://api.olimpustech.com.br/certificado/attendance-list/empty-fields', {
+    const response = await fetch('https://api.olimpustech.com/certificado/attendance-list/empty-fields', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -66,12 +66,12 @@ async function testPreviewWithStudents() {
   console.log('3️⃣ Testando preview com alunos...')
   
   try {
-    const response = await fetch(`https://api.olimpustech.com.br/certificado/attendance-list/${lessonId}/preview/with-students`)
+    const response = await fetch(`https://api.olimpustech.com/certificado/attendance-list/${lessonId}/preview/with-students`)
     
     if (response.ok) {
       console.log('✅ Preview com alunos disponível!')
       console.log(`📄 Content-Type: ${response.headers.get('content-type')}`)
-      console.log(`🔗 URL: https://api.olimpustech.com.br/certificado/attendance-list/${lessonId}/preview/with-students`)
+      console.log(`🔗 URL: https://api.olimpustech.com/certificado/attendance-list/${lessonId}/preview/with-students`)
     } else {
       const errorData = await response.json()
       console.log('❌ Erro no preview com alunos:', errorData.message)
@@ -88,12 +88,12 @@ async function testPreviewEmpty() {
   console.log('4️⃣ Testando preview vazia...')
   
   try {
-    const response = await fetch(`https://api.olimpustech.com.br/certificado/attendance-list/${lessonId}/preview/empty-fields`)
+    const response = await fetch(`https://api.olimpustech.com/certificado/attendance-list/${lessonId}/preview/empty-fields`)
     
     if (response.ok) {
       console.log('✅ Preview vazia disponível!')
       console.log(`📄 Content-Type: ${response.headers.get('content-type')}`)
-      console.log(`🔗 URL: https://api.olimpustech.com.br/certificado/attendance-list/${lessonId}/preview/empty-fields`)
+      console.log(`🔗 URL: https://api.olimpustech.com/certificado/attendance-list/${lessonId}/preview/empty-fields`)
     } else {
       const errorData = await response.json()
       console.log('❌ Erro no preview vazia:', errorData.message)
@@ -111,7 +111,7 @@ async function testInvalidParameters() {
   
   try {
     // Teste com lessonId inválido
-    const response = await fetch('https://api.olimpustech.com.br/certificado/attendance-list/with-students', {
+    const response = await fetch('https://api.olimpustech.com/certificado/attendance-list/with-students', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

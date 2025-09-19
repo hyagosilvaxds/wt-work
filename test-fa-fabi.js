@@ -7,7 +7,7 @@ async function testSpecificSearch() {
   // Função para fazer a chamada da API
   const callAPI = async (searchTerm) => {
     try {
-      const url = `https://api.olimpustech.com.br/superadmin/students?page=1&limit=100&search=${encodeURIComponent(searchTerm)}`;
+      const url = `https://api.olimpustech.com/superadmin/students?page=1&limit=100&search=${encodeURIComponent(searchTerm)}`;
       console.log(`📡 Chamando: ${url}`);
       
       const response = await fetch(url, {

@@ -230,7 +230,7 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < validRows.length; i++) {
       try {
-        await axios.post('https://api.olimpustech.com.br/superadmin/clients', validRows[i], {
+        await axios.post('https://api.olimpustech.com/superadmin/clients', validRows[i], {
           headers: {
             'Authorization': request.headers.get('Authorization') || '',
             'Content-Type': 'application/json'

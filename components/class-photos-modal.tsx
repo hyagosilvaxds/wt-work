@@ -209,7 +209,7 @@ export function ClassPhotosModal({ isOpen, onClose, turma, readOnly = false }: C
   // Download da foto
   const handleDownloadPhoto = (photo: ClassPhoto) => {
     const link = document.createElement('a')
-    link.href = `https://api.olimpustech.com.br/${photo.path}`
+    link.href = `https://api.olimpustech.com/${photo.path}`
     link.download = `foto-turma-${photo.uploadedAt}`
     link.target = '_blank'
     document.body.appendChild(link)
@@ -390,12 +390,12 @@ export function ClassPhotosModal({ isOpen, onClose, turma, readOnly = false }: C
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {photos.map((photo) => {
-                    console.log('📸 Path original:', photo.path, '| URL completa:', `https://api.olimpustech.com.br${photo.path}`, '| ID:', photo.id)
+                    console.log('📸 Path original:', photo.path, '| URL completa:', `https://api.olimpustech.com${photo.path}`, '| ID:', photo.id)
                     return (
                       <Card key={photo.id} className="overflow-hidden h-fit">
                         <div className="aspect-video relative bg-gray-100">
                           <img
-                            src={`https://api.olimpustech.com.br/${photo.path}`}
+                            src={`https://api.olimpustech.com/${photo.path}`}
                             alt={photo.caption || "Foto da turma"}
                             className="w-full h-full object-contain"
                           />
