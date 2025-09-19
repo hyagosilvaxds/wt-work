@@ -3,7 +3,7 @@ import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 
 const api = axios.create({
-  baseURL: "http://localhost:4000",
+  baseURL: "https://api.olimpustech.com.br",
   timeout: 600000,
   headers: {
     "Content-Type": "application/json",

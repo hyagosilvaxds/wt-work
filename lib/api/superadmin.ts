@@ -1633,7 +1633,7 @@ export const downloadInstructorDocument = async (documentPath: string, fileName?
     console.log('- fileName:', fileName)
     
     // Construir a URL do arquivo baseada no path do documento
-    const baseUrl = 'http://localhost:4000'
+    const baseUrl = 'https://api.olimpustech.com.br'
     const fileUrl = `${baseUrl}${documentPath}`
     console.log('- fileUrl:', fileUrl)
     

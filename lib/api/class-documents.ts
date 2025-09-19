@@ -1,7 +1,7 @@
 // Funções para gerenciar documentos de turma
 import Cookies from "js-cookie"
 
-const API_BASE_URL = 'http://localhost:4000'
+const API_BASE_URL = 'https://api.olimpustech.com.br'
 
 interface ClassDocument {
   id: string

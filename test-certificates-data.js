@@ -76,7 +76,7 @@ async function testCertificatesData() {
     console.log('🚀 Testando dados de certificados...\n')
     
     // Testar API de turmas concluídas
-    const response = await fetch('http://localhost:4000/certificado/completed-classes')
+    const response = await fetch('https://api.olimpustech.com.br/certificado/completed-classes')
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)

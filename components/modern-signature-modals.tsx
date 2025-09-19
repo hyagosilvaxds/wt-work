@@ -115,7 +115,7 @@ export function ModernSignatureUpdateModal({ signature, onSignatureUpdated }: Mo
             <Label className="text-sm font-medium">Assinatura Atual</Label>
             <div className="border rounded-lg p-4 bg-gray-50">
               <img 
-                src={`http://localhost:4000${signature.pngPath}`} 
+                src={`https://api.olimpustech.com.br${signature.pngPath}`} 
                 alt={`Assinatura atual de ${signature.instructor.name}`}
                 className="max-w-full h-32 object-contain mx-auto"
               />
@@ -197,7 +197,7 @@ export function ModernSignatureViewModal({ signature }: ModernSignatureViewModal
           {/* Assinatura em destaque */}
           <div className="flex justify-center bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg p-8">
             <img 
-              src={`http://localhost:4000${signature.pngPath}`} 
+              src={`https://api.olimpustech.com.br${signature.pngPath}`} 
               alt={`Assinatura de ${signature.instructor.name}`}
               className="max-w-full max-h-96 object-contain"
             />
