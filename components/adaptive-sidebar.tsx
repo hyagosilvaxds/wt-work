@@ -27,6 +27,7 @@ import {
   Upload,
   Shield,
   Car,
+  Receipt,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -95,7 +96,10 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
   if (hasPermission('VIEW_USERS') && !isInstructor) {
     items.push({ id: "clients", label: "Clientes", icon: Building2, badge: null })
   }
-  
+
+  // Orçamentos (CRM) - Disponível para todos exceto clientes
+  items.push({ id: "budgets", label: "Orçamentos (CRM)", icon: Receipt, badge: null })
+
   // Certificados
   if (hasPermission('VIEW_CERTIFICATES') || hasPermission('VIEW_OWN_CERTIFICATES')) {
     items.push({ id: "certificates", label: "Certificados", icon: Award, badge: null })

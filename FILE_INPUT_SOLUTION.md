@@ -66,8 +66,8 @@ Utilizamos o `InstructorDocumentUploadFinal` que já tinha:
 
 ## 🧪 Como Testar
 
-1. Acesse a rota principal: `https://api.olimpustech.com/`
-2. Navegue para "Teste Upload": `https://api.olimpustech.com/?teste=upload`
+1. Acesse a rota principal: `http://localhost:4000/`
+2. Navegue para "Teste Upload": `http://localhost:4000/?teste=upload`
 3. Selecione qualquer arquivo no componente de upload
 4. **Resultado esperado:** Arquivo permanece selecionado, sem recarregamento
 

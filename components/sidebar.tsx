@@ -21,6 +21,7 @@ import {
   DoorOpen,
   DollarSign,
   Shield,
+  Receipt,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -35,12 +36,13 @@ const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, badge: null },
   { id: "students", label: "Alunos", icon: Users, badge: null },
   { id: "trainings", label: "Treinamentos", icon: BookOpen, badge: null },
-  
+
   { id: "instructors", label: "Instrutores", icon: UserCheck, badge: null },
   { id: "technical-responsibles", label: "Responsáveis Técnicos", icon: Shield, badge: null },
   { id: "clients", label: "Clientes", icon: Building2, badge: null },
   { id: "groups", label: "Turmas", icon: UsersRound, badge: null },
 
+  { id: "budgets", label: "Orçamentos (CRM)", icon: Receipt, badge: null },
   { id: "certificates", label: "Certificados", icon: Award, badge: null },
   { id: "financial", label: "Financeiro", icon: DollarSign, badge: null },
   { id: "reports", label: "Relatórios", icon: BarChart3, badge: null },

@@ -1,7 +1,7 @@
 // Script para testar as funcionalidades de avaliação de alunos
 // Execute este script no terminal usando: node test-student-grades.js
 
-const API_BASE_URL = 'https://api.olimpustech.com/api'
+const API_BASE_URL = 'http://localhost:4000/api'
 
 // Função para fazer requisições
 async function makeRequest(endpoint, options = {}) {

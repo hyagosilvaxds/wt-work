@@ -4,7 +4,7 @@ const axios = require('axios');
 const makeRequest = async (endpoint, params = {}) => {
   try {
     const queryString = new URLSearchParams(params).toString();
-    const url = `https://api.olimpustech.com${endpoint}?${queryString}`;
+    const url = `http://localhost:4000${endpoint}?${queryString}`;
     
     console.log(`📡 Fazendo requisição para: ${url}`);
     

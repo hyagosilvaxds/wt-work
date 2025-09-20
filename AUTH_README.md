@@ -143,7 +143,7 @@ Dashboard (/) ←→ Login (/login)
 - Showcase das características implementadas
 
 ### Como Testar
-1. Acesse `https://api.olimpustech.com/auth-demo` para ver todas as telas
+1. Acesse `http://localhost:4000/auth-demo` para ver todas as telas
 2. Navegue entre as páginas usando os links
 3. Teste os formulários (simulação de 2s de loading)
 4. Verifique a responsividade em diferentes tamanhos de tela

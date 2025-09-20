@@ -143,7 +143,7 @@ const getMenuItems = (userRole: string) => {
 ## ✅ **Status de Testes**
 
 ### **Servidor de Desenvolvimento**
-- ✅ Servidor rodando em `https://api.olimpustech.com`
+- ✅ Servidor rodando em `http://localhost:4000`
 - ✅ Compilação sem erros
 - ✅ Redirecionamento para login funcionando
 - ✅ Sistema de autenticação ativo
