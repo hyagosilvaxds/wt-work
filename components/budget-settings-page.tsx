@@ -178,7 +178,6 @@ interface Equipment {
   id?: string
   name: string
   description?: string
-  specifications?: string
   photos?: {
     id: string
     caption?: string
@@ -190,13 +189,6 @@ interface Equipment {
 interface IncludedItem {
   id?: string
   description: string
-  details?: string
-  photos?: {
-    id: string
-    caption?: string
-    filePath?: string
-    fileName?: string
-  }[]
 }
 
 interface StandardText {
@@ -253,7 +245,7 @@ export function BudgetSettingsPage() {
   const [equipment, setEquipment] = useState<Equipment[]>([])
 
   const [includedItems, setIncludedItems] = useState<IncludedItem[]>([])
-  const [includedItemEdits, setIncludedItemEdits] = useState<Record<string, { description: string; details: string; saving?: boolean }>>({})
+  const [includedItemEdits, setIncludedItemEdits] = useState<Record<string, { description: string; saving?: boolean }>>({})
 
   const [standardTexts, setStandardTexts] = useState<StandardText[]>([
     {
@@ -301,9 +293,9 @@ export function BudgetSettingsPage() {
 
   // Payment condition state
   const [paymentCondition, setPaymentCondition] = useState<PaymentCondition>({
-    name: "",
-    description: "",
-    terms: ""
+  name: "",
+  description: "",
+  terms: ""
   })
 
   // System description state
@@ -378,16 +370,14 @@ export function BudgetSettingsPage() {
   const [isEquipmentModalOpen, setIsEquipmentModalOpen] = useState(false)
   const [equipmentFormData, setEquipmentFormData] = useState({
     name: "",
-    description: "",
-    specifications: ""
+    description: ""
   })
   const [isSubmittingEquipment, setIsSubmittingEquipment] = useState(false)
 
   // Included items modal states
   const [isIncludedItemModalOpen, setIsIncludedItemModalOpen] = useState(false)
   const [includedItemFormData, setIncludedItemFormData] = useState({
-    description: "",
-    details: ""
+  description: ""
   })
   const [isSubmittingIncludedItem, setIsSubmittingIncludedItem] = useState(false)
 
@@ -549,9 +539,9 @@ export function BudgetSettingsPage() {
         const condition = response[0]
         setPaymentCondition({
           id: condition.id,
-          name: condition.name || "",
+          name: "",
           description: condition.description || "",
-          terms: condition.terms || ""
+          terms: ""
         })
       }
     } catch (error) {
@@ -667,9 +657,7 @@ export function BudgetSettingsPage() {
       console.log('[BudgetSettingsPage] Saving payment condition...')
       
       const payload: CreatePaymentConditionPayload = {
-        name: paymentCondition.name,
-        description: paymentCondition.description,
-        terms: paymentCondition.terms
+        description: paymentCondition.description
       }
 
       if (paymentCondition.id) {
@@ -704,8 +692,8 @@ export function BudgetSettingsPage() {
           id: firstDescription.id,
           title: firstDescription.title || "",
           description: firstDescription.description || "",
-          features: firstDescription.features || "",
-          benefits: firstDescription.benefits || "",
+          features: "",
+          benefits: "",
           photos: firstDescription.photos || []
         })
       }
@@ -720,9 +708,7 @@ export function BudgetSettingsPage() {
       
       const payload: CreateSystemDescriptionPayload = {
         title: systemDescription.title,
-        description: systemDescription.description,
-        features: systemDescription.features,
-        benefits: systemDescription.benefits
+        description: systemDescription.description
       }
 
       if (systemDescription.id) {
@@ -913,7 +899,6 @@ export function BudgetSettingsPage() {
         id: equip.id,
         name: equip.name,
         description: equip.description || "",
-        specifications: equip.specifications,
         photos: equip.photos || []
       })))
     } catch (error) {
@@ -937,12 +922,9 @@ export function BudgetSettingsPage() {
       console.log('[BudgetSettingsPage] Creating equipment with data:')
       console.log('Name:', equipmentFormData.name)
       console.log('Description:', equipmentFormData.description)
-      console.log('Specifications:', equipmentFormData.specifications)
-
       const payload: CreateEquipmentPayload = {
         name: equipmentFormData.name,
-        description: equipmentFormData.description,
-        specifications: equipmentFormData.specifications
+        description: equipmentFormData.description
       }
 
       const response = await createEquipment(payload)
@@ -954,8 +936,7 @@ export function BudgetSettingsPage() {
       // Reset form
       setEquipmentFormData({
         name: "",
-        description: "",
-        specifications: ""
+        description: ""
       })
       setIsEquipmentModalOpen(false)
       
@@ -1056,14 +1037,12 @@ export function BudgetSettingsPage() {
       
       setIncludedItems(response.map(item => ({
         id: item.id,
-        description: item.description || "",
-        details: item.details || "",
-        photos: item.photos || []
+        description: item.description || ""
       })))
       // Initialize local edit buffer for each included item
-      const edits: Record<string, { description: string; details: string }> = {}
+      const edits: Record<string, { description: string } > = {}
       for (const it of response) {
-        if (it.id) edits[it.id] = { description: it.description || '', details: it.details || '' }
+        if (it.id) edits[it.id] = { description: it.description || '' }
       }
       setIncludedItemEdits(edits)
     } catch (error) {
@@ -1086,11 +1065,8 @@ export function BudgetSettingsPage() {
     try {
       console.log('[BudgetSettingsPage] Creating included item with data:')
       console.log('Description:', includedItemFormData.description)
-      console.log('Details:', includedItemFormData.details)
-
       const payload: CreateIncludedItemPayload = {
-        description: includedItemFormData.description,
-        details: includedItemFormData.details
+        description: includedItemFormData.description
       }
 
       const response = await createIncludedItem(payload)
@@ -1101,8 +1077,7 @@ export function BudgetSettingsPage() {
       
       // Reset form
       setIncludedItemFormData({
-        description: "",
-        details: ""
+        description: ""
       })
       setIsIncludedItemModalOpen(false)
       
@@ -1138,7 +1113,7 @@ export function BudgetSettingsPage() {
     if (!edits) return
     try {
       setIncludedItemEdits(prev => ({ ...prev, [itemId]: { ...prev[itemId], saving: true } }))
-      await updateIncludedItem(itemId, { description: edits.description, details: edits.details })
+  await updateIncludedItem(itemId, { description: edits.description })
       // Refresh list
       await loadIncludedItems()
       setIsEditing(prev => ({ ...prev, includedItems: false }))
@@ -1170,50 +1145,6 @@ export function BudgetSettingsPage() {
     } catch (err) {
       console.error('[BudgetSettingsPage] Error updating included item field:', err)
       alert('Erro ao atualizar item incluso. Tente novamente.')
-    }
-  }
-
-  const handleIncludedItemPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>, itemId: string) => {
-    const file = event.target.files?.[0]
-    if (!file) {
-      alert('Selecione um arquivo.')
-      return
-    }
-
-    try {
-      console.log('[BudgetSettingsPage] Uploading included item photo...', { itemId, fileName: file.name, fileSize: file.size, fileType: file.type })
-      const formData = new FormData()
-      formData.append('photo', file)
-      formData.append('caption', 'Foto do item incluso')
-
-      // Log FormData entries for debugging (key and value). Files will appear as File objects.
-      for (const [key, value] of Array.from(formData.entries())) {
-        console.log('[BudgetSettingsPage] IncludedItem FormData entry:', key, value)
-      }
-
-      const response = await uploadIncludedItemPhoto(itemId, formData)
-      console.log('[BudgetSettingsPage] Uploaded included item photo:', response)
-
-      // Reload included items to get updated photos
-      await loadIncludedItems()
-      alert('Foto enviada com sucesso!')
-    } catch (error) {
-      console.error('[BudgetSettingsPage] Error uploading included item photo:', error)
-      alert('Erro ao enviar foto. Tente novamente.')
-    }
-  }
-
-  const handleDeleteIncludedItemPhoto = async (photoId: string) => {
-    try {
-      console.log('[BudgetSettingsPage] Deleting included item photo...')
-      await deleteIncludedItemPhoto(photoId)
-      
-      // Reload included items to get updated photos
-      await loadIncludedItems()
-      alert('Foto excluída com sucesso!')
-    } catch (error) {
-      console.error('[BudgetSettingsPage] Error deleting included item photo:', error)
-      alert('Erro ao excluir foto. Tente novamente.')
     }
   }
 
@@ -1956,7 +1887,7 @@ export function BudgetSettingsPage() {
                   </label>
                   <Input
                     id="payment-name"
-                    placeholder="Ex: 30 dias"
+                    placeholder="Nome da condição de pagamento"
                     value={paymentCondition.name}
                     onChange={(e) => setPaymentCondition(prev => ({ ...prev, name: e.target.value }))}
                     disabled={!isEditing.payments}
@@ -1973,19 +1904,6 @@ export function BudgetSettingsPage() {
                     onChange={(e) => setPaymentCondition(prev => ({ ...prev, description: e.target.value }))}
                     disabled={!isEditing.payments}
                     rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="payment-terms" className="text-sm font-medium">
-                    Condições
-                  </label>
-                  <Textarea
-                    id="payment-terms"
-                    placeholder="Termos e condições detalhados"
-                    value={paymentCondition.terms}
-                    onChange={(e) => setPaymentCondition(prev => ({ ...prev, terms: e.target.value }))}
-                    disabled={!isEditing.payments}
-                    rows={4}
                   />
                 </div>
                 <div className="flex justify-end">
@@ -2015,7 +1933,6 @@ export function BudgetSettingsPage() {
                       <Button
                         onClick={() => savePaymentCondition()}
                         size="sm"
-                        disabled={!paymentCondition.name.trim()}
                       >
                         <Save className="h-4 w-4 mr-2" />
                         Salvar
@@ -2058,32 +1975,7 @@ export function BudgetSettingsPage() {
                     rows={4}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="system-features" className="text-sm font-medium">
-                    Características
-                  </label>
-                  <Textarea
-                    id="system-features"
-                    placeholder="Principais características e funcionalidades"
-                    value={systemDescription.features}
-                    onChange={(e) => handleSystemDescriptionChange('features', e.target.value)}
-                    disabled={!isEditing.system}
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="system-benefits" className="text-sm font-medium">
-                    Benefícios
-                  </label>
-                  <Textarea
-                    id="system-benefits"
-                    placeholder="Principais benefícios e vantagens"
-                    value={systemDescription.benefits}
-                    onChange={(e) => handleSystemDescriptionChange('benefits', e.target.value)}
-                    disabled={!isEditing.system}
-                    rows={3}
-                  />
-                </div>
+                {/* Características e Benefícios removidos por solicitação */}
 
                 {/* Photos section */}
                 <div className="space-y-4">
@@ -2425,17 +2317,7 @@ export function BudgetSettingsPage() {
                               placeholder="Descrição do equipamento"
                             />
                           </div>
-                          <div className="md:col-span-2">
-                            <Label htmlFor={`equip-specifications-${equip.id}`}>Especificações</Label>
-                            <Textarea
-                              id={`equip-specifications-${equip.id}`}
-                              value={equip.specifications || ""}
-                              onChange={(e) => updateEquipmentField(equip.id!, 'specifications', e.target.value)}
-                              disabled={!isEditing.equipment}
-                              placeholder="Especificações técnicas do equipamento..."
-                              rows={3}
-                            />
-                          </div>
+                          {/* specifications removed */}
                         </div>
 
                         {/* Photos section */}
@@ -2554,79 +2436,18 @@ export function BudgetSettingsPage() {
                           )}
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4">
                           <div>
                             <Label htmlFor={`item-description-${item.id}`}>Descrição</Label>
-                            <Input
+                            <Textarea
                               id={`item-description-${item.id}`}
                               value={includedItemEdits[item.id || '']?.description ?? item.description}
-                              onChange={(e) => setIncludedItemEdits(prev => ({ ...prev, [item.id!]: { ...(prev[item.id!] || { description: item.description, details: item.details }), description: e.target.value } }))}
+                              onChange={(e) => setIncludedItemEdits(prev => ({ ...prev, [item.id!]: { ...(prev[item.id!] || { description: item.description }), description: e.target.value } }))}
                               disabled={!isEditing.includedItems}
                               placeholder="Descrição do item"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor={`item-details-${item.id}`}>Detalhes</Label>
-                            <Textarea
-                              id={`item-details-${item.id}`}
-                              value={includedItemEdits[item.id || '']?.details ?? item.details || ""}
-                              onChange={(e) => setIncludedItemEdits(prev => ({ ...prev, [item.id!]: { ...(prev[item.id!] || { description: item.description, details: item.details }), details: e.target.value } }))}
-                              disabled={!isEditing.includedItems}
-                              placeholder="Detalhes adicionais..."
                               rows={3}
                             />
                           </div>
-                        </div>
-
-                        {/* Photos section */}
-                        <div className="space-y-2 mt-4">
-                          <div className="flex items-center justify-between">
-                            <Label>Fotos do Item</Label>
-                            <div>
-                              <input
-                                type="file"
-                                accept=".jpg,.jpeg,.png"
-                                onChange={(e) => handleIncludedItemPhotoUpload(e, item.id!)}
-                                style={{ display: 'none' }}
-                                id={`included-item-photo-upload-${item.id}`}
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => document.getElementById(`included-item-photo-upload-${item.id}`)?.click()}
-                              >
-                                <Upload className="h-4 w-4 mr-1" />
-                                Upload Foto
-                              </Button>
-                            </div>
-                          </div>
-                          
-                          {item.photos && item.photos.length > 0 && (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                              {item.photos.map((photo) => (
-                                <div key={photo.id} className="relative group">
-                                  <img
-                                    src={`${BACKEND_URL}/${(photo.filePath || '').replace(/^\/+/, '')}`}
-                                    alt={photo.caption || item.description}
-                                    className="w-full h-32 object-cover rounded-md border"
-                                  />
-                                  <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDeleteIncludedItemPhoto(photo.id)}
-                                      className="text-white hover:text-red-400"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                  {photo.caption && (
-                                    <p className="text-xs text-gray-600 mt-1 truncate">{photo.caption}</p>
-                                  )}
-                                </div>
-                                ))}
-                            </div>
-                          )}
                         </div>
 
                         {isEditing.includedItems && (
@@ -2635,7 +2456,7 @@ export function BudgetSettingsPage() {
                               {includedItemEdits[item.id || '']?.saving ? 'Salvando...' : 'Salvar'}
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => {
-                              setIncludedItemEdits(prev => ({ ...prev, [item.id!]: { description: item.description, details: item.details } }))
+                              setIncludedItemEdits(prev => ({ ...prev, [item.id!]: { description: item.description || '', saving: false } }))
                               setIsEditing(prev => ({ ...prev, includedItems: false }))
                             }}>
                               Cancelar
@@ -3118,17 +2939,7 @@ export function BudgetSettingsPage() {
               />
             </div>
 
-            <div>
-              <Label htmlFor="equipment-specifications">Especificações Técnicas</Label>
-              <Textarea
-                id="equipment-specifications"
-                value={equipmentFormData.specifications}
-                onChange={(e) => setEquipmentFormData(prev => ({ ...prev, specifications: e.target.value }))}
-                placeholder="Especificações técnicas, modelo, capacidade, etc..."
-                className="mt-1"
-                rows={3}
-              />
-            </div>
+            {/* specifications removed from create modal */}
           </div>
 
           <DialogFooter>
@@ -3161,24 +2972,16 @@ export function BudgetSettingsPage() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="includeditem-description">Descrição *</Label>
-              <Input
+              <Textarea
                 id="includeditem-description"
                 value={includedItemFormData.description}
                 onChange={(e) => setIncludedItemFormData(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="Digite a descrição do item"
                 required
+                rows={3}
               />
             </div>
-            <div>
-              <Label htmlFor="includeditem-details">Detalhes</Label>
-              <Textarea
-                id="includeditem-details"
-                value={includedItemFormData.details}
-                onChange={(e) => setIncludedItemFormData(prev => ({ ...prev, details: e.target.value }))}
-                placeholder="Detalhes adicionais sobre o item..."
-                rows={4}
-              />
-            </div>
+            {/* details removed from included item creation modal */}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsIncludedItemModalOpen(false)}>

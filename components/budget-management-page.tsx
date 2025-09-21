@@ -30,7 +30,7 @@ import { BudgetCreateModal } from "./budget-create-modal"
 import { BudgetDetailsModal } from "./budget-details-modal"
 import { BudgetSettingsPage } from "./budget-settings-page"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { listBudgets, getBudgetById, updateBudget, BudgetResponse, BudgetStatus } from '@/lib/api/budgets'
+import { listBudgets, getBudgetById, updateBudget, generateBudgetPdf, BudgetResponse, BudgetStatus } from '@/lib/api/budgets'
 
 interface Training {
   id: string
@@ -219,105 +219,24 @@ export function BudgetManagementPage() {
     setBudgets(budgets.filter(b => b.id !== budgetId))
   }
 
-  const handleDownloadPDF = (budget: Budget) => {
-    // Gerar HTML do orçamento
-    const html = generateBudgetHTML(budget)
-
-    // Criar blob e fazer download
-    const blob = new Blob([html], { type: 'text/html' })
-    const url = window.URL.createObjectURL(blob)
-
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `orcamento-${budget.budgetNumber}.html`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-
-    window.URL.revokeObjectURL(url)
-  }
-
-  const generateBudgetHTML = (budget: Budget): string => {
-    const statusMap = {
-      pending: 'Pendente',
-      approved: 'Aprovado',
-      rejected: 'Rejeitado',
-      expired: 'Vencido'
+  const handleDownloadPDF = async (budget: Budget) => {
+    try {
+      console.log('[BudgetManagementPage] Generating PDF for budget:', budget.id)
+      const pdfData = await generateBudgetPdf(budget.id)
+      
+      // Criar URL para download
+      const url = URL.createObjectURL(pdfData.blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = pdfData.filename
+      link.click()
+      URL.revokeObjectURL(url)
+      
+      console.log('[BudgetManagementPage] PDF downloaded successfully:', pdfData.filename)
+    } catch (error) {
+      console.error('[BudgetManagementPage] Error generating PDF:', error)
+      alert('Erro ao gerar PDF. Tente novamente.')
     }
-
-    return `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orçamento ${budget.budgetNumber}</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
-        .logo { font-size: 24px; font-weight: bold; color: #2563eb; margin-bottom: 10px; }
-        .section { margin-bottom: 25px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; }
-        .section-title { font-size: 16px; font-weight: bold; color: #2563eb; margin-bottom: 10px; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .trainings-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .trainings-table th, .trainings-table td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-        .trainings-table th { background-color: #f9fafb; font-weight: bold; }
-        .total-row { font-weight: bold; background-color: #f3f4f6; }
-        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="logo">Work Treinamentos</div>
-        <div>Orçamento ${budget.budgetNumber}</div>
-        <div>Status: ${statusMap[budget.status]}</div>
-    </div>
-
-    <div class="section">
-        <div class="section-title">Informações do Cliente</div>
-        <div class="info-grid">
-            <div><strong>Nome:</strong> ${budget.clientName}</div>
-            <div><strong>E-mail:</strong> ${budget.clientEmail}</div>
-            <div><strong>Empresa:</strong> ${budget.companyName}</div>
-            <div><strong>Telefone:</strong> ${budget.clientPhone || 'Não informado'}</div>
-        </div>
-    </div>
-
-    <div class="section">
-        <div class="section-title">Treinamentos</div>
-        <table class="trainings-table">
-            <thead>
-                <tr><th>Treinamento</th><th style="text-align: right;">Valor</th></tr>
-            </thead>
-            <tbody>
-                ${budget.trainings.map(training => `
-                    <tr>
-                        <td>${training.name}</td>
-                        <td style="text-align: right;">R$ ${training.price.toFixed(2).replace('.', ',')}</td>
-                    </tr>
-                `).join('')}
-                <tr class="total-row">
-                    <td><strong>Total</strong></td>
-                    <td style="text-align: right;"><strong>R$ ${budget.totalValue.toFixed(2).replace('.', ',')}</strong></td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    ${budget.notes ? `
-    <div class="section">
-        <div class="section-title">Observações</div>
-        <div>${budget.notes}</div>
-    </div>
-    ` : ''}
-
-    <div class="footer">
-        <p>Work Treinamentos - Documento gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
-        <p>Este orçamento é válido até ${new Date(budget.expiresAt).toLocaleDateString('pt-BR')}</p>
-    </div>
-</body>
-</html>
-    `
   }
 
   const getTotalStats = () => {

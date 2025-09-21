@@ -1285,3 +1285,80 @@ export async function deleteClientLogo(id: string) {
   const response = await api.delete<{ message: string }>(endpoint)
   return response.data
 }
+
+/**
+ * Gera o orçamento em PDF (GET /budgets/{id}/pdf)
+ * Retorna o PDF como blob para download
+ */
+export async function generateBudgetPdf(id: string) {
+  if (!id) throw new Error('id é obrigatório')
+  const endpoint = `/budgets/${id}/pdf`
+  console.log('[budgets] GET', endpoint)
+
+  const response = await api.get(endpoint, {
+    responseType: 'blob',
+    headers: {
+      'Accept': 'application/pdf'
+    }
+  })
+
+  // Extrai o nome do arquivo do header Content-Disposition se disponível
+  const contentDisposition = response.headers['content-disposition']
+  let filename = `orcamento-${id}.pdf`
+
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+    if (filenameMatch && filenameMatch[1]) {
+      filename = filenameMatch[1].replace(/['"]/g, '')
+    }
+  }
+
+  return {
+    blob: response.data as Blob,
+    filename,
+    contentType: response.headers['content-type'] || 'application/pdf'
+  }
+}
+
+// ----------------------------
+// Analytics & Dashboard
+// ----------------------------
+
+export interface DashboardAnalyticsResponse {
+  pendingProposals: {
+    count: number
+    totalValue: number
+  }
+  approvedProposals: {
+    count: number
+    totalValue: number
+  }
+  expiredProposals: {
+    count: number
+    totalValue: number
+  }
+  conversionRate: number
+  averageTicket: number
+  totalProposals: number
+  recentProposals: BudgetResponse[]
+}
+
+export interface AnalyticsParams {
+  startDate?: string
+  endDate?: string
+  clientId?: string
+  createdBy?: string
+}
+
+export async function getBudgetAnalyticsDashboard(params?: AnalyticsParams) {
+  const query = new URLSearchParams()
+  if (params?.startDate) query.append('startDate', params.startDate)
+  if (params?.endDate) query.append('endDate', params.endDate)
+  if (params?.clientId) query.append('clientId', params.clientId)
+  if (params?.createdBy) query.append('createdBy', params.createdBy)
+
+  const endpoint = `/budgets/analytics/dashboard${query.toString() ? `?${query.toString()}` : ''}`
+  console.log('[budgets] GET', endpoint)
+  const response = await api.get<DashboardAnalyticsResponse>(endpoint)
+  return response.data
+}
