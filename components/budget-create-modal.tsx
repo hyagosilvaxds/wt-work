@@ -29,7 +29,7 @@ import {
   Search
 } from "lucide-react"
 
-import { createBudget, updateBudget, CreateBudgetRequest, UpdateBudgetRequest } from '@/lib/api/budgets'
+import { createBudget, updateBudget, getBudgetById, CreateBudgetRequest, UpdateBudgetRequest, listCoverPages, CoverPageResponse, CoverPageType, BudgetResponse } from '@/lib/api/budgets'
 import { getClients, getTrainings } from '@/lib/api/superadmin'
 
 interface Training {
@@ -120,6 +120,14 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
   const [trainings, setTrainings] = useState<Training[]>([])
   const [loadingTrainings, setLoadingTrainings] = useState(false)
 
+  // Cover pages states
+  const [coverPages, setCoverPages] = useState<CoverPageResponse[]>([])
+  const [loadingCoverPages, setLoadingCoverPages] = useState(false)
+
+  // Budget loading states
+  const [loadingBudget, setLoadingBudget] = useState(false)
+  const [budgetData, setBudgetData] = useState<BudgetResponse | null>(null)
+
   const isEditing = !!budget
 
   // Função para buscar clientes da API
@@ -157,6 +165,108 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
       setTrainings([])
     } finally {
       setLoadingTrainings(false)
+    }
+  }
+
+  // Função para carregar cover pages da API
+  const loadCoverPages = async () => {
+    setLoadingCoverPages(true)
+    try {
+  // Load all cover pages (no filters) as requested
+  const response = await listCoverPages()
+      setCoverPages(response || [])
+    } catch (error) {
+      console.error('Erro ao carregar cover pages:', error)
+      setCoverPages([])
+    } finally {
+      setLoadingCoverPages(false)
+    }
+  }
+
+  // Função para carregar dados reais do budget da API
+  const loadBudgetData = async (budgetId: string) => {
+    setLoadingBudget(true)
+    try {
+      console.log('[BudgetCreateModal] Loading budget data for:', budgetId)
+      const response = await getBudgetById(budgetId)
+      console.log('[BudgetCreateModal] Loaded budget data:', response)
+      setBudgetData(response)
+      
+      // Mapear dados da API para o formulário
+      setFormData({
+        title: response.title || response.number,
+        description: response.description || "",
+        clientId: response.clientId,
+        validityDays: response.validityDays || 30,
+        observations: response.observations || "",
+        coverPageId: response.coverPageId || "",
+        backCoverPageId: response.backCoverPageId || "",
+        trainingDate: response.trainingDate || "",
+        dueDate: response.dueDate || "",
+        attentionTo: response.attentionTo || "",
+        sector: response.sector || "",
+        instructors: response.instructors || "",
+        responsibilities: response.responsibilities || "",
+        clientResponsibilities: response.clientResponsibilities || "",
+        location: response.location || "",
+        items: [] // Will be managed separately via selectedItems
+      })
+
+      // Populate selectedClient for display (use clientName/email from response if no separate client object)
+      if (response.clientId) {
+        setSelectedClient({
+          id: response.clientId,
+          name: response.clientName || '',
+          email: undefined,
+          corporateName: undefined,
+          personType: undefined
+        })
+        // ensure formData.clientId is set (already set above) and available for validation
+      }
+
+      // Mapear items da API para selectedItems
+      const mappedItems: BudgetItem[] = response.items?.map(item => ({
+        id: item.id,
+        trainingId: item.trainingId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        description: item.description,
+        observations: item.observations,
+        order: item.order,
+        location: item.location,
+        studentQuantity: item.studentQuantity,
+        classQuantity: item.classQuantity
+      })) || []
+
+      setSelectedItems(mappedItems)
+      
+    } catch (error) {
+      console.error('[BudgetCreateModal] Erro ao carregar dados do orçamento:', error)
+      // Em caso de erro, usar dados do prop budget como fallback
+      if (budget) {
+        setFormData({
+          title: budget.budgetNumber,
+          description: budget.notes || "",
+          clientId: "", // TODO: mapear do cliente
+          validityDays: 30,
+          observations: budget.notes || "",
+          coverPageId: "",
+          backCoverPageId: "",
+          trainingDate: "",
+          dueDate: budget.expiresAt,
+          attentionTo: "",
+          sector: "",
+          instructors: "",
+          responsibilities: "",
+          clientResponsibilities: "",
+          location: "",
+          items: []
+        })
+        setSelectedItems(budget.items || [])
+      }
+    } finally {
+      setLoadingBudget(false)
     }
   }
 
@@ -203,29 +313,12 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
 
   useEffect(() => {
     if (isOpen) {
-      if (budget) {
-        // Mapear dados existentes para edição
-        setFormData({
-          title: budget.budgetNumber,
-          description: budget.notes || "",
-          clientId: "", // TODO: mapear do cliente
-          validityDays: 30,
-          observations: budget.notes || "",
-          coverPageId: "",
-          backCoverPageId: "",
-          trainingDate: "",
-          dueDate: budget.expiresAt,
-          attentionTo: "",
-          sector: "",
-          instructors: "",
-          responsibilities: "",
-          clientResponsibilities: "",
-          location: "",
-          items: budget.items || []
-        })
-        setSelectedItems(budget.items || [])
+      if (budget && budget.id) {
+        // Carregar dados reais do budget da API quando editando
+        loadBudgetData(budget.id)
         setAttachments(budget.attachments || [])
       } else {
+        // Criar novo orçamento
         const today = new Date()
         const expireDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
 
@@ -250,6 +343,9 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
         setSelectedItems([])
         setAttachments([])
       }
+      
+      // Carregar cover pages quando o modal abrir
+      loadCoverPages()
     }
   }, [isOpen, budget])
 
@@ -281,7 +377,6 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
       }
       
   setSelectedItems(prev => [...prev, newItem])
-  setFormData(prev => ({ ...prev, items: [...prev.items, newItem] }))
       setTrainingSearch("")
     }
   }
@@ -289,7 +384,6 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
   const removeTrainingItem = (itemIdOrTrainingId: string) => {
     const updatedItems = selectedItems.filter(item => item.id !== itemIdOrTrainingId && item.trainingId !== itemIdOrTrainingId)
     setSelectedItems(updatedItems)
-    setFormData(prev => ({ ...prev, items: updatedItems }))
   }
 
   const updateItemField = (itemId: string, field: keyof BudgetItem, value: string | number) => {
@@ -305,7 +399,6 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
     })
 
     setSelectedItems(updatedItems)
-    setFormData(prev => ({ ...prev, items: updatedItems }))
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -359,48 +452,68 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
         // Update existing budget
         const updateData: UpdateBudgetRequest = {
           ...formData,
-          items: selectedItems.map(({ id, totalPrice, unitPrice, ...rest }) => ({
+          items: selectedItems.map(({ id, totalPrice, ...rest }) => ({
             ...rest,
+            unitPrice: rest.unitPrice || 0,
             customValue: totalPrice
           }))
         }
         
         console.log('[BudgetCreateModal] Updating budget:', budget.id, updateData)
-        await updateBudget(budget.id, updateData)
+        const updatedBudget = await updateBudget(budget.id, updateData)
+        
+        // Call the parent onSave callback with updated data
+        const budgetData: Budget = {
+          id: updatedBudget.id,
+          budgetNumber: updatedBudget.number || updatedBudget.title,
+          clientName: updatedBudget.clientName || "",
+          clientEmail: "", // Not available in API response
+          clientPhone: "", // Not available in API response
+          companyName: updatedBudget.clientName || "",
+          items: selectedItems,
+          totalValue: updatedBudget.totalValue,
+          status: updatedBudget.status.toLowerCase() as 'pending' | 'approved' | 'rejected' | 'expired',
+          createdAt: updatedBudget.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+          expiresAt: updatedBudget.expiresAt?.split('T')[0] || formData.dueDate || "",
+          notes: updatedBudget.observations,
+          attachments
+        }
+        
+        onSave(budgetData)
         
       } else {
         // Create new budget
         const createData: CreateBudgetRequest = {
           ...formData,
-          items: selectedItems.map(({ id, totalPrice, unitPrice, ...rest }) => ({
+          items: selectedItems.map(({ id, totalPrice, ...rest }) => ({
             ...rest,
+            unitPrice: rest.unitPrice || 0,
             customValue: totalPrice
           }))
         }
         
         console.log('[BudgetCreateModal] Creating budget:', createData)
-        await createBudget(createData)
+        const createdBudget = await createBudget(createData)
+        
+        // Call the parent onSave callback with created data
+        const budgetData: Budget = {
+          id: createdBudget.id,
+          budgetNumber: createdBudget.number || createdBudget.title,
+          clientName: createdBudget.clientName || "",
+          clientEmail: "", // Not available in API response
+          clientPhone: "", // Not available in API response
+          companyName: createdBudget.clientName || "",
+          items: selectedItems,
+          totalValue: createdBudget.totalValue,
+          status: createdBudget.status.toLowerCase() as 'pending' | 'approved' | 'rejected' | 'expired',
+          createdAt: createdBudget.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+          expiresAt: createdBudget.expiresAt?.split('T')[0] || formData.dueDate || "",
+          notes: createdBudget.observations,
+          attachments
+        }
+        
+        onSave(budgetData)
       }
-      
-      // Call the parent onSave callback
-      const selectedClient = clients.find(c => c.id === formData.clientId)
-      const budgetData: Budget = {
-        id: budget?.id || "",
-        budgetNumber: formData.title,
-        clientName: selectedClient?.name || "",
-        clientEmail: selectedClient?.email || "",
-        clientPhone: "", // Não disponível na API de clientes
-        companyName: selectedClient?.corporateName || selectedClient?.name || "",
-        items: selectedItems,
-        totalValue: calculateTotal(),
-        status: "pending", // Default status
-        createdAt: budget?.createdAt || new Date().toISOString().split('T')[0],
-        expiresAt: formData.dueDate || "",
-        notes: formData.observations,
-        attachments
-      }
-      
-      onSave(budgetData)
       
     } catch (err) {
       console.error('[BudgetCreateModal] Error saving budget:', err)
@@ -422,6 +535,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             {isEditing ? "Editar Orçamento" : "Novo Orçamento"}
+            {loadingBudget && <span className="text-sm text-muted-foreground">(Carregando...)</span>}
           </DialogTitle>
           <DialogDescription>
             {isEditing
@@ -431,6 +545,14 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
           </DialogDescription>
         </DialogHeader>
 
+        {loadingBudget ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center space-y-4">
+              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="text-muted-foreground">Carregando dados do orçamento...</p>
+            </div>
+          </div>
+        ) : (
         <div className="space-y-6">
           {/* Informações Básicas do Orçamento */}
           <Card>
@@ -501,55 +623,69 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
                 Cliente *
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="clientSearch">Buscar Cliente</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="clientSearch"
-                    placeholder="Busque por nome, empresa ou email..."
-                    value={clientSearch}
-                    onChange={(e) => setClientSearch(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                {clientSearch && filteredClients.length > 0 && (
-                  <div className="mt-2 border rounded-md max-h-40 overflow-y-auto">
-                    {loadingClients ? (
-                      <div className="p-3 text-center text-gray-500">
-                        Buscando clientes...
+              <CardContent className="space-y-4">
+                <div>
+                  {isEditing ? (
+                    // Read-only client display when editing
+                    <div className="mt-2 p-3 bg-blue-50 rounded-md">
+                      <div className="font-medium">{budgetData?.clientName || selectedClient?.name || 'Cliente não informado'}</div>
+                      <div className="text-sm text-gray-600">
+                        {selectedClient?.corporateName || (selectedClient?.personType === 'JURIDICA' ? 'Empresa' : '')}
                       </div>
-                    ) : (
-                      filteredClients.map((client) => (
-                        <div
-                          key={client.id}
-                          className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                          onClick={() => handleClientSelect(client.id)}
-                        >
-                          <div className="font-medium">{client.name}</div>
-                          <div className="text-sm text-gray-600">
-                            {client.corporateName || (client.personType === 'JURIDICA' ? 'Empresa' : 'Pessoa Física')}
-                          </div>
-                          <div className="text-sm text-gray-500">{client.email || 'Sem email'}</div>
-                          {client.cpf && <div className="text-xs text-gray-400">CPF: {client.cpf}</div>}
-                          {client.cnpj && <div className="text-xs text-gray-400">CNPJ: {client.cnpj}</div>}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-                {formData.clientId && selectedClient && (
-                  <div className="mt-2 p-3 bg-blue-50 rounded-md">
-                    <div className="font-medium">{selectedClient.name}</div>
-                    <div className="text-sm text-gray-600">
-                      {selectedClient.corporateName || (selectedClient.personType === 'JURIDICA' ? 'Empresa' : 'Pessoa Física')}
+                      <div className="text-sm text-gray-500">{selectedClient?.email || 'Sem email'}</div>
+                      {budgetData?.clientId && <div className="text-xs text-gray-400">ID: {budgetData.clientId}</div>}
                     </div>
-                    <div className="text-sm text-gray-500">{selectedClient.email || 'Sem email'}</div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
+                  ) : (
+                    // Editable client search / select when creating
+                    <>
+                      <Label htmlFor="clientSearch">Buscar Cliente</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="clientSearch"
+                          placeholder="Busque por nome, empresa ou email..."
+                          value={clientSearch}
+                          onChange={(e) => setClientSearch(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                      {clientSearch && filteredClients.length > 0 && (
+                        <div className="mt-2 border rounded-md max-h-40 overflow-y-auto">
+                          {loadingClients ? (
+                            <div className="p-3 text-center text-gray-500">Buscando clientes...</div>
+                          ) : (
+                            filteredClients.map((client) => (
+                              <div
+                                key={client.id}
+                                className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                                onClick={() => handleClientSelect(client.id)}
+                              >
+                                <div className="font-medium">{client.name}</div>
+                                <div className="text-sm text-gray-600">
+                                  {client.corporateName || (client.personType === 'JURIDICA' ? 'Empresa' : 'Pessoa Física')}
+                                </div>
+                                <div className="text-sm text-gray-500">{client.email || 'Sem email'}</div>
+                                {client.cpf && <div className="text-xs text-gray-400">CPF: {client.cpf}</div>}
+                                {client.cnpj && <div className="text-xs text-gray-400">CNPJ: {client.cnpj}</div>}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+
+                      {formData.clientId && selectedClient && (
+                        <div className="mt-2 p-3 bg-blue-50 rounded-md">
+                          <div className="font-medium">{selectedClient.name}</div>
+                          <div className="text-sm text-gray-600">
+                            {selectedClient.corporateName || (selectedClient.personType === 'JURIDICA' ? 'Empresa' : 'Pessoa Física')}
+                          </div>
+                          <div className="text-sm text-gray-500">{selectedClient.email || 'Sem email'}</div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </CardContent>
           </Card>
 
           {/* Informações Detalhadas */}
@@ -806,28 +942,64 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="coverPageId">ID da Capa</Label>
-                  <Input
-                    id="coverPageId"
-                    value={formData.coverPageId}
-                    onChange={(e) => handleInputChange("coverPageId", e.target.value)}
-                    placeholder="ID do template de capa"
-                  />
+                  <Label htmlFor="coverPageId">Capa</Label>
+                  <Select
+                    value={formData.coverPageId || ""}
+                    onValueChange={(value) => handleInputChange("coverPageId", value === "__none" ? "" : value)}
+                    disabled={loadingCoverPages}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma capa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Nenhuma capa</SelectItem>
+                      {coverPages
+                        .filter(page => page.type === 'COVER')
+                        .map(page => (
+                          <SelectItem key={page.id} value={page.id}>
+                            {page.name} {page.isDefault && '(Padrão)'}
+                          </SelectItem>
+                        ))
+                      }
+                    </SelectContent>
+                  </Select>
+                  {loadingCoverPages && (
+                    <p className="text-sm text-gray-500 mt-1">Carregando capas...</p>
+                  )}
                 </div>
                 <div>
-                  <Label htmlFor="backCoverPageId">ID da Contracapa</Label>
-                  <Input
-                    id="backCoverPageId"
-                    value={formData.backCoverPageId}
-                    onChange={(e) => handleInputChange("backCoverPageId", e.target.value)}
-                    placeholder="ID do template de contracapa"
-                  />
+                  <Label htmlFor="backCoverPageId">Contracapa</Label>
+                  <Select
+                    value={formData.backCoverPageId || ""}
+                    onValueChange={(value) => handleInputChange("backCoverPageId", value === "__none" ? "" : value)}
+                    disabled={loadingCoverPages}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma contracapa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Nenhuma contracapa</SelectItem>
+                      {coverPages
+                        .filter(page => page.type === 'BACK_COVER')
+                        .map(page => (
+                          <SelectItem key={page.id} value={page.id}>
+                            {page.name} {page.isDefault && '(Padrão)'}
+                          </SelectItem>
+                        ))
+                      }
+                    </SelectContent>
+                  </Select>
+                  {loadingCoverPages && (
+                    <p className="text-sm text-gray-500 mt-1">Carregando contracapas...</p>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
+        )}
 
+        {!loadingBudget && (
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancelar
@@ -841,6 +1013,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
             {isEditing ? "Salvar Alterações" : "Criar Orçamento"}
           </Button>
         </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )

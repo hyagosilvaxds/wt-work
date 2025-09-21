@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,6 +42,7 @@ interface Training {
   id: string
   name: string
   price: number
+  totalPrice?: number
 }
 
 interface Budget {
@@ -69,6 +70,11 @@ interface BudgetDetailsModalProps {
 
 export function BudgetDetailsModal({ isOpen, onClose, budget, onStatusChange }: BudgetDetailsModalProps) {
   const [isChangingStatus, setIsChangingStatus] = useState(false)
+
+  // Debug: log trainings when budget is present (render-time log avoids extra Hooks)
+  if (budget) {
+    console.log('[BudgetDetailsModal] trainings data:', budget.trainings)
+  }
 
   if (!budget) return null
 
@@ -204,6 +210,8 @@ export function BudgetDetailsModal({ isOpen, onClose, budget, onStatusChange }: 
 
   const isExpired = new Date(budget.expiresAt) < new Date()
   const daysToExpire = Math.ceil((new Date(budget.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+
+  
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -408,9 +416,9 @@ export function BudgetDetailsModal({ isOpen, onClose, budget, onStatusChange }: 
                       <TableCell className="font-medium">{training.name}</TableCell>
                       <TableCell className="text-right">
                         {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL'
-                        }).format(training.price)}
+                            style: 'currency',
+                            currency: 'BRL'
+                          }).format((training.totalPrice ?? training.price))}
                       </TableCell>
                     </TableRow>
                   ))}

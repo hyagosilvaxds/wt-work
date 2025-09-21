@@ -409,6 +409,7 @@ export async function getEquipmentPhotoById(id: string) {
   const endpoint = `/budgets/global-settings/equipment-photos/${id}`
   console.log('[budgets] GET', endpoint)
   const response = await api.get<EquipmentPhotoResponse>(endpoint)
+  console.log('[budgets] GET', response.data)
   return response.data
 }
 
@@ -579,10 +580,25 @@ export interface CertificateResponse {
 /**
  * Upload de certificado (multipart/form-data)
  * POST /budgets/global-settings/certificates
+ * Note: The file field should be named "certificate" in the FormData
  */
 export async function uploadCertificate(formData: FormData) {
   const endpoint = `/budgets/global-settings/certificates`
   console.log('[budgets] POST', endpoint)
+  // Log FormData contents for debugging
+  try {
+    for (const pair of Array.from(formData.entries())) {
+      const [key, value] = pair as [string, any]
+      if (value instanceof File) {
+        console.log(`[budgets] FormData field: ${key} => File(name=${value.name}, size=${value.size}, type=${value.type})`)
+      } else {
+        console.log(`[budgets] FormData field: ${key} => ${value}`)
+      }
+    }
+  } catch (err) {
+    console.warn('[budgets] Could not enumerate FormData for logging', err)
+  }
+
   const response = await api.post<CertificateResponse>(endpoint, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
@@ -643,7 +659,21 @@ export async function deleteCertificate(id: string) {
 export async function uploadSystemPhoto(systemDescriptionId: string, formData: FormData) {
   if (!systemDescriptionId) throw new Error('systemDescriptionId é obrigatório')
   const endpoint = `/budgets/global-settings/system-descriptions/${systemDescriptionId}/photos`
+  // Log endpoint and formData contents for debugging
   console.log('[budgets] POST', endpoint)
+  try {
+    // Iterate FormData entries to log keys and file info
+    for (const pair of Array.from(formData.entries())) {
+      const [key, value] = pair as [string, any]
+      if (value instanceof File) {
+        console.log(`[budgets] FormData field: ${key} => File(name=${value.name}, size=${value.size}, type=${value.type})`)
+      } else {
+        console.log(`[budgets] FormData field: ${key} => ${value}`)
+      }
+    }
+  } catch (err) {
+    console.warn('[budgets] Could not enumerate FormData for logging', err)
+  }
   const response = await api.post<SystemPhotoResponse>(endpoint, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
