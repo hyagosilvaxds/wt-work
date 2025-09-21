@@ -28,7 +28,8 @@ import {
   Image,
   Globe,
   Upload,
-  X
+  X,
+  Loader2
 } from "lucide-react"
 import {
   createCoverPage,
@@ -90,7 +91,19 @@ import {
   deleteEquipmentPhoto,
   EquipmentResponse,
   CreateEquipmentPayload,
-  EquipmentPhotoResponse
+  EquipmentPhotoResponse,
+  createIncludedItem,
+  listIncludedItems,
+  getIncludedItemById,
+  updateIncludedItem,
+  deleteIncludedItem,
+  CreateIncludedItemPayload,
+  IncludedItemGlobal,
+  uploadIncludedItemPhoto,
+  getIncludedItemPhotoById,
+  updateIncludedItemPhoto,
+  deleteIncludedItemPhoto,
+  IncludedItemPhotoResponse
 } from "@/lib/api/budgets"
 
 interface CompanyInfo {
@@ -174,6 +187,18 @@ interface Equipment {
   }[]
 }
 
+interface IncludedItem {
+  id?: string
+  description: string
+  details?: string
+  photos?: {
+    id: string
+    caption?: string
+    filePath?: string
+    fileName?: string
+  }[]
+}
+
 interface StandardText {
   id: string
   title: string
@@ -226,6 +251,9 @@ export function BudgetSettingsPage() {
   })
 
   const [equipment, setEquipment] = useState<Equipment[]>([])
+
+  const [includedItems, setIncludedItems] = useState<IncludedItem[]>([])
+  const [includedItemEdits, setIncludedItemEdits] = useState<Record<string, { description: string; details: string; saving?: boolean }>>({})
 
   const [standardTexts, setStandardTexts] = useState<StandardText[]>([
     {
@@ -310,6 +338,7 @@ export function BudgetSettingsPage() {
     system: false,
     certificates: false,
     equipment: false,
+    includedItems: false,
     texts: false,
     coverPages: false,
     globalSettings: false
@@ -326,9 +355,7 @@ export function BudgetSettingsPage() {
     type: "COVER" as "COVER" | "BACK_COVER",
     isDefault: false,
     isActive: true,
-    file: null as File | null,
-    baseCoverPageId: "", // ID da capa base para copiar
-    baseBackCoverPageId: "" // ID da contracapa base para copiar
+  file: null as File | null
   })
   const [isSubmittingCoverPage, setIsSubmittingCoverPage] = useState(false)
   
@@ -355,6 +382,14 @@ export function BudgetSettingsPage() {
     specifications: ""
   })
   const [isSubmittingEquipment, setIsSubmittingEquipment] = useState(false)
+
+  // Included items modal states
+  const [isIncludedItemModalOpen, setIsIncludedItemModalOpen] = useState(false)
+  const [includedItemFormData, setIncludedItemFormData] = useState({
+    description: "",
+    details: ""
+  })
+  const [isSubmittingIncludedItem, setIsSubmittingIncludedItem] = useState(false)
 
   // Load cover pages from API
   const loadCoverPages = async () => {
@@ -400,6 +435,7 @@ export function BudgetSettingsPage() {
     loadSystemDescriptions()
     loadCertificates()
     loadEquipment()
+    loadIncludedItems()
   }, [])
 
   // Load available cover pages when modal opens
@@ -1011,6 +1047,176 @@ export function BudgetSettingsPage() {
     }
   }
 
+  // Included items functions
+  const loadIncludedItems = async () => {
+    try {
+      console.log('[BudgetSettingsPage] Loading included items...')
+      const response = await listIncludedItems()
+      console.log('[BudgetSettingsPage] Loaded included items:', response)
+      
+      setIncludedItems(response.map(item => ({
+        id: item.id,
+        description: item.description || "",
+        details: item.details || "",
+        photos: item.photos || []
+      })))
+      // Initialize local edit buffer for each included item
+      const edits: Record<string, { description: string; details: string }> = {}
+      for (const it of response) {
+        if (it.id) edits[it.id] = { description: it.description || '', details: it.details || '' }
+      }
+      setIncludedItemEdits(edits)
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error loading included items:', error)
+    }
+  }
+
+  const handleCreateIncludedItem = async () => {
+    setIsIncludedItemModalOpen(true)
+  }
+
+  const handleIncludedItemFormSubmit = async () => {
+    if (!includedItemFormData.description) {
+      alert("Por favor, preencha pelo menos a descrição")
+      return
+    }
+
+    setIsSubmittingIncludedItem(true)
+    
+    try {
+      console.log('[BudgetSettingsPage] Creating included item with data:')
+      console.log('Description:', includedItemFormData.description)
+      console.log('Details:', includedItemFormData.details)
+
+      const payload: CreateIncludedItemPayload = {
+        description: includedItemFormData.description,
+        details: includedItemFormData.details
+      }
+
+      const response = await createIncludedItem(payload)
+      console.log('[BudgetSettingsPage] Created included item:', response)
+
+      // Reload included items
+      await loadIncludedItems()
+      
+      // Reset form
+      setIncludedItemFormData({
+        description: "",
+        details: ""
+      })
+      setIsIncludedItemModalOpen(false)
+      
+      alert('Item incluso criado com sucesso!')
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error creating included item:', error)
+      alert('Erro ao criar item incluso.')
+    } finally {
+      setIsSubmittingIncludedItem(false)
+    }
+  }
+
+  const handleDeleteIncludedItem = async (itemId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este item incluso?')) {
+      return
+    }
+
+    try {
+      console.log('[BudgetSettingsPage] Deleting included item...')
+      await deleteIncludedItem(itemId)
+      
+      // Reload included items
+      await loadIncludedItems()
+      alert('Item incluso excluído com sucesso!')
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error deleting included item:', error)
+      alert('Erro ao excluir item incluso. Tente novamente.')
+    }
+  }
+
+  const handleSaveIncludedItem = async (itemId: string) => {
+    const edits = includedItemEdits[itemId]
+    if (!edits) return
+    try {
+      setIncludedItemEdits(prev => ({ ...prev, [itemId]: { ...prev[itemId], saving: true } }))
+      await updateIncludedItem(itemId, { description: edits.description, details: edits.details })
+      // Refresh list
+      await loadIncludedItems()
+      setIsEditing(prev => ({ ...prev, includedItems: false }))
+      alert('Item incluso atualizado com sucesso!')
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error saving included item:', error)
+      alert('Erro ao salvar item incluso. Tente novamente.')
+    } finally {
+      setIncludedItemEdits(prev => ({ ...prev, [itemId]: { ...prev[itemId], saving: false } }))
+    }
+  }
+
+  const updateIncludedItemField = async (id: string, field: keyof IncludedItem, value: string) => {
+    try {
+      console.log('[BudgetSettingsPage] Updating included item field:', id, field, value)
+      
+      const payload: any = {}
+      payload[field] = value
+      
+      await updateIncludedItem(id, payload)
+      console.log('[BudgetSettingsPage] Updated included item field successfully')
+      
+      // Update local state
+      setIncludedItems(prev =>
+        prev.map(item =>
+          item.id === id ? { ...item, [field]: value } : item
+        )
+      )
+    } catch (err) {
+      console.error('[BudgetSettingsPage] Error updating included item field:', err)
+      alert('Erro ao atualizar item incluso. Tente novamente.')
+    }
+  }
+
+  const handleIncludedItemPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>, itemId: string) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      alert('Selecione um arquivo.')
+      return
+    }
+
+    try {
+      console.log('[BudgetSettingsPage] Uploading included item photo...', { itemId, fileName: file.name, fileSize: file.size, fileType: file.type })
+      const formData = new FormData()
+      formData.append('photo', file)
+      formData.append('caption', 'Foto do item incluso')
+
+      // Log FormData entries for debugging (key and value). Files will appear as File objects.
+      for (const [key, value] of Array.from(formData.entries())) {
+        console.log('[BudgetSettingsPage] IncludedItem FormData entry:', key, value)
+      }
+
+      const response = await uploadIncludedItemPhoto(itemId, formData)
+      console.log('[BudgetSettingsPage] Uploaded included item photo:', response)
+
+      // Reload included items to get updated photos
+      await loadIncludedItems()
+      alert('Foto enviada com sucesso!')
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error uploading included item photo:', error)
+      alert('Erro ao enviar foto. Tente novamente.')
+    }
+  }
+
+  const handleDeleteIncludedItemPhoto = async (photoId: string) => {
+    try {
+      console.log('[BudgetSettingsPage] Deleting included item photo...')
+      await deleteIncludedItemPhoto(photoId)
+      
+      // Reload included items to get updated photos
+      await loadIncludedItems()
+      alert('Foto excluída com sucesso!')
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error deleting included item photo:', error)
+      alert('Erro ao excluir foto. Tente novamente.')
+    }
+  }
+
   const addStandardText = () => {
     const newText: StandardText = {
       id: Date.now().toString(),
@@ -1042,9 +1248,7 @@ export function BudgetSettingsPage() {
       type: "COVER",
       isDefault: false,
       isActive: true,
-      file: null,
-      baseCoverPageId: "",
-      baseBackCoverPageId: ""
+  file: null
     })
     setIsCreateCoverPageModalOpen(true)
   }
@@ -1087,9 +1291,7 @@ export function BudgetSettingsPage() {
         type: "COVER",
         isDefault: false,
         isActive: true,
-        file: null,
-        baseCoverPageId: "",
-        baseBackCoverPageId: ""
+  file: null
       })
     } catch (err) {
       console.error('[BudgetSettingsPage] Error creating cover page:', err)
@@ -1194,6 +1396,7 @@ export function BudgetSettingsPage() {
       systemDescription,
       certificates,
       equipment,
+      includedItems,
       standardTexts,
       coverPages,
       globalSettings
@@ -1207,6 +1410,7 @@ export function BudgetSettingsPage() {
       system: false,
       certificates: false,
       equipment: false,
+      includedItems: false,
       texts: false,
       coverPages: false,
       globalSettings: false
@@ -1218,33 +1422,22 @@ export function BudgetSettingsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Configurações de Orçamentos</h1>
-          <p className="text-gray-600">Configure dados padrão para todos os orçamentos</p>
+          
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => setCurrentTab('settings')} variant="ghost" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Configurações Globais
-          </Button>
-          <Button onClick={handleSave} className="flex items-center gap-2">
-          <Save className="h-4 w-4" />
-          Salvar Configurações
-          </Button>
+          
         </div>
       </div>
 
       {/* Tabs */}
   <Tabs value={currentTab} onValueChange={(v) => setCurrentTab(v)} className="space-y-6">
         <div className="w-full overflow-x-auto">
-          <TabsList className="grid w-full grid-cols-9 min-w-[1200px]">
+          <TabsList className="grid w-full grid-cols-10 min-w-[1200px]">
             <TabsTrigger value="company" className="flex items-center gap-2 text-xs sm:text-sm">
               <Building className="h-4 w-4" />
               <span className="hidden sm:inline">Empresa</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2 text-xs sm:text-sm">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Configurações</span>
-            </TabsTrigger>
+            
             <TabsTrigger value="accounts" className="flex items-center gap-2 text-xs sm:text-sm">
               <CreditCard className="h-4 w-4" />
               <span className="hidden sm:inline">Contas</span>
@@ -1265,10 +1458,11 @@ export function BudgetSettingsPage() {
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Equipamentos</span>
             </TabsTrigger>
-            <TabsTrigger value="texts" className="flex items-center gap-2 text-xs sm:text-sm">
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Textos</span>
+            <TabsTrigger value="included-items" className="flex items-center gap-2 text-xs sm:text-sm">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Itens Inclusos</span>
             </TabsTrigger>
+            
             <TabsTrigger value="covers" className="flex items-center gap-2 text-xs sm:text-sm">
               <Image className="h-4 w-4" />
               <span className="hidden sm:inline">Cover Pages</span>
@@ -2048,76 +2242,99 @@ export function BudgetSettingsPage() {
                   <div className="grid gap-4">
                     {certificates.map((certificate) => (
                       <div key={certificate.id} className="border rounded-lg p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Nome</label>
-                            <Input
-                              value={certificate.name}
-                              onChange={(e) => updateCertificateField(certificate.id!, 'name', e.target.value)}
-                              disabled={!isEditing.certificates}
-                              placeholder="Nome do certificado"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Descrição</label>
-                            <Input
-                              value={certificate.description}
-                              onChange={(e) => updateCertificateField(certificate.id!, 'description', e.target.value)}
-                              disabled={!isEditing.certificates}
-                              placeholder="Descrição"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Emissor</label>
-                            <Input
-                              value={certificate.issuer || ''}
-                              onChange={(e) => updateCertificateField(certificate.id!, 'issuer', e.target.value)}
-                              disabled={!isEditing.certificates}
-                              placeholder="Emissor (opcional)"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Válido até</label>
-                            <Input
-                              type="date"
-                              value={certificate.validUntil || ''}
-                              onChange={(e) => updateCertificateField(certificate.id!, 'validUntil', e.target.value)}
-                              disabled={!isEditing.certificates}
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="mt-4 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {certificate.filePath && (
-                              <a
-                                href={`${BACKEND_URL}${certificate.filePath}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
-                              >
-                                <FileText className="h-4 w-4" />
-                                {certificate.fileName}
-                                {certificate.fileSize && (
-                                  <span className="text-gray-500">
-                                    ({(certificate.fileSize / 1024 / 1024).toFixed(2)} MB)
-                                  </span>
+                        {isEditing.certificates ? (
+                          <div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Nome</label>
+                                <Input
+                                  value={certificate.name}
+                                  onChange={(e) => updateCertificateField(certificate.id!, 'name', e.target.value)}
+                                  disabled={!isEditing.certificates}
+                                  placeholder="Nome do certificado"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Descrição</label>
+                                <Input
+                                  value={certificate.description}
+                                  onChange={(e) => updateCertificateField(certificate.id!, 'description', e.target.value)}
+                                  disabled={!isEditing.certificates}
+                                  placeholder="Descrição"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Emissor</label>
+                                <Input
+                                  value={certificate.issuer || ''}
+                                  onChange={(e) => updateCertificateField(certificate.id!, 'issuer', e.target.value)}
+                                  disabled={!isEditing.certificates}
+                                  placeholder="Emissor (opcional)"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Válido até</label>
+                                <Input
+                                  type="date"
+                                  value={certificate.validUntil || ''}
+                                  onChange={(e) => updateCertificateField(certificate.id!, 'validUntil', e.target.value)}
+                                  disabled={!isEditing.certificates}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="mt-4 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {certificate.filePath && (
+                                  <a
+                                    href={`${BACKEND_URL}/${(certificate.filePath || '').replace(/^\/+/, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    {certificate.fileName}
+                                    {certificate.fileSize && (
+                                      <span className="text-gray-500">
+                                        ({(certificate.fileSize / 1024 / 1024).toFixed(2)} MB)
+                                      </span>
+                                    )}
+                                  </a>
                                 )}
-                              </a>
-                            )}
+                              </div>
+
+                              {isEditing.certificates && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDeleteCertificate(certificate.id!)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Excluir
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          
-                          {isEditing.certificates && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteCertificate(certificate.id!)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Excluir
-                            </Button>
-                          )}
-                        </div>
+                        ) : (
+                          // Simple listing: name + linked filename
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="font-medium">{certificate.name}</span>
+                              {certificate.filePath ? (
+                                <a
+                                  href={`${BACKEND_URL}/${(certificate.filePath || '').replace(/^\/+/, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 text-sm"
+                                >
+                                  {certificate.fileName}
+                                </a>
+                              ) : (
+                                <span className="text-sm text-gray-500">Sem arquivo</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -2271,6 +2488,160 @@ export function BudgetSettingsPage() {
                             </div>
                           )}
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="included-items" className="space-y-6">
+          {/* Itens Inclusos */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Plus className="h-5 w-5" />
+                  <CardTitle>Itens Inclusos</CardTitle>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditing(prev => ({ ...prev, includedItems: !prev.includedItems }))}
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    {isEditing.includedItems ? 'Cancelar' : 'Editar'}
+                  </Button>
+                  <Button
+                    onClick={handleCreateIncludedItem}
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Novo Item
+                  </Button>
+                </div>
+              </div>
+              <CardDescription>
+                Gerencie os itens inclusos da empresa para incluir nos orçamentos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {includedItems.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Plus className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Nenhum item incluso cadastrado</p>
+                    <p className="text-sm">Clique em "Novo Item" para adicionar o primeiro</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {includedItems.map((item) => (
+                      <div key={item.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="font-medium">Item Incluso #{item.id}</h3>
+                          {isEditing.includedItems && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteIncludedItem(item.id!)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor={`item-description-${item.id}`}>Descrição</Label>
+                            <Input
+                              id={`item-description-${item.id}`}
+                              value={includedItemEdits[item.id || '']?.description ?? item.description}
+                              onChange={(e) => setIncludedItemEdits(prev => ({ ...prev, [item.id!]: { ...(prev[item.id!] || { description: item.description, details: item.details }), description: e.target.value } }))}
+                              disabled={!isEditing.includedItems}
+                              placeholder="Descrição do item"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`item-details-${item.id}`}>Detalhes</Label>
+                            <Textarea
+                              id={`item-details-${item.id}`}
+                              value={includedItemEdits[item.id || '']?.details ?? item.details || ""}
+                              onChange={(e) => setIncludedItemEdits(prev => ({ ...prev, [item.id!]: { ...(prev[item.id!] || { description: item.description, details: item.details }), details: e.target.value } }))}
+                              disabled={!isEditing.includedItems}
+                              placeholder="Detalhes adicionais..."
+                              rows={3}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Photos section */}
+                        <div className="space-y-2 mt-4">
+                          <div className="flex items-center justify-between">
+                            <Label>Fotos do Item</Label>
+                            <div>
+                              <input
+                                type="file"
+                                accept=".jpg,.jpeg,.png"
+                                onChange={(e) => handleIncludedItemPhotoUpload(e, item.id!)}
+                                style={{ display: 'none' }}
+                                id={`included-item-photo-upload-${item.id}`}
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => document.getElementById(`included-item-photo-upload-${item.id}`)?.click()}
+                              >
+                                <Upload className="h-4 w-4 mr-1" />
+                                Upload Foto
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {item.photos && item.photos.length > 0 && (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                              {item.photos.map((photo) => (
+                                <div key={photo.id} className="relative group">
+                                  <img
+                                    src={`${BACKEND_URL}/${(photo.filePath || '').replace(/^\/+/, '')}`}
+                                    alt={photo.caption || item.description}
+                                    className="w-full h-32 object-cover rounded-md border"
+                                  />
+                                  <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteIncludedItemPhoto(photo.id)}
+                                      className="text-white hover:text-red-400"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  {photo.caption && (
+                                    <p className="text-xs text-gray-600 mt-1 truncate">{photo.caption}</p>
+                                  )}
+                                </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {isEditing.includedItems && (
+                          <div className="flex justify-end mt-4 space-x-2">
+                            <Button onClick={() => handleSaveIncludedItem(item.id!)} size="sm" disabled={includedItemEdits[item.id || '']?.saving}>
+                              {includedItemEdits[item.id || '']?.saving ? 'Salvando...' : 'Salvar'}
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => {
+                              setIncludedItemEdits(prev => ({ ...prev, [item.id!]: { description: item.description, details: item.details } }))
+                              setIsEditing(prev => ({ ...prev, includedItems: false }))
+                            }}>
+                              Cancelar
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -2551,61 +2922,6 @@ export function BudgetSettingsPage() {
               </Select>
             </div>
             
-            {/* Campos para selecionar capas base */}
-            <div className="grid gap-2">
-              <Label htmlFor="base-cover-page">Capa Base (opcional)</Label>
-              <Select
-                value={newCoverPageData.baseCoverPageId}
-                onValueChange={(value) => 
-                  setNewCoverPageData(prev => ({ ...prev, baseCoverPageId: value }))
-                }
-                disabled={isSubmittingCoverPage || loadingAvailableCoverPages}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma capa existente como base" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhuma (criar do zero)</SelectItem>
-                  {availableCoverPages
-                    .filter(page => page.type === 'COVER')
-                    .map(page => (
-                      <SelectItem key={page.id} value={page.id}>
-                        {page.name} {page.isDefault && '(Padrão)'}
-                      </SelectItem>
-                    ))
-                  }
-                </SelectContent>
-              </Select>
-              {loadingAvailableCoverPages && (
-                <p className="text-sm text-gray-500">Carregando capas disponíveis...</p>
-              )}
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="base-back-cover-page">Contracapa Base (opcional)</Label>
-              <Select
-                value={newCoverPageData.baseBackCoverPageId}
-                onValueChange={(value) => 
-                  setNewCoverPageData(prev => ({ ...prev, baseBackCoverPageId: value }))
-                }
-                disabled={isSubmittingCoverPage || loadingAvailableCoverPages}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma contracapa existente como base" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhuma (criar do zero)</SelectItem>
-                  {availableCoverPages
-                    .filter(page => page.type === 'BACK_COVER')
-                    .map(page => (
-                      <SelectItem key={page.id} value={page.id}>
-                        {page.name} {page.isDefault && '(Padrão)'}
-                      </SelectItem>
-                    ))
-                  }
-                </SelectContent>
-              </Select>
-            </div>
             
             <div className="grid gap-2">
               <Label htmlFor="cover-page-file">Arquivo (opcional)</Label>
@@ -2828,6 +3144,58 @@ export function BudgetSettingsPage() {
               disabled={isSubmittingEquipment || !equipmentFormData.name || !equipmentFormData.description}
             >
               {isSubmittingEquipment ? "Criando..." : "Adicionar Equipamento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para adicionar novo item incluso */}
+      <Dialog open={isIncludedItemModalOpen} onOpenChange={setIsIncludedItemModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Item Incluso</DialogTitle>
+            <DialogDescription>
+              Adicione um novo item incluso que poderá ser usado nos orçamentos
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="includeditem-description">Descrição *</Label>
+              <Input
+                id="includeditem-description"
+                value={includedItemFormData.description}
+                onChange={(e) => setIncludedItemFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Digite a descrição do item"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="includeditem-details">Detalhes</Label>
+              <Textarea
+                id="includeditem-details"
+                value={includedItemFormData.details}
+                onChange={(e) => setIncludedItemFormData(prev => ({ ...prev, details: e.target.value }))}
+                placeholder="Detalhes adicionais sobre o item..."
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsIncludedItemModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleIncludedItemFormSubmit}
+              disabled={isSubmittingIncludedItem || !includedItemFormData.description.trim()}
+            >
+              {isSubmittingIncludedItem ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
