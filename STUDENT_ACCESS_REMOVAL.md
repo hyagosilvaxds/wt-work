@@ -183,7 +183,7 @@ Usuário acessa → Middleware verifica token → Verifica role → Decisão
 ## 🚀 **Status Final**
 
 ### **Sistema Operacional**
-- ✅ Servidor rodando em `http://localhost:4000`
+- ✅ Servidor rodando em `https://api.olimpustech.com`
 - ✅ Middleware funcionando corretamente
 - ✅ Autenticação integrada
 - ✅ Controle de acesso ativo
