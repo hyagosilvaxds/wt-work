@@ -30,7 +30,9 @@ import { BudgetCreateModal } from "./budget-create-modal"
 import { BudgetDetailsModal } from "./budget-details-modal"
 import { BudgetSettingsPage } from "./budget-settings-page"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { listBudgets, getBudgetById, updateBudget, generateBudgetPdf, BudgetResponse, BudgetStatus } from '@/lib/api/budgets'
+import { Button as PaginationButton } from "@/components/ui/button"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { listBudgets, getBudgetById, updateBudget, generateBudgetPdf, getBudgetAnalyticsDashboard, BudgetResponse, BudgetStatus, DashboardAnalyticsResponse, BudgetListParams } from '@/lib/api/budgets'
 
 interface Training {
   id: string
@@ -115,8 +117,8 @@ const mockBudgets: Budget[] = [
 ]
 
 export function BudgetManagementPage() {
-  const [budgets, setBudgets] = useState<Budget[]>([])
-  const [filteredBudgets, setFilteredBudgets] = useState<Budget[]>([])
+  const [allBudgets, setAllBudgets] = useState<Budget[]>([]) // All budgets from API
+  const [filteredBudgets, setFilteredBudgets] = useState<Budget[]>([]) // Filtered budgets for display
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -125,19 +127,54 @@ export function BudgetManagementPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState<'management' | 'settings'>('management')
+  const [analytics, setAnalytics] = useState<DashboardAnalyticsResponse | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(true)
 
-  // Load budgets from API
+  // Client-side pagination state
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    itemsPerPage: 10
+  })
+
+  // Date filters
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+
+  // Load analytics from API
+  const loadAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true)
+      console.log('[BudgetManagementPage] Loading analytics...')
+      const analyticsData = await getBudgetAnalyticsDashboard()
+      console.log('[BudgetManagementPage] Loaded analytics:', analyticsData)
+      setAnalytics(analyticsData)
+    } catch (err) {
+      console.error('[BudgetManagementPage] Error loading analytics:', err)
+      // Don't show error for analytics, just log it
+    } finally {
+      setAnalyticsLoading(false)
+    }
+  }
+
+  // Load budgets from API with API-side filters only
   const loadBudgets = async () => {
     try {
       setLoading(true)
       setError(null)
-      console.log('[BudgetManagementPage] Loading budgets...')
-      const budgetResponses = await listBudgets()
+
+      const params: BudgetListParams = {
+        search: searchTerm || undefined,
+        status: statusFilter !== "all" ? (statusFilter.toUpperCase() as BudgetStatus) : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      }
+
+      console.log('[BudgetManagementPage] Loading budgets with params:', params)
+      const budgetResponses = await listBudgets(params)
       console.log('[BudgetManagementPage] Loaded budgets:', budgetResponses)
-      
+
       const mappedBudgets = budgetResponses.map(mapBudgetResponse)
-      setBudgets(mappedBudgets)
-      setFilteredBudgets(mappedBudgets)
+      setAllBudgets(mappedBudgets)
     } catch (err) {
       console.error('[BudgetManagementPage] Error loading budgets:', err)
       setError('Erro ao carregar orçamentos')
@@ -146,28 +183,35 @@ export function BudgetManagementPage() {
     }
   }
 
-  // Load budgets on component mount
+  // Load all data
+  const loadData = async () => {
+    await Promise.all([loadBudgets(), loadAnalytics()])
+  }
+
+  // Load data on component mount
   useEffect(() => {
-    loadBudgets()
+    loadData()
   }, [])
 
+  // Reload budgets when API-side filters change
   useEffect(() => {
-    let filtered = budgets
+    const timeoutId = setTimeout(() => {
+      loadBudgets() // Reload from API with new filters
+      setPagination(prev => ({ ...prev, currentPage: 1 })) // Reset to page 1
+    }, 500) // Debounce search
 
-    if (searchTerm) {
-      filtered = filtered.filter(budget =>
-        budget.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        budget.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        budget.budgetNumber.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, statusFilter, startDate, endDate])
 
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(budget => budget.status === statusFilter)
-    }
+  // Client-side filtering and pagination
+  useEffect(() => {
+    let filtered = allBudgets
+
+    // Apply any additional client-side filters here if needed
+    // For now, all filtering is done on the API side
 
     setFilteredBudgets(filtered)
-  }, [budgets, searchTerm, statusFilter])
+  }, [allBudgets])
 
   const getStatusBadge = (status: Budget['status']) => {
     const statusConfig = {
@@ -216,7 +260,7 @@ export function BudgetManagementPage() {
   }
 
   const handleDelete = (budgetId: string) => {
-    setBudgets(budgets.filter(b => b.id !== budgetId))
+    setAllBudgets(allBudgets.filter((b: Budget) => b.id !== budgetId))
   }
 
   const handleDownloadPDF = async (budget: Budget) => {
@@ -240,15 +284,65 @@ export function BudgetManagementPage() {
   }
 
   const getTotalStats = () => {
-    const total = budgets.length
-    const pending = budgets.filter(b => b.status === 'pending').length
-    const approved = budgets.filter(b => b.status === 'approved').length
-    const totalValue = budgets.reduce((sum, b) => sum + b.totalValue, 0)
+    // Use analytics data if available, otherwise fallback to local calculations
+    if (analytics && !analyticsLoading) {
+      return {
+        total: analytics.totalProposals,
+        pending: analytics.pendingProposals.count,
+        approved: analytics.approvedProposals.count,
+        expired: analytics.expiredProposals.count,
+        totalValue: analytics.pendingProposals.totalValue + analytics.approvedProposals.totalValue + analytics.expiredProposals.totalValue,
+        conversionRate: analytics.conversionRate,
+        averageTicket: analytics.averageTicket,
+        pendingValue: analytics.pendingProposals.totalValue,
+        approvedValue: analytics.approvedProposals.totalValue,
+        expiredValue: analytics.expiredProposals.totalValue
+      }
+    }
 
-    return { total, pending, approved, totalValue }
+    // Fallback to local calculations
+    const total = allBudgets.length
+    const pending = allBudgets.filter((b: Budget) => b.status === 'pending').length
+    const approved = allBudgets.filter((b: Budget) => b.status === 'approved').length
+    const expired = allBudgets.filter((b: Budget) => b.status === 'expired').length
+    const totalValue = allBudgets.reduce((sum: number, b: Budget) => sum + b.totalValue, 0)
+    const pendingValue = allBudgets.filter((b: Budget) => b.status === 'pending').reduce((sum: number, b: Budget) => sum + b.totalValue, 0)
+    const approvedValue = allBudgets.filter((b: Budget) => b.status === 'approved').reduce((sum: number, b: Budget) => sum + b.totalValue, 0)
+    const expiredValue = allBudgets.filter((b: Budget) => b.status === 'expired').reduce((sum: number, b: Budget) => sum + b.totalValue, 0)
+
+    return {
+      total,
+      pending,
+      approved,
+      expired,
+      totalValue,
+      conversionRate: total > 0 ? (approved / total) * 100 : 0,
+      averageTicket: total > 0 ? totalValue / total : 0,
+      pendingValue,
+      approvedValue,
+      expiredValue
+    }
   }
 
   const stats = getTotalStats()
+
+  // Client-side pagination calculations
+  const totalItems = filteredBudgets.length
+  const totalPages = Math.ceil(totalItems / pagination.itemsPerPage)
+  const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage
+  const endIndex = startIndex + pagination.itemsPerPage
+  const currentPageBudgets = filteredBudgets.slice(startIndex, endIndex)
+
+  const paginationInfo = {
+    currentPage: pagination.currentPage,
+    totalPages,
+    totalItems,
+    itemsPerPage: pagination.itemsPerPage,
+    hasNextPage: pagination.currentPage < totalPages,
+    hasPreviousPage: pagination.currentPage > 1,
+    startIndex: startIndex + 1,
+    endIndex: Math.min(endIndex, totalItems)
+  }
 
   // If on settings page, render the settings component
   if (currentPage === 'settings') {
@@ -291,13 +385,19 @@ export function BudgetManagementPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total de Orçamentos</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {analyticsLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
+                  ) : (
+                    stats.total
+                  )}
+                </p>
               </div>
               <FileText className="h-8 w-8 text-blue-600" />
             </div>
@@ -309,7 +409,21 @@ export function BudgetManagementPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Pendentes</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {analyticsLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
+                  ) : (
+                    stats.pending
+                  )}
+                </p>
+                {!analyticsLoading && (
+                  <p className="text-xs text-gray-500">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    }).format(stats.pendingValue || 0)}
+                  </p>
+                )}
               </div>
               <Clock className="h-8 w-8 text-yellow-600" />
             </div>
@@ -321,7 +435,21 @@ export function BudgetManagementPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Aprovados</p>
-                <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {analyticsLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
+                  ) : (
+                    stats.approved
+                  )}
+                </p>
+                {!analyticsLoading && (
+                  <p className="text-xs text-gray-500">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    }).format(stats.approvedValue || 0)}
+                  </p>
+                )}
               </div>
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
@@ -332,12 +460,62 @@ export function BudgetManagementPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Valor Total</p>
+                <p className="text-sm font-medium text-gray-600">Vencidos</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {analyticsLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
+                  ) : (
+                    stats.expired || 0
+                  )}
+                </p>
+                {!analyticsLoading && (
+                  <p className="text-xs text-gray-500">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    }).format(stats.expiredValue || 0)}
+                  </p>
+                )}
+              </div>
+              <XCircle className="h-8 w-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Taxa de Conversão</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {analyticsLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-8 w-16 rounded"></div>
+                  ) : (
+                    `${stats.conversionRate?.toFixed(1) || '0.0'}%`
+                  )}
+                </p>
+              </div>
+              <div className="h-8 w-8 text-purple-600 flex items-center justify-center text-lg font-bold">
+                %
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(stats.totalValue)}
+                  {analyticsLoading ? (
+                    <div className="animate-pulse bg-gray-200 h-8 w-20 rounded"></div>
+                  ) : (
+                    new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    }).format(stats.averageTicket || 0)
+                  )}
                 </p>
               </div>
               <DollarSign className="h-8 w-8 text-blue-600" />
@@ -349,21 +527,22 @@ export function BudgetManagementPage() {
       {/* Filters */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
               <Label htmlFor="search">Buscar</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
                   id="search"
-                  placeholder="Buscar por cliente, empresa ou número do orçamento..."
+                  placeholder="Buscar por cliente, empresa ou número..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
-            <div className="md:w-48">
+
+            <div>
               <Label htmlFor="status">Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
@@ -371,12 +550,63 @@ export function BudgetManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="draft">Rascunho</SelectItem>
+                  <SelectItem value="sent">Enviado</SelectItem>
                   <SelectItem value="approved">Aprovado</SelectItem>
                   <SelectItem value="rejected">Rejeitado</SelectItem>
                   <SelectItem value="expired">Vencido</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="startDate">Data Inicial</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="endDate">Data Final</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Items per page selector */}
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="limit" className="text-sm">Itens por página:</Label>
+              <Select
+                value={pagination.itemsPerPage.toString()}
+                onValueChange={(value) => setPagination(prev => ({ ...prev, itemsPerPage: parseInt(value), currentPage: 1 }))}
+              >
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="text-sm text-gray-500">
+              {paginationInfo.totalItems > 0 && (
+                <>
+                  Mostrando {paginationInfo.startIndex} a{' '}
+                  {paginationInfo.endIndex} de {paginationInfo.totalItems} orçamentos
+                </>
+              )}
             </div>
           </div>
         </CardContent>
@@ -400,7 +630,7 @@ export function BudgetManagementPage() {
             <div className="text-center py-8">
               <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
               <p className="text-red-500 mb-4">{error}</p>
-              <Button onClick={loadBudgets} variant="outline">
+              <Button onClick={loadData} variant="outline">
                 Tentar novamente
               </Button>
             </div>
@@ -422,7 +652,7 @@ export function BudgetManagementPage() {
                   </TableRow>
                 </TableHeader>
             <TableBody>
-              {filteredBudgets.map((budget) => (
+              {currentPageBudgets.map((budget: Budget) => (
                 <TableRow key={budget.id}>
                   <TableCell className="font-medium">{budget.budgetNumber}</TableCell>
                   <TableCell className="font-medium">{budget.title}</TableCell>
@@ -493,7 +723,57 @@ export function BudgetManagementPage() {
             </TableBody>
           </Table>
 
-          {filteredBudgets.length === 0 && !loading && !error && (
+          {/* Pagination Controls */}
+          {paginationInfo.totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t">
+              <PaginationButton
+                variant="outline"
+                size="icon"
+                onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
+                disabled={!paginationInfo.hasPreviousPage || loading}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </PaginationButton>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
+                  let pageNum
+                  if (paginationInfo.totalPages <= 5) {
+                    pageNum = i + 1
+                  } else if (paginationInfo.currentPage <= 3) {
+                    pageNum = i + 1
+                  } else if (paginationInfo.currentPage >= paginationInfo.totalPages - 2) {
+                    pageNum = paginationInfo.totalPages - 4 + i
+                  } else {
+                    pageNum = paginationInfo.currentPage - 2 + i
+                  }
+
+                  return (
+                    <PaginationButton
+                      key={pageNum}
+                      variant={paginationInfo.currentPage === pageNum ? "default" : "outline"}
+                      size="icon"
+                      onClick={() => setPagination(prev => ({ ...prev, currentPage: pageNum }))}
+                      disabled={loading}
+                    >
+                      {pageNum}
+                    </PaginationButton>
+                  )
+                })}
+              </div>
+
+              <PaginationButton
+                variant="outline"
+                size="icon"
+                onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
+                disabled={!paginationInfo.hasNextPage || loading}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </PaginationButton>
+            </div>
+          )}
+
+          {currentPageBudgets.length === 0 && !loading && !error && (
             <div className="text-center py-8">
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">Nenhum orçamento encontrado</p>
@@ -513,14 +793,14 @@ export function BudgetManagementPage() {
         }}
   // casting to any to bypass a structural typing mismatch for now
   budget={selectedBudget as any}
-        onSave={async (budget) => {
+        onSave={async () => {
           try {
             if (selectedBudget) {
-              // Update existing budget - refresh list
-              await loadBudgets()
+              // Update existing budget - refresh list and analytics
+              await loadData()
             } else {
-              // New budget created - refresh list
-              await loadBudgets()
+              // New budget created - refresh list and analytics
+              await loadData()
             }
             setIsCreateModalOpen(false)
             setSelectedBudget(null)
@@ -545,9 +825,9 @@ export function BudgetManagementPage() {
             const apiStatus = newStatus.toUpperCase() as BudgetStatus
             
             await updateBudget(budgetId, { status: apiStatus })
-            
-            // Refresh budgets list
-            await loadBudgets()
+
+            // Refresh budgets list and analytics
+            await loadData()
             
             // Update selected budget if it's the one being changed
             if (selectedBudget && selectedBudget.id === budgetId) {

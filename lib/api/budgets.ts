@@ -99,10 +99,19 @@ export async function createBudget(payload: CreateBudgetRequest) {
   return response.data
 }
 
+export interface BudgetListParams {
+  clientId?: string
+  status?: BudgetStatus
+  search?: string
+  createdBy?: string
+  startDate?: string
+  endDate?: string
+}
+
 /**
  * Lista orçamentos com filtros opcionais
  */
-export async function listBudgets(params?: { clientId?: string; status?: BudgetStatus; search?: string; createdBy?: string; startDate?: string; endDate?: string }) {
+export async function listBudgets(params?: BudgetListParams) {
   const query = new URLSearchParams()
   if (params?.clientId) query.append('clientId', params.clientId)
   if (params?.status) query.append('status', params.status)
