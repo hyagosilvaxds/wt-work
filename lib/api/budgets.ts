@@ -23,6 +23,7 @@ export interface CreateBudgetRequest {
   observations?: string
   coverPageId?: string
   backCoverPageId?: string
+  certificatePageId?: string
   trainingDate?: string
   dueDate?: string
   attentionTo?: string
@@ -63,6 +64,7 @@ export interface BudgetResponse {
   observations?: string
   coverPageId?: string
   backCoverPageId?: string
+  certificatePageId?: string
   trainingDate?: string
   dueDate?: string
   attentionTo?: string
@@ -134,6 +136,7 @@ export interface UpdateBudgetRequest {
   observations?: string
   coverPageId?: string
   backCoverPageId?: string
+  certificatePageId?: string
   trainingDate?: string
   dueDate?: string
   attentionTo?: string
@@ -176,6 +179,18 @@ export async function getBudgetById(id: string) {
   const endpoint = `/budgets/${id}`
   console.log('[budgets] GET', endpoint)
   const response = await api.get<BudgetResponse>(endpoint)
+  return response.data
+}
+
+/**
+ * Deleta um orçamento
+ * DELETE /budgets/{id}
+ */
+export async function deleteBudget(id: string) {
+  if (!id) throw new Error('id é obrigatório')
+  const endpoint = `/budgets/${id}`
+  console.log('[budgets] DELETE', endpoint)
+  const response = await api.delete<{ message: string }>(endpoint)
   return response.data
 }
 

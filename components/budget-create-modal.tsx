@@ -29,7 +29,7 @@ import {
   Search
 } from "lucide-react"
 
-import { createBudget, updateBudget, getBudgetById, CreateBudgetRequest, UpdateBudgetRequest, listCoverPages, CoverPageResponse, CoverPageType, BudgetResponse } from '@/lib/api/budgets'
+import { createBudget, updateBudget, getBudgetById, CreateBudgetRequest, UpdateBudgetRequest, listCoverPages, CoverPageResponse, CoverPageType, BudgetResponse, uploadClientLogo, getClientLogo, deleteClientLogo, ClientLogoResponse } from '@/lib/api/budgets'
 import { getClients, getTrainings } from '@/lib/api/superadmin'
 
 interface Training {
@@ -52,6 +52,22 @@ interface Client {
   cnpj?: string
   isActive?: boolean
 }
+
+interface CertificatePage {
+  id: string
+  name: string
+  description?: string | null
+  filePath: string
+  fileName: string
+  fileSize: number
+  pageCount: number
+  isDefault: boolean
+  isActive: boolean
+  uploadedBy: string
+  createdAt: string
+  updatedAt: string
+}
+
 
 interface BudgetItem {
   id?: string // frontend-only unique id for duplicate items
@@ -95,6 +111,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
     title: "",
     description: "",
     clientId: "",
+    certificatePageId: "",
     validityDays: 30,
     observations: "",
     coverPageId: "",
@@ -124,9 +141,19 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
   const [coverPages, setCoverPages] = useState<CoverPageResponse[]>([])
   const [loadingCoverPages, setLoadingCoverPages] = useState(false)
 
+  // Certificate pages states
+  const [certificatePages, setCertificatePages] = useState<CertificatePage[]>([])
+  const [selectedCertificatePage, setSelectedCertificatePage] = useState<CertificatePage | null>(null)
+  const [loadingCertificatePages, setLoadingCertificatePages] = useState(false)
+
   // Budget loading states
   const [loadingBudget, setLoadingBudget] = useState(false)
   const [budgetData, setBudgetData] = useState<BudgetResponse | null>(null)
+
+  // Client logo states
+  const [clientLogo, setClientLogo] = useState<ClientLogoResponse | null>(null)
+  const [loadingLogo, setLoadingLogo] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
 
   const isEditing = !!budget
 
@@ -183,6 +210,21 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
     }
   }
 
+  // Função para carregar páginas de certificado da API
+  const loadCertificatePages = async () => {
+    setLoadingCertificatePages(true)
+    try {
+      const api = (await import('@/lib/api/client')).default
+      const response = await api.get('/budgets/certificates')
+      setCertificatePages(response.data.certificatePages || [])
+    } catch (error) {
+      console.error('Erro ao carregar páginas de certificado:', error)
+      setCertificatePages([])
+    } finally {
+      setLoadingCertificatePages(false)
+    }
+  }
+
   // Função para carregar dados reais do budget da API
   const loadBudgetData = async (budgetId: string) => {
     setLoadingBudget(true)
@@ -197,12 +239,13 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
         title: response.title || response.number,
         description: response.description || "",
         clientId: response.clientId,
+        certificatePageId: response.certificatePageId || "",
         validityDays: response.validityDays || 30,
         observations: response.observations || "",
         coverPageId: response.coverPageId || "",
         backCoverPageId: response.backCoverPageId || "",
-        trainingDate: response.trainingDate || "",
-        dueDate: response.dueDate || "",
+        trainingDate: response.trainingDate ? response.trainingDate.split('T')[0] : "",
+        dueDate: response.dueDate ? response.dueDate.split('T')[0] : "",
         attentionTo: response.attentionTo || "",
         sector: response.sector || "",
         instructors: response.instructors || "",
@@ -240,6 +283,9 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
       })) || []
 
       setSelectedItems(mappedItems)
+
+      // Carregar logo do cliente se existir
+      await loadClientLogo(budgetId)
       
     } catch (error) {
       console.error('[BudgetCreateModal] Erro ao carregar dados do orçamento:', error)
@@ -254,7 +300,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
           coverPageId: "",
           backCoverPageId: "",
           trainingDate: "",
-          dueDate: budget.expiresAt,
+          dueDate: budget.expiresAt ? budget.expiresAt.split('T')[0] : "",
           attentionTo: "",
           sector: "",
           instructors: "",
@@ -267,6 +313,75 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
       }
     } finally {
       setLoadingBudget(false)
+    }
+  }
+
+  // Client logo functions
+  const loadClientLogo = async (budgetId: string) => {
+    try {
+      setLoadingLogo(true)
+      const logoData = await getClientLogo(budgetId)
+      setClientLogo(logoData)
+    } catch (error) {
+      console.error('[BudgetCreateModal] Erro ao carregar logo do cliente:', error)
+      setClientLogo(null)
+    } finally {
+      setLoadingLogo(false)
+    }
+  }
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !budgetData?.id) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      alert('Por favor, selecione apenas arquivos de imagem (JPEG, PNG, GIF, WebP)')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      alert('O arquivo deve ter no máximo 5MB')
+      return
+    }
+
+    try {
+      setUploadingLogo(true)
+      const formData = new FormData()
+      formData.append('logo', file)
+      
+      const logoData = await uploadClientLogo(budgetData.id, formData)
+      setClientLogo(logoData)
+      
+      // Reset the file input
+      event.target.value = ''
+    } catch (error) {
+      console.error('[BudgetCreateModal] Erro ao fazer upload do logo:', error)
+      alert('Erro ao fazer upload do logo. Tente novamente.')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const handleLogoRemove = async () => {
+    if (!budgetData?.id || !clientLogo) return
+
+    if (!confirm('Tem certeza que deseja remover o logo do cliente?')) {
+      return
+    }
+
+    try {
+      setLoadingLogo(true)
+      await deleteClientLogo(budgetData.id)
+      setClientLogo(null)
+    } catch (error) {
+      console.error('[BudgetCreateModal] Erro ao remover logo:', error)
+      alert('Erro ao remover logo. Tente novamente.')
+    } finally {
+      setLoadingLogo(false)
     }
   }
 
@@ -326,6 +441,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
           title: `ORC-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
           description: "",
           clientId: "",
+          certificatePageId: "",
           validityDays: 30,
           observations: "",
           coverPageId: "",
@@ -344,8 +460,9 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
         setAttachments([])
       }
       
-      // Carregar cover pages quando o modal abrir
+      // Carregar cover pages e páginas de certificado quando o modal abrir
       loadCoverPages()
+      loadCertificatePages()
     }
   }, [isOpen, budget])
 
@@ -688,6 +805,103 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
               </CardContent>
           </Card>
 
+          {/* Logo do Cliente - Apenas quando editando */}
+          {isEditing && budgetData?.id && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Logo do Cliente
+                </CardTitle>
+                <CardDescription>
+                  Adicione o logo da empresa do cliente para personalizar o orçamento
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {clientLogo && clientLogo.logoPath ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                          <FileText className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-green-900">
+                            {clientLogo.logoName || 'Logo do cliente'}
+                          </div>
+                          <div className="text-sm text-green-700">
+                            Logo carregado com sucesso
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleLogoRemove}
+                        disabled={loadingLogo}
+                        className="flex items-center gap-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Remover
+                      </Button>
+                    </div>
+                    
+                    {/* Preview do logo se possível */}
+                    <div className="border rounded-lg p-4">
+                      <img 
+                        src={clientLogo.logoPath} 
+                        alt="Logo do cliente"
+                        className="max-w-full max-h-32 mx-auto"
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement
+                          img.style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                      <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                      <div className="text-sm text-gray-600 mb-2">
+                        Nenhum logo carregado
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Formatos aceitos: JPEG, PNG, GIF, WebP (máx. 5MB)
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-center">
+                      <label htmlFor="logo-upload" className="cursor-pointer">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={uploadingLogo || loadingLogo}
+                          className="flex items-center gap-2"
+                          asChild
+                        >
+                          <span>
+                            <Upload className="h-4 w-4" />
+                            {uploadingLogo ? 'Carregando...' : 'Fazer Upload do Logo'}
+                          </span>
+                        </Button>
+                      </label>
+                      <input
+                        id="logo-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleLogoUpload}
+                        disabled={uploadingLogo || loadingLogo}
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Informações Detalhadas */}
           <Card>
             <CardHeader>
@@ -991,6 +1205,34 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
                   </Select>
                   {loadingCoverPages && (
                     <p className="text-sm text-gray-500 mt-1">Carregando contracapas...</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <Label htmlFor="certificatePageId">Página de Certificado</Label>
+                  <Select
+                    value={formData.certificatePageId || ""}
+                    onValueChange={(value) => handleInputChange("certificatePageId", value === "__none" ? "" : value)}
+                    disabled={loadingCertificatePages}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma página de certificado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Nenhuma página de certificado</SelectItem>
+                      {certificatePages
+                        .filter(page => page.isActive)
+                        .map(page => (
+                          <SelectItem key={page.id} value={page.id}>
+                            {page.name} {page.isDefault && '(Padrão)'} ({page.pageCount} página{page.pageCount !== 1 ? 's' : ''})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {loadingCertificatePages && (
+                    <p className="text-sm text-gray-500 mt-1">Carregando páginas de certificado...</p>
                   )}
                 </div>
               </div>

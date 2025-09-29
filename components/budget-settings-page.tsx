@@ -29,7 +29,9 @@ import {
   Globe,
   Upload,
   X,
-  Loader2
+  Loader2,
+  Download,
+  Calendar
 } from "lucide-react"
 import {
   createCoverPage,
@@ -174,6 +176,29 @@ interface Certificate {
   fileSize?: number
 }
 
+interface CertificatePage {
+  id: string
+  name: string
+  description?: string
+  filePath: string
+  fileName: string
+  fileSize: number
+  pageCount: number
+  isDefault: boolean
+  isActive: boolean
+  uploadedBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+interface CertificatePagesResponse {
+  certificatePages: CertificatePage[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
 interface Equipment {
   id?: string
   name: string
@@ -223,6 +248,113 @@ interface GlobalSettings {
   smsNotifications: boolean
   defaultCurrency: string
   taxRate: number
+}
+
+// Component for uploading certificate pages
+function CertificatePageUpload({ onUpload, uploading }: {
+  onUpload: (file: File, name: string) => void
+  uploading: boolean
+}) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [certificateName, setCertificateName] = useState("")
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        alert("Apenas arquivos PDF são aceitos")
+        return
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        alert("Arquivo muito grande. O limite é 10MB")
+        return
+      }
+      setSelectedFile(file)
+    }
+  }
+
+  const handleSubmit = () => {
+    if (!selectedFile || !certificateName.trim()) {
+      alert("Por favor, selecione um arquivo e forneça um nome")
+      return
+    }
+
+    onUpload(selectedFile, certificateName.trim())
+    setSelectedFile(null)
+    setCertificateName("")
+    setIsDialogOpen(false)
+  }
+
+  const handleCancel = () => {
+    setSelectedFile(null)
+    setCertificateName("")
+    setIsDialogOpen(false)
+  }
+
+  return (
+    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm">
+          <Upload className="h-4 w-4 mr-1" />
+          Novo Certificado
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Upload de Página de Certificado</DialogTitle>
+          <DialogDescription>
+            Selecione um arquivo PDF com até 2 páginas e forneça um nome para identificação.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="certificate-name">Nome do certificado</Label>
+            <Input
+              id="certificate-name"
+              value={certificateName}
+              onChange={(e) => setCertificateName(e.target.value)}
+              placeholder="Ex: NR10, NR35, etc."
+              disabled={uploading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="certificate-file">Arquivo PDF</Label>
+            <Input
+              id="certificate-file"
+              type="file"
+              accept=".pdf"
+              onChange={handleFileChange}
+              disabled={uploading}
+            />
+            {selectedFile && (
+              <p className="text-sm text-gray-600">
+                Selecionado: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+              </p>
+            )}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleCancel} disabled={uploading}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSubmit} disabled={uploading || !selectedFile || !certificateName.trim()}>
+            {uploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Enviando...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Enviar
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 export function BudgetSettingsPage() {
@@ -309,6 +441,11 @@ export function BudgetSettingsPage() {
 
   // Certificates state
   const [certificates, setCertificates] = useState<Certificate[]>([])
+
+  // Certificate Pages state
+  const [certificatePages, setCertificatePages] = useState<CertificatePage[]>([])
+  const [certificatePagesLoading, setCertificatePagesLoading] = useState(true)
+  const [uploadingCertificatePage, setUploadingCertificatePage] = useState(false)
 
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
     defaultValidityDays: 30,
@@ -424,6 +561,7 @@ export function BudgetSettingsPage() {
     loadPaymentConditions()
     loadSystemDescriptions()
     loadCertificates()
+    loadCertificatePages()
     loadEquipment()
     loadIncludedItems()
   }, [])
@@ -657,7 +795,9 @@ export function BudgetSettingsPage() {
       console.log('[BudgetSettingsPage] Saving payment condition...')
       
       const payload: CreatePaymentConditionPayload = {
-        description: paymentCondition.description
+        name: paymentCondition.name,
+        description: paymentCondition.description,
+        terms: paymentCondition.terms
       }
 
       if (paymentCondition.id) {
@@ -674,7 +814,12 @@ export function BudgetSettingsPage() {
       setIsEditing(prev => ({ ...prev, payments: false }))
       alert('Condição de pagamento salva com sucesso!')
     } catch (error) {
-      console.error('[BudgetSettingsPage] Error saving payment condition:', error)
+      console.error('[BudgetSettingsPage] Error saving payment condition:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error,
+        stack: error instanceof Error ? error.stack : undefined,
+        paymentCondition
+      })
       alert('Erro ao salvar condição de pagamento. Tente novamente.')
     }
   }
@@ -886,6 +1031,116 @@ export function BudgetSettingsPage() {
       console.error('[BudgetSettingsPage] Error updating certificate field:', err)
       alert('Erro ao atualizar certificado. Tente novamente.')
     }
+  }
+
+  // Certificate Pages functions
+  const loadCertificatePages = async () => {
+    try {
+      setCertificatePagesLoading(true)
+      const api = (await import('@/lib/api/client')).default
+      const response = await api.get('/budgets/certificates')
+
+      setCertificatePages(response.data.certificatePages)
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error loading certificate pages:', error)
+    } finally {
+      setCertificatePagesLoading(false)
+    }
+  }
+
+  const handleCertificatePageUpload = async (file: File, name: string) => {
+    if (!file || !name.trim()) {
+      alert("Por favor, selecione um arquivo e forneça um nome")
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      alert("Arquivo muito grande. O limite é 10MB")
+      return
+    }
+
+    if (file.type !== 'application/pdf') {
+      alert("Apenas arquivos PDF são aceitos")
+      return
+    }
+
+    setUploadingCertificatePage(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('name', name.trim())
+
+      const api = (await import('@/lib/api/client')).default
+      await api.post('/budgets/certificates/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+
+      await loadCertificatePages() // Reload list
+      alert("Página de certificado enviada com sucesso!")
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error uploading certificate page:', error)
+      alert("Erro ao enviar página de certificado")
+    } finally {
+      setUploadingCertificatePage(false)
+    }
+  }
+
+  const handleDownloadCertificatePage = async (id: string, fileName: string) => {
+    try {
+      const api = (await import('@/lib/api/client')).default
+      const response = await api.get(`/budgets/certificates/${id}/download`, {
+        responseType: 'blob'
+      })
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', fileName)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error downloading certificate page:', error)
+      alert("Erro ao baixar página de certificado")
+    }
+  }
+
+  const handleDeleteCertificatePage = async (id: string, name: string) => {
+    if (!confirm(`Tem certeza que deseja excluir a página de certificado "${name}"? Esta ação não pode ser desfeita.`)) {
+      return
+    }
+
+    try {
+      const api = (await import('@/lib/api/client')).default
+      await api.delete(`/budgets/certificates/${id}`)
+
+      await loadCertificatePages() // Reload list
+      alert("Página de certificado removida com sucesso!")
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error deleting certificate page:', error)
+      alert("Erro ao remover página de certificado")
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
   }
 
   // Equipment functions
@@ -2092,141 +2347,112 @@ export function BudgetSettingsPage() {
         </TabsContent>
 
         <TabsContent value="certificates" className="space-y-6">
-          {/* Certificados */}
+          {/* Certificate Pages */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  <CardTitle>Certificados da Empresa</CardTitle>
+                  <CardTitle>Páginas de Certificados</CardTitle>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditing(prev => ({ ...prev, certificates: !prev.certificates }))}
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    {isEditing.certificates ? 'Cancelar' : 'Editar'}
-                  </Button>
-                  <Button
-                    onClick={handleCertificateUpload}
-                    size="sm"
-                  >
-                    <Upload className="h-4 w-4 mr-1" />
-                    Novo Certificado
-                  </Button>
-                </div>
+                <CertificatePageUpload
+                  onUpload={handleCertificatePageUpload}
+                  uploading={uploadingCertificatePage}
+                />
               </div>
               <CardDescription>
-                Gerencie os certificados da empresa para incluir nos orçamentos
+                Gerencie páginas de certificados (até 2 páginas por arquivo PDF) para usar nos orçamentos
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {certificates.length === 0 ? (
+                {certificatePagesLoading ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
+                    <p className="text-gray-500">Carregando páginas de certificados...</p>
+                  </div>
+                ) : certificatePages.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Nenhum certificado cadastrado</p>
-                    <p className="text-sm">Clique em "Novo Certificado" para adicionar o primeiro</p>
+                    <p>Nenhuma página de certificado cadastrada</p>
+                    <p className="text-sm">Faça upload de um arquivo PDF com até 2 páginas</p>
                   </div>
                 ) : (
                   <div className="grid gap-4">
-                    {certificates.map((certificate) => (
-                      <div key={certificate.id} className="border rounded-lg p-4">
-                        {isEditing.certificates ? (
-                          <div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Nome</label>
-                                <Input
-                                  value={certificate.name}
-                                  onChange={(e) => updateCertificateField(certificate.id!, 'name', e.target.value)}
-                                  disabled={!isEditing.certificates}
-                                  placeholder="Nome do certificado"
-                                />
+                    {certificatePages.map((page) => (
+                      <div key={page.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="p-2 bg-blue-100 rounded-lg">
+                                <FileText className="h-5 w-5 text-blue-600" />
                               </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Descrição</label>
-                                <Input
-                                  value={certificate.description}
-                                  onChange={(e) => updateCertificateField(certificate.id!, 'description', e.target.value)}
-                                  disabled={!isEditing.certificates}
-                                  placeholder="Descrição"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Emissor</label>
-                                <Input
-                                  value={certificate.issuer || ''}
-                                  onChange={(e) => updateCertificateField(certificate.id!, 'issuer', e.target.value)}
-                                  disabled={!isEditing.certificates}
-                                  placeholder="Emissor (opcional)"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Válido até</label>
-                                <Input
-                                  type="date"
-                                  value={certificate.validUntil || ''}
-                                  onChange={(e) => updateCertificateField(certificate.id!, 'validUntil', e.target.value)}
-                                  disabled={!isEditing.certificates}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="mt-4 flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                {certificate.filePath && (
-                                  <a
-                                    href={`${BACKEND_URL}/${(certificate.filePath || '').replace(/^\/+/, '')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                    {certificate.fileName}
-                                    {certificate.fileSize && (
-                                      <span className="text-gray-500">
-                                        ({(certificate.fileSize / 1024 / 1024).toFixed(2)} MB)
-                                      </span>
-                                    )}
-                                  </a>
+                              <div>
+                                <h3 className="font-semibold text-gray-900">{page.name}</h3>
+                                {page.description && (
+                                  <p className="text-sm text-gray-600">{page.description}</p>
                                 )}
                               </div>
+                            </div>
 
-                              {isEditing.certificates && (
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDeleteCertificate(certificate.id!)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-1" />
-                                  Excluir
-                                </Button>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mt-3">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                <span>{page.fileName}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 bg-gray-300 rounded flex items-center justify-center text-xs text-white font-bold">
+                                  {page.pageCount}
+                                </div>
+                                <span>{page.pageCount === 1 ? '1 página' : `${page.pageCount} páginas`}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Download className="h-4 w-4" />
+                                <span>{formatFileSize(page.fileSize)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                <span>{formatDate(page.createdAt)}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-3">
+                              {page.isActive && (
+                                <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                                  Ativo
+                                </Badge>
+                              )}
+                              {page.isDefault && (
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                                  Padrão
+                                </Badge>
+                              )}
+                              {!page.isActive && (
+                                <Badge variant="outline" className="text-gray-600 border-gray-300">
+                                  Inativo
+                                </Badge>
                               )}
                             </div>
                           </div>
-                        ) : (
-                          // Simple listing: name + linked filename
-                          <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                              <span className="font-medium">{certificate.name}</span>
-                              {certificate.filePath ? (
-                                <a
-                                  href={`${BACKEND_URL}/${(certificate.filePath || '').replace(/^\/+/, '')}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 text-sm"
-                                >
-                                  {certificate.fileName}
-                                </a>
-                              ) : (
-                                <span className="text-sm text-gray-500">Sem arquivo</span>
-                              )}
-                            </div>
+
+                          <div className="flex items-center gap-2 ml-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadCertificatePage(page.id, page.fileName)}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteCertificatePage(page.id, page.name)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                        )}
+                        </div>
                       </div>
                     ))}
                   </div>

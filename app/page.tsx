@@ -19,6 +19,7 @@ import { ReportsPage } from "@/components/reports-page"
 import { FinancialModule } from "@/components/financial/financial-module"
 import { SettingsPage } from "@/components/settings-page-simple"
 import { InstructorClassesPage } from "@/components/instructor-classes-page"
+import { ExpirationNotifications } from "@/components/expiration-notifications"
 import ProtectedRoute from "@/components/protected-route"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -80,6 +81,8 @@ export default function Home() {
         return <BudgetManagementPage />
       case "certificates":
         return <CertificatesPage />
+      case "expiration-notifications":
+        return <ExpirationNotifications />
       case "certificate-generator":
         return (
           <div className="p-6">

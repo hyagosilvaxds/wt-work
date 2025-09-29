@@ -28,6 +28,7 @@ import {
   Shield,
   Car,
   Receipt,
+  AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -52,6 +53,7 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
   if (isClient) {
     items.push({ id: "my-classes", label: "Minhas Turmas", icon: UsersRound, badge: null })
     items.push({ id: "certificates", label: "Certificados", icon: Award, badge: null })
+    items.push({ id: "expiration-notifications", label: "Notificações de Expiração", icon: AlertTriangle, badge: null })
     // Removido: Configurações não devem estar disponíveis para clientes
     // items.push({ id: "settings", label: "Configurações", icon: Settings, badge: null })
     return items
@@ -118,6 +120,11 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
   //   items.push({ id: "reports", label: "Relatórios", icon: BarChart3, badge: null })
   // }
   
+  // Notificações de Expiração - disponível para usuários com permissões adequadas
+  if (hasPermission('VIEW_CLASSES') || hasPermission('VIEW_OWN_CLASSES') || hasPermission('VIEW_STUDENTS')) {
+    items.push({ id: "expiration-notifications", label: "Notificações de Expiração", icon: AlertTriangle, badge: null })
+  }
+
   // Configurações/Roles - OCULTO para instrutores
   if ((hasPermission('VIEW_ROLES') || hasPermission('MANAGE_USERS') || hasPermission('EDIT_PROFILE')) && !isInstructor) {
     items.push({ id: "settings", label: "Configurações", icon: Settings, badge: null })

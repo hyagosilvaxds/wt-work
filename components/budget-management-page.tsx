@@ -24,15 +24,17 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Settings
+  Settings,
+  Bell
 } from "lucide-react"
 import { BudgetCreateModal } from "./budget-create-modal"
 import { BudgetDetailsModal } from "./budget-details-modal"
 import { BudgetSettingsPage } from "./budget-settings-page"
+import { BudgetNotifications } from "./budget-notifications"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button as PaginationButton } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { listBudgets, getBudgetById, updateBudget, generateBudgetPdf, getBudgetAnalyticsDashboard, BudgetResponse, BudgetStatus, DashboardAnalyticsResponse, BudgetListParams } from '@/lib/api/budgets'
+import { listBudgets, getBudgetById, updateBudget, deleteBudget, generateBudgetPdf, getBudgetAnalyticsDashboard, BudgetResponse, BudgetStatus, DashboardAnalyticsResponse, BudgetListParams } from '@/lib/api/budgets'
 
 interface Training {
   id: string
@@ -126,7 +128,7 @@ export function BudgetManagementPage() {
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState<'management' | 'settings'>('management')
+  const [currentPage, setCurrentPage] = useState<'management' | 'settings' | 'notifications'>('management')
   const [analytics, setAnalytics] = useState<DashboardAnalyticsResponse | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(true)
 
@@ -259,8 +261,24 @@ export function BudgetManagementPage() {
     setIsCreateModalOpen(true)
   }
 
-  const handleDelete = (budgetId: string) => {
-    setAllBudgets(allBudgets.filter((b: Budget) => b.id !== budgetId))
+  const handleDelete = async (budgetId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este orçamento?')) {
+      return
+    }
+
+    try {
+      console.log('[BudgetManagementPage] Deleting budget:', budgetId)
+      await deleteBudget(budgetId)
+      setAllBudgets(allBudgets.filter((b: Budget) => b.id !== budgetId))
+      console.log('[BudgetManagementPage] Budget deleted successfully')
+    } catch (error) {
+      console.error('[BudgetManagementPage] Error deleting budget:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error,
+        budgetId
+      })
+      alert('Erro ao excluir orçamento. Tente novamente.')
+    }
   }
 
   const handleDownloadPDF = async (budget: Budget) => {
@@ -364,6 +382,26 @@ export function BudgetManagementPage() {
     )
   }
 
+  // If on notifications page, render the notifications component
+  if (currentPage === 'notifications') {
+    return (
+      <div className="space-y-6">
+        {/* Header with Back button */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Notificações de Orçamentos</h1>
+            <p className="text-gray-600">Acompanhe orçamentos próximos do vencimento</p>
+          </div>
+          <Button onClick={() => setCurrentPage('management')} variant="outline" className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            Voltar ao Gerenciamento
+          </Button>
+        </div>
+        <BudgetNotifications />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -373,6 +411,10 @@ export function BudgetManagementPage() {
           <p className="text-gray-600">Gerencie propostas, acompanhe o status e gere relatórios</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button onClick={() => setCurrentPage('notifications')} variant="outline" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Notificações
+          </Button>
           <Button onClick={() => setCurrentPage('settings')} variant="outline" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Configurações
@@ -391,13 +433,13 @@ export function BudgetManagementPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total de Orçamentos</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <div className="text-2xl font-bold text-gray-900">
                   {analyticsLoading ? (
                     <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
                   ) : (
                     stats.total
                   )}
-                </p>
+                </div>
               </div>
               <FileText className="h-8 w-8 text-blue-600" />
             </div>
@@ -409,13 +451,13 @@ export function BudgetManagementPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Pendentes</p>
-                <p className="text-2xl font-bold text-yellow-600">
+                <div className="text-2xl font-bold text-yellow-600">
                   {analyticsLoading ? (
                     <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
                   ) : (
                     stats.pending
                   )}
-                </p>
+                </div>
                 {!analyticsLoading && (
                   <p className="text-xs text-gray-500">
                     {new Intl.NumberFormat('pt-BR', {
@@ -435,13 +477,13 @@ export function BudgetManagementPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Aprovados</p>
-                <p className="text-2xl font-bold text-green-600">
+                <div className="text-2xl font-bold text-green-600">
                   {analyticsLoading ? (
                     <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
                   ) : (
                     stats.approved
                   )}
-                </p>
+                </div>
                 {!analyticsLoading && (
                   <p className="text-xs text-gray-500">
                     {new Intl.NumberFormat('pt-BR', {
@@ -461,13 +503,13 @@ export function BudgetManagementPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Vencidos</p>
-                <p className="text-2xl font-bold text-red-600">
+                <div className="text-2xl font-bold text-red-600">
                   {analyticsLoading ? (
                     <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
                   ) : (
                     stats.expired || 0
                   )}
-                </p>
+                </div>
                 {!analyticsLoading && (
                   <p className="text-xs text-gray-500">
                     {new Intl.NumberFormat('pt-BR', {
@@ -487,13 +529,13 @@ export function BudgetManagementPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Taxa de Conversão</p>
-                <p className="text-2xl font-bold text-purple-600">
+                <div className="text-2xl font-bold text-purple-600">
                   {analyticsLoading ? (
                     <div className="animate-pulse bg-gray-200 h-8 w-16 rounded"></div>
                   ) : (
                     `${stats.conversionRate?.toFixed(1) || '0.0'}%`
                   )}
-                </p>
+                </div>
               </div>
               <div className="h-8 w-8 text-purple-600 flex items-center justify-center text-lg font-bold">
                 %
@@ -507,7 +549,7 @@ export function BudgetManagementPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <div className="text-2xl font-bold text-blue-600">
                   {analyticsLoading ? (
                     <div className="animate-pulse bg-gray-200 h-8 w-20 rounded"></div>
                   ) : (
@@ -516,7 +558,7 @@ export function BudgetManagementPage() {
                       currency: 'BRL'
                     }).format(stats.averageTicket || 0)
                   )}
-                </p>
+                </div>
               </div>
               <DollarSign className="h-8 w-8 text-blue-600" />
             </div>
