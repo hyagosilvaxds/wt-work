@@ -82,18 +82,16 @@ import {
   deleteCertificate,
   CertificateResponse,
   CreateCertificatePayload,
-  createEquipment,
-  listEquipments,
-  getEquipmentById,
-  updateEquipment,
-  deleteEquipment,
-  uploadEquipmentPhoto,
-  getEquipmentPhotoById,
-  updateEquipmentPhoto,
-  deleteEquipmentPhoto,
-  EquipmentResponse,
-  CreateEquipmentPayload,
-  EquipmentPhotoResponse,
+  uploadEquipmentPage,
+  listEquipmentPages,
+  getEquipmentPageById,
+  updateEquipmentPage,
+  deleteEquipmentPage,
+  activateEquipmentPage,
+  deactivateEquipmentPage,
+  downloadEquipmentPage,
+  EquipmentPageResponse,
+  EquipmentPagesListResponse,
   createIncludedItem,
   listIncludedItems,
   getIncludedItemById,
@@ -105,7 +103,15 @@ import {
   getIncludedItemPhotoById,
   updateIncludedItemPhoto,
   deleteIncludedItemPhoto,
-  IncludedItemPhotoResponse
+  IncludedItemPhotoResponse,
+  uploadTechnicalCertificatePage,
+  listTechnicalCertificatePages,
+  getTechnicalCertificatePageById,
+  updateTechnicalCertificatePage,
+  deleteTechnicalCertificatePage,
+  downloadTechnicalCertificatePage,
+  TechnicalCertificatePageResponse,
+  TechnicalCertificatePagesListResponse
 } from "@/lib/api/budgets"
 
 interface CompanyInfo {
@@ -199,16 +205,32 @@ interface CertificatePagesResponse {
   totalPages: number
 }
 
-interface Equipment {
-  id?: string
+interface EquipmentPage {
+  id: string
   name: string
   description?: string
-  photos?: {
-    id: string
-    caption?: string
-    filePath?: string
-    fileName?: string
-  }[]
+  filePath: string
+  fileName: string
+  fileSize: number
+  isDefault: boolean
+  isActive: boolean
+  uploadedBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+interface TechnicalCertificatePage {
+  id: string
+  name: string
+  description?: string
+  filePath: string
+  fileName: string
+  fileSize: number
+  isDefault: boolean
+  isActive: boolean
+  uploadedBy: string
+  createdAt: string
+  updatedAt: string
 }
 
 interface IncludedItem {
@@ -374,7 +396,11 @@ export function BudgetSettingsPage() {
     state: ""
   })
 
-  const [equipment, setEquipment] = useState<Equipment[]>([])
+  const [equipmentPages, setEquipmentPages] = useState<EquipmentPage[]>([])
+  const [loadingEquipmentPages, setLoadingEquipmentPages] = useState(false)
+
+  const [technicalCertificatePages, setTechnicalCertificatePages] = useState<TechnicalCertificatePage[]>([])
+  const [loadingTechnicalCertificatePages, setLoadingTechnicalCertificatePages] = useState(false)
 
   const [includedItems, setIncludedItems] = useState<IncludedItem[]>([])
   const [includedItemEdits, setIncludedItemEdits] = useState<Record<string, { description: string; saving?: boolean }>>({})
@@ -503,13 +529,27 @@ export function BudgetSettingsPage() {
   })
   const [isSubmittingCertificate, setIsSubmittingCertificate] = useState(false)
 
-  // Equipment modal states
-  const [isEquipmentModalOpen, setIsEquipmentModalOpen] = useState(false)
-  const [equipmentFormData, setEquipmentFormData] = useState({
+  // Equipment page modal states
+  const [isEquipmentPageModalOpen, setIsEquipmentPageModalOpen] = useState(false)
+  const [equipmentPageFormData, setEquipmentPageFormData] = useState({
     name: "",
-    description: ""
+    description: "",
+    isDefault: false,
+    isActive: true,
+    file: null as File | null
   })
-  const [isSubmittingEquipment, setIsSubmittingEquipment] = useState(false)
+  const [isSubmittingEquipmentPage, setIsSubmittingEquipmentPage] = useState(false)
+
+  // Technical certificate page modal states
+  const [isTechnicalCertificatePageModalOpen, setIsTechnicalCertificatePageModalOpen] = useState(false)
+  const [technicalCertificatePageFormData, setTechnicalCertificatePageFormData] = useState({
+    name: "",
+    description: "",
+    isDefault: false,
+    isActive: true,
+    file: null as File | null
+  })
+  const [isSubmittingTechnicalCertificatePage, setIsSubmittingTechnicalCertificatePage] = useState(false)
 
   // Included items modal states
   const [isIncludedItemModalOpen, setIsIncludedItemModalOpen] = useState(false)
@@ -562,7 +602,8 @@ export function BudgetSettingsPage() {
     loadSystemDescriptions()
     loadCertificates()
     loadCertificatePages()
-    loadEquipment()
+    loadEquipmentPages()
+    loadTechnicalCertificatePages()
     loadIncludedItems()
   }, [])
 
@@ -1143,143 +1184,245 @@ export function BudgetSettingsPage() {
     })
   }
 
-  // Equipment functions
-  const loadEquipment = async () => {
+  // Equipment pages functions
+  const loadEquipmentPages = async () => {
     try {
-      console.log('[BudgetSettingsPage] Loading equipment...')
-      const response = await listEquipments()
-      console.log('[BudgetSettingsPage] Loaded equipment:', response)
-      
-      setEquipment(response.map(equip => ({
-        id: equip.id,
-        name: equip.name,
-        description: equip.description || "",
-        photos: equip.photos || []
-      })))
+      setLoadingEquipmentPages(true)
+      console.log('[BudgetSettingsPage] Loading equipment pages...')
+      const response = await listEquipmentPages()
+      console.log('[BudgetSettingsPage] Loaded equipment pages:', response)
+      setEquipmentPages(response.equipmentPages)
     } catch (error) {
-      console.error('[BudgetSettingsPage] Error loading equipment:', error)
-    }
-  }
-
-  const handleCreateEquipment = async () => {
-    setIsEquipmentModalOpen(true)
-  }
-
-  const handleEquipmentFormSubmit = async () => {
-    if (!equipmentFormData.name || !equipmentFormData.description) {
-      alert("Por favor, preencha pelo menos o nome e a descrição")
-      return
-    }
-
-    setIsSubmittingEquipment(true)
-    
-    try {
-      console.log('[BudgetSettingsPage] Creating equipment with data:')
-      console.log('Name:', equipmentFormData.name)
-      console.log('Description:', equipmentFormData.description)
-      const payload: CreateEquipmentPayload = {
-        name: equipmentFormData.name,
-        description: equipmentFormData.description
-      }
-
-      const response = await createEquipment(payload)
-      console.log('[BudgetSettingsPage] Created equipment:', response)
-
-      // Reload equipment
-      await loadEquipment()
-      
-      // Reset form
-      setEquipmentFormData({
-        name: "",
-        description: ""
-      })
-      setIsEquipmentModalOpen(false)
-      
-      alert('Equipamento criado com sucesso!')
-    } catch (error) {
-      console.error('[BudgetSettingsPage] Error creating equipment:', error)
-      alert('Erro ao criar equipamento.')
+      console.error('[BudgetSettingsPage] Error loading equipment pages:', error)
     } finally {
-      setIsSubmittingEquipment(false)
+      setLoadingEquipmentPages(false)
     }
   }
 
-  const handleDeleteEquipment = async (equipmentId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este equipamento?')) {
+  const handleCreateEquipmentPage = () => {
+    setIsEquipmentPageModalOpen(true)
+  }
+
+  const handleEquipmentPageFormSubmit = async () => {
+    if (!equipmentPageFormData.name || !equipmentPageFormData.file) {
+      alert("Por favor, preencha o nome e selecione um arquivo PDF")
       return
     }
 
-    try {
-      console.log('[BudgetSettingsPage] Deleting equipment...')
-      await deleteEquipment(equipmentId)
-      
-      // Reload equipment
-      await loadEquipment()
-      alert('Equipamento excluído com sucesso!')
-    } catch (error) {
-      console.error('[BudgetSettingsPage] Error deleting equipment:', error)
-      alert('Erro ao excluir equipamento. Tente novamente.')
-    }
-  }
+    setIsSubmittingEquipmentPage(true)
 
-  const updateEquipmentField = async (id: string, field: keyof Equipment, value: string) => {
     try {
-      console.log('[BudgetSettingsPage] Updating equipment field:', id, field, value)
-      
-      const payload: any = {}
-      payload[field] = value
-      
-      await updateEquipment(id, payload)
-      console.log('[BudgetSettingsPage] Updated equipment field successfully')
-      
-      // Update local state
-      setEquipment(prev =>
-        prev.map(equip =>
-          equip.id === id ? { ...equip, [field]: value } : equip
-        )
+      console.log('[BudgetSettingsPage] Uploading equipment page...')
+      await uploadEquipmentPage(
+        equipmentPageFormData.file,
+        equipmentPageFormData.name,
+        equipmentPageFormData.description,
+        equipmentPageFormData.isDefault,
+        equipmentPageFormData.isActive
       )
-    } catch (err) {
-      console.error('[BudgetSettingsPage] Error updating equipment field:', err)
-      alert('Erro ao atualizar equipamento. Tente novamente.')
+
+      // Reload pages
+      await loadEquipmentPages()
+
+      // Reset form
+      setEquipmentPageFormData({
+        name: "",
+        description: "",
+        isDefault: false,
+        isActive: true,
+        file: null
+      })
+      setIsEquipmentPageModalOpen(false)
+
+      alert('Página de equipamentos criada com sucesso!')
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error uploading equipment page:', error)
+      alert('Erro ao criar página de equipamentos.')
+    } finally {
+      setIsSubmittingEquipmentPage(false)
     }
   }
 
-  const handleEquipmentPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>, equipmentId: string) => {
-    const file = event.target.files?.[0]
-    if (!file) {
-      alert('Selecione um arquivo.')
+  const handleDeleteEquipmentPage = async (pageId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta página de equipamentos?')) {
       return
     }
 
     try {
-      console.log('[BudgetSettingsPage] Uploading equipment photo...', { equipmentId, fileName: file.name, fileSize: file.size, fileType: file.type })
-      const formData = new FormData()
-      formData.append('photo', file)
-      formData.append('caption', 'Foto do equipamento')
+      console.log('[BudgetSettingsPage] Deleting equipment page...')
+      await deleteEquipmentPage(pageId)
 
-      const response = await uploadEquipmentPhoto(equipmentId, formData)
-      console.log('[BudgetSettingsPage] Uploaded equipment photo:', response)
-
-      // Reload equipment to get updated photos
-      await loadEquipment()
-      alert('Foto enviada com sucesso!')
-    } catch (error) {
-      console.error('[BudgetSettingsPage] Error uploading equipment photo:', error)
-      alert('Erro ao enviar foto. Tente novamente.')
+      await loadEquipmentPages()
+      alert('Página de equipamentos excluída com sucesso!')
+    } catch (error: any) {
+      console.error('[BudgetSettingsPage] Error deleting equipment page:', error)
+      const errorMessage = error?.response?.data?.message || 'Erro ao excluir página de equipamentos.'
+      alert(errorMessage)
     }
   }
 
-  const handleDeleteEquipmentPhoto = async (photoId: string) => {
+  const handleToggleEquipmentPageActive = async (page: EquipmentPage) => {
     try {
-      console.log('[BudgetSettingsPage] Deleting equipment photo...')
-      await deleteEquipmentPhoto(photoId)
-      
-      // Reload equipment to get updated photos
-      await loadEquipment()
-      alert('Foto excluída com sucesso!')
+      if (page.isActive) {
+        await deactivateEquipmentPage(page.id)
+      } else {
+        await activateEquipmentPage(page.id)
+      }
+      await loadEquipmentPages()
+      alert(`Página ${page.isActive ? 'desativada' : 'ativada'} com sucesso!`)
     } catch (error) {
-      console.error('[BudgetSettingsPage] Error deleting equipment photo:', error)
-      alert('Erro ao excluir foto. Tente novamente.')
+      console.error('[BudgetSettingsPage] Error toggling equipment page active:', error)
+      alert('Erro ao alterar status da página.')
+    }
+  }
+
+  const handleToggleEquipmentPageDefault = async (page: EquipmentPage) => {
+    try {
+      await updateEquipmentPage(page.id, { isDefault: !page.isDefault })
+      await loadEquipmentPages()
+      alert(`Página ${!page.isDefault ? 'definida como padrão' : 'removida como padrão'}!`)
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error toggling equipment page default:', error)
+      alert('Erro ao alterar página padrão.')
+    }
+  }
+
+  const handleDownloadEquipmentPage = async (page: EquipmentPage) => {
+    try {
+      console.log('[BudgetSettingsPage] Downloading equipment page...')
+      const blob = await downloadEquipmentPage(page.id)
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = page.fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error downloading equipment page:', error)
+      alert('Erro ao fazer download da página.')
+    }
+  }
+
+  // Technical certificate pages functions
+  const loadTechnicalCertificatePages = async () => {
+    try {
+      setLoadingTechnicalCertificatePages(true)
+      console.log('[BudgetSettingsPage] Loading technical certificate pages...')
+      const response = await listTechnicalCertificatePages()
+      console.log('[BudgetSettingsPage] Loaded technical certificate pages:', response)
+      setTechnicalCertificatePages(response.technicalCertificatePages)
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error loading technical certificate pages:', error)
+    } finally {
+      setLoadingTechnicalCertificatePages(false)
+    }
+  }
+
+  const handleCreateTechnicalCertificatePage = () => {
+    setIsTechnicalCertificatePageModalOpen(true)
+  }
+
+  const handleTechnicalCertificatePageFormSubmit = async () => {
+    if (!technicalCertificatePageFormData.name || !technicalCertificatePageFormData.file) {
+      alert("Por favor, preencha o nome e selecione um arquivo PDF")
+      return
+    }
+
+    setIsSubmittingTechnicalCertificatePage(true)
+
+    try {
+      console.log('[BudgetSettingsPage] Uploading technical certificate page...')
+      await uploadTechnicalCertificatePage(
+        technicalCertificatePageFormData.file,
+        technicalCertificatePageFormData.name,
+        technicalCertificatePageFormData.description,
+        technicalCertificatePageFormData.isDefault,
+        technicalCertificatePageFormData.isActive
+      )
+
+      // Reload pages
+      await loadTechnicalCertificatePages()
+
+      // Reset form
+      setTechnicalCertificatePageFormData({
+        name: "",
+        description: "",
+        isDefault: false,
+        isActive: true,
+        file: null
+      })
+      setIsTechnicalCertificatePageModalOpen(false)
+
+      alert('Atestado de capacidade técnica criado com sucesso!')
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error uploading technical certificate page:', error)
+      alert('Erro ao criar atestado de capacidade técnica.')
+    } finally {
+      setIsSubmittingTechnicalCertificatePage(false)
+    }
+  }
+
+  const handleDeleteTechnicalCertificatePage = async (pageId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este atestado de capacidade técnica?')) {
+      return
+    }
+
+    try {
+      console.log('[BudgetSettingsPage] Deleting technical certificate page...')
+      await deleteTechnicalCertificatePage(pageId)
+
+      await loadTechnicalCertificatePages()
+      alert('Atestado de capacidade técnica excluído com sucesso!')
+    } catch (error: any) {
+      console.error('[BudgetSettingsPage] Error deleting technical certificate page:', error)
+      const errorMessage = error?.response?.data?.message || 'Erro ao excluir atestado de capacidade técnica.'
+      alert(errorMessage)
+    }
+  }
+
+  const handleToggleTechnicalCertificatePageActive = async (page: TechnicalCertificatePage) => {
+    try {
+      await updateTechnicalCertificatePage(page.id, { isActive: !page.isActive })
+      await loadTechnicalCertificatePages()
+      alert(`Atestado ${!page.isActive ? 'ativado' : 'desativado'} com sucesso!`)
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error toggling technical certificate page active:', error)
+      alert('Erro ao alterar status do atestado.')
+    }
+  }
+
+  const handleToggleTechnicalCertificatePageDefault = async (page: TechnicalCertificatePage) => {
+    try {
+      await updateTechnicalCertificatePage(page.id, { isDefault: !page.isDefault })
+      await loadTechnicalCertificatePages()
+      alert(`Atestado ${!page.isDefault ? 'definido como padrão' : 'removido como padrão'}!`)
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error toggling technical certificate page default:', error)
+      alert('Erro ao alterar atestado padrão.')
+    }
+  }
+
+  const handleDownloadTechnicalCertificatePage = async (page: TechnicalCertificatePage) => {
+    try {
+      console.log('[BudgetSettingsPage] Downloading technical certificate page...')
+      const blob = await downloadTechnicalCertificatePage(page.id)
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = page.fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('[BudgetSettingsPage] Error downloading technical certificate page:', error)
+      alert('Erro ao fazer download do atestado.')
     }
   }
 
@@ -1581,7 +1724,8 @@ export function BudgetSettingsPage() {
       paymentCondition,
       systemDescription,
       certificates,
-      equipment,
+      equipmentPages,
+      technicalCertificatePages,
       includedItems,
       standardTexts,
       coverPages,
@@ -1618,7 +1762,7 @@ export function BudgetSettingsPage() {
       {/* Tabs */}
   <Tabs value={currentTab} onValueChange={(v) => setCurrentTab(v)} className="space-y-6">
         <div className="w-full overflow-x-auto">
-          <TabsList className="grid w-full grid-cols-10 min-w-[1200px]">
+          <TabsList className="grid w-full grid-cols-11 min-w-[1200px]">
             <TabsTrigger value="company" className="flex items-center gap-2 text-xs sm:text-sm">
               <Building className="h-4 w-4" />
               <span className="hidden sm:inline">Empresa</span>
@@ -1641,8 +1785,12 @@ export function BudgetSettingsPage() {
               <span className="hidden sm:inline">Certificados</span>
             </TabsTrigger>
             <TabsTrigger value="equipment" className="flex items-center gap-2 text-xs sm:text-sm">
-              <Settings className="h-4 w-4" />
+              <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Equipamentos</span>
+            </TabsTrigger>
+            <TabsTrigger value="technical-certificates" className="flex items-center gap-2 text-xs sm:text-sm">
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Atestados</span>
             </TabsTrigger>
             <TabsTrigger value="included-items" className="flex items-center gap-2 text-xs sm:text-sm">
               <Plus className="h-4 w-4" />
@@ -2463,144 +2611,239 @@ export function BudgetSettingsPage() {
         </TabsContent>
 
         <TabsContent value="equipment" className="space-y-6">
-          {/* Equipamentos */}
+          {/* Páginas de Equipamentos */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  <CardTitle>Equipamentos</CardTitle>
+                  <FileText className="h-5 w-5" />
+                  <CardTitle>Páginas de Equipamentos</CardTitle>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditing(prev => ({ ...prev, equipment: !prev.equipment }))}
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    {isEditing.equipment ? 'Cancelar' : 'Editar'}
-                  </Button>
-                  <Button
-                    onClick={handleCreateEquipment}
-                    size="sm"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Novo Equipamento
-                  </Button>
-                </div>
+                <Button onClick={handleCreateEquipmentPage} size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nova Página
+                </Button>
               </div>
               <CardDescription>
-                Gerencie os equipamentos da empresa para incluir nos orçamentos
+                Faça upload de páginas PDF completas com equipamentos inclusos nos orçamentos
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {equipment.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">Nenhum equipamento cadastrado</p>
-                    <Button onClick={handleCreateEquipment} className="mt-2">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar Primeiro Equipamento
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {equipment.map((equip) => (
-                      <div key={equip.id} className="p-4 border rounded-lg space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-lg">{equip.name}</h4>
-                          {isEditing.equipment && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteEquipment(equip.id!)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+              {loadingEquipmentPages ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
+                  <p className="text-gray-500 mt-2">Carregando...</p>
+                </div>
+              ) : equipmentPages.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">Nenhuma página de equipamentos cadastrada</p>
+                  <Button onClick={handleCreateEquipmentPage} className="mt-2">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Primeira Página
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {equipmentPages.map((page) => (
+                    <div key={page.id} className="p-4 border rounded-lg">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-lg">{page.name}</h4>
+                            {page.isDefault && (
+                              <Badge variant="default">Padrão</Badge>
+                            )}
+                            <Badge variant={page.isActive ? "default" : "secondary"}>
+                              {page.isActive ? "Ativa" : "Inativa"}
+                            </Badge>
+                          </div>
+                          {page.description && (
+                            <p className="text-sm text-gray-600">{page.description}</p>
                           )}
                         </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor={`equip-name-${equip.id}`}>Nome</Label>
-                            <Input
-                              id={`equip-name-${equip.id}`}
-                              value={equip.name}
-                              onChange={(e) => updateEquipmentField(equip.id!, 'name', e.target.value)}
-                              disabled={!isEditing.equipment}
-                              placeholder="Nome do equipamento"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor={`equip-description-${equip.id}`}>Descrição</Label>
-                            <Input
-                              id={`equip-description-${equip.id}`}
-                              value={equip.description || ""}
-                              onChange={(e) => updateEquipmentField(equip.id!, 'description', e.target.value)}
-                              disabled={!isEditing.equipment}
-                              placeholder="Descrição do equipamento"
-                            />
-                          </div>
-                          {/* specifications removed */}
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteEquipmentPage(page.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
 
-                        {/* Photos section */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label>Fotos do Equipamento</Label>
-                            <div>
-                              <input
-                                type="file"
-                                accept=".jpg,.jpeg,.png"
-                                onChange={(e) => handleEquipmentPhotoUpload(e, equip.id!)}
-                                style={{ display: 'none' }}
-                                id={`equipment-photo-upload-${equip.id}`}
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => document.getElementById(`equipment-photo-upload-${equip.id}`)?.click()}
-                              >
-                                <Upload className="h-4 w-4 mr-1" />
-                                Upload Foto
-                              </Button>
-                            </div>
-                          </div>
-                          
-                          {equip.photos && equip.photos.length > 0 && (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                              {equip.photos.map((photo) => (
-                                <div key={photo.id} className="relative group">
-                                  <img
-                                    src={`${BACKEND_URL}/${(photo.filePath || '').replace(/^\/+/, '')}`}
-                                    alt={photo.caption || equip.name}
-                                    className="w-full h-32 object-cover rounded-md border"
-                                  />
-                                  <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDeleteEquipmentPhoto(photo.id)}
-                                      className="text-white hover:text-red-400"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                  {photo.caption && (
-                                    <p className="text-xs text-gray-600 mt-1 truncate">{photo.caption}</p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                      <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                        <div>
+                          <span className="text-gray-500">Arquivo:</span>{" "}
+                          <span className="font-medium">{page.fileName}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Tamanho:</span>{" "}
+                          <span className="font-medium">
+                            {(page.fileSize / 1024 / 1024).toFixed(2)} MB
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Criado em:</span>{" "}
+                          <span className="font-medium">
+                            {new Date(page.createdAt).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Atualizado em:</span>{" "}
+                          <span className="font-medium">
+                            {new Date(page.updatedAt).toLocaleDateString('pt-BR')}
+                          </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadEquipmentPage(page)}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleEquipmentPageActive(page)}
+                        >
+                          {page.isActive ? "Desativar" : "Ativar"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleEquipmentPageDefault(page)}
+                        >
+                          {page.isDefault ? "Remover Padrão" : "Definir como Padrão"}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="technical-certificates" className="space-y-6">
+          {/* Atestados de Capacidade Técnica */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  <CardTitle>Atestados de Capacidade Técnica</CardTitle>
+                </div>
+                <Button onClick={handleCreateTechnicalCertificatePage} size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Novo Atestado
+                </Button>
               </div>
+              <CardDescription>
+                Faça upload de atestados de capacidade técnica em PDF para incluir nos orçamentos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingTechnicalCertificatePages ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
+                  <p className="text-gray-500 mt-2">Carregando...</p>
+                </div>
+              ) : technicalCertificatePages.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">Nenhum atestado de capacidade técnica cadastrado</p>
+                  <Button onClick={handleCreateTechnicalCertificatePage} className="mt-2">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Primeiro Atestado
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {technicalCertificatePages.map((page) => (
+                    <div key={page.id} className="p-4 border rounded-lg">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-lg">{page.name}</h4>
+                            {page.isDefault && (
+                              <Badge variant="default">Padrão</Badge>
+                            )}
+                            <Badge variant={page.isActive ? "default" : "secondary"}>
+                              {page.isActive ? "Ativo" : "Inativo"}
+                            </Badge>
+                          </div>
+                          {page.description && (
+                            <p className="text-sm text-gray-600">{page.description}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteTechnicalCertificatePage(page.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                        <div>
+                          <span className="text-gray-500">Arquivo:</span>{" "}
+                          <span className="font-medium">{page.fileName}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Tamanho:</span>{" "}
+                          <span className="font-medium">
+                            {(page.fileSize / 1024 / 1024).toFixed(2)} MB
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Criado em:</span>{" "}
+                          <span className="font-medium">
+                            {new Date(page.createdAt).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Atualizado em:</span>{" "}
+                          <span className="font-medium">
+                            {new Date(page.updatedAt).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadTechnicalCertificatePage(page)}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleTechnicalCertificatePageActive(page)}
+                        >
+                          {page.isActive ? "Desativar" : "Ativar"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleTechnicalCertificatePageDefault(page)}
+                        >
+                          {page.isDefault ? "Remover Padrão" : "Definir como Padrão"}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -3131,56 +3374,217 @@ export function BudgetSettingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Equipment Creation Modal */}
-      <Dialog open={isEquipmentModalOpen} onOpenChange={setIsEquipmentModalOpen}>
+      {/* Equipment Page Creation Modal */}
+      <Dialog open={isEquipmentPageModalOpen} onOpenChange={setIsEquipmentPageModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Adicionar Novo Equipamento</DialogTitle>
+            <DialogTitle>Nova Página de Equipamentos</DialogTitle>
             <DialogDescription>
-              Cadastre um novo equipamento da empresa para incluir nos orçamentos
+              Faça upload de um arquivo PDF com a página completa de equipamentos
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div>
-              <Label htmlFor="equipment-name">Nome do Equipamento</Label>
+              <Label htmlFor="equipment-page-name">Nome *</Label>
               <Input
-                id="equipment-name"
-                value={equipmentFormData.name}
-                onChange={(e) => setEquipmentFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Ex: Retroescavadeira Caterpillar 416E"
+                id="equipment-page-name"
+                value={equipmentPageFormData.name}
+                onChange={(e) => setEquipmentPageFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Ex: Equipamentos Padrão 2024"
                 className="mt-1"
               />
             </div>
 
             <div>
-              <Label htmlFor="equipment-description">Descrição</Label>
+              <Label htmlFor="equipment-page-description">Descrição</Label>
               <Textarea
-                id="equipment-description"
-                value={equipmentFormData.description}
-                onChange={(e) => setEquipmentFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Descrição detalhada do equipamento..."
+                id="equipment-page-description"
+                value={equipmentPageFormData.description}
+                onChange={(e) => setEquipmentPageFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Descrição da página de equipamentos..."
                 className="mt-1"
-                rows={3}
+                rows={2}
               />
             </div>
 
-            {/* specifications removed from create modal */}
+            <div>
+              <Label htmlFor="equipment-page-file">Arquivo PDF *</Label>
+              <Input
+                id="equipment-page-file"
+                type="file"
+                accept=".pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    if (file.size > 10 * 1024 * 1024) {
+                      alert('Arquivo muito grande. Tamanho máximo: 10MB')
+                      e.target.value = ''
+                      return
+                    }
+                    setEquipmentPageFormData(prev => ({ ...prev, file }))
+                  }
+                }}
+                className="mt-1"
+              />
+              <p className="text-xs text-gray-500 mt-1">Máximo 10MB</p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="equipment-page-default"
+                checked={equipmentPageFormData.isDefault}
+                onChange={(e) => setEquipmentPageFormData(prev => ({ ...prev, isDefault: e.target.checked }))}
+                className="rounded"
+              />
+              <Label htmlFor="equipment-page-default" className="cursor-pointer">
+                Definir como página padrão
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="equipment-page-active"
+                checked={equipmentPageFormData.isActive}
+                onChange={(e) => setEquipmentPageFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                className="rounded"
+              />
+              <Label htmlFor="equipment-page-active" className="cursor-pointer">
+                Página ativa
+              </Label>
+            </div>
           </div>
 
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsEquipmentModalOpen(false)}
-              disabled={isSubmittingEquipment}
+              onClick={() => setIsEquipmentPageModalOpen(false)}
+              disabled={isSubmittingEquipmentPage}
             >
               Cancelar
             </Button>
             <Button
-              onClick={handleEquipmentFormSubmit}
-              disabled={isSubmittingEquipment || !equipmentFormData.name || !equipmentFormData.description}
+              onClick={handleEquipmentPageFormSubmit}
+              disabled={isSubmittingEquipmentPage || !equipmentPageFormData.name || !equipmentPageFormData.file}
             >
-              {isSubmittingEquipment ? "Criando..." : "Adicionar Equipamento"}
+              {isSubmittingEquipmentPage ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                "Criar Página"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Technical Certificate Page Creation Modal */}
+      <Dialog open={isTechnicalCertificatePageModalOpen} onOpenChange={setIsTechnicalCertificatePageModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Novo Atestado de Capacidade Técnica</DialogTitle>
+            <DialogDescription>
+              Faça upload de um arquivo PDF com atestados de capacidade técnica
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="technical-certificate-page-name">Nome *</Label>
+              <Input
+                id="technical-certificate-page-name"
+                value={technicalCertificatePageFormData.name}
+                onChange={(e) => setTechnicalCertificatePageFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Ex: Atestados NR10 - 2025"
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="technical-certificate-page-description">Descrição</Label>
+              <Textarea
+                id="technical-certificate-page-description"
+                value={technicalCertificatePageFormData.description}
+                onChange={(e) => setTechnicalCertificatePageFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Descrição dos atestados de capacidade técnica..."
+                className="mt-1"
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="technical-certificate-page-file">Arquivo PDF *</Label>
+              <Input
+                id="technical-certificate-page-file"
+                type="file"
+                accept=".pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    if (file.size > 10 * 1024 * 1024) {
+                      alert('Arquivo muito grande. Tamanho máximo: 10MB')
+                      e.target.value = ''
+                      return
+                    }
+                    setTechnicalCertificatePageFormData(prev => ({ ...prev, file }))
+                  }
+                }}
+                className="mt-1"
+              />
+              <p className="text-xs text-gray-500 mt-1">Máximo 10MB</p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="technical-certificate-page-default"
+                checked={technicalCertificatePageFormData.isDefault}
+                onChange={(e) => setTechnicalCertificatePageFormData(prev => ({ ...prev, isDefault: e.target.checked }))}
+                className="rounded"
+              />
+              <Label htmlFor="technical-certificate-page-default" className="cursor-pointer">
+                Definir como atestado padrão
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="technical-certificate-page-active"
+                checked={technicalCertificatePageFormData.isActive}
+                onChange={(e) => setTechnicalCertificatePageFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                className="rounded"
+              />
+              <Label htmlFor="technical-certificate-page-active" className="cursor-pointer">
+                Atestado ativo
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsTechnicalCertificatePageModalOpen(false)}
+              disabled={isSubmittingTechnicalCertificatePage}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleTechnicalCertificatePageFormSubmit}
+              disabled={isSubmittingTechnicalCertificatePage || !technicalCertificatePageFormData.name || !technicalCertificatePageFormData.file}
+            >
+              {isSubmittingTechnicalCertificatePage ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                "Criar Atestado"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

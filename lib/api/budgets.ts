@@ -24,6 +24,8 @@ export interface CreateBudgetRequest {
   coverPageId?: string
   backCoverPageId?: string
   certificatePageId?: string
+  equipmentPageId?: string
+  technicalCertificatePageId?: string
   trainingDate?: string
   dueDate?: string
   attentionTo?: string
@@ -65,6 +67,21 @@ export interface BudgetResponse {
   coverPageId?: string
   backCoverPageId?: string
   certificatePageId?: string
+  equipmentPageId?: string
+  technicalCertificatePageId?: string
+  technicalCertificatePage?: {
+    id: string
+    name: string
+    description?: string
+    filePath: string
+    fileName: string
+    fileSize: number
+    isDefault: boolean
+    isActive: boolean
+    uploadedBy: string
+    createdAt: string
+    updatedAt: string
+  }
   trainingDate?: string
   dueDate?: string
   attentionTo?: string
@@ -137,6 +154,8 @@ export interface UpdateBudgetRequest {
   coverPageId?: string
   backCoverPageId?: string
   certificatePageId?: string
+  equipmentPageId?: string
+  technicalCertificatePageId?: string
   trainingDate?: string
   dueDate?: string
   attentionTo?: string
@@ -1384,5 +1403,265 @@ export async function getBudgetAnalyticsDashboard(params?: AnalyticsParams) {
   const endpoint = `/budgets/analytics/dashboard${query.toString() ? `?${query.toString()}` : ''}`
   console.log('[budgets] GET', endpoint)
   const response = await api.get<DashboardAnalyticsResponse>(endpoint)
+  return response.data
+}
+
+// ===== EQUIPMENT PAGES =====
+
+export interface EquipmentPageResponse {
+  id: string
+  name: string
+  description?: string
+  filePath: string
+  fileName: string
+  fileSize: number
+  isDefault: boolean
+  isActive: boolean
+  uploadedBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface EquipmentPagesListResponse {
+  equipmentPages: EquipmentPageResponse[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export interface ListEquipmentPagesParams {
+  page?: number
+  limit?: number
+  isDefault?: boolean
+  isActive?: boolean
+  search?: string
+}
+
+export interface UpdateEquipmentPagePayload {
+  name?: string
+  description?: string
+  isDefault?: boolean
+  isActive?: boolean
+}
+
+/**
+ * Upload de página de equipamentos (PDF)
+ */
+export async function uploadEquipmentPage(file: File, name: string, description?: string, isDefault?: boolean, isActive?: boolean) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('name', name)
+  if (description) formData.append('description', description)
+  if (isDefault !== undefined) formData.append('isDefault', String(isDefault))
+  if (isActive !== undefined) formData.append('isActive', String(isActive))
+
+  const endpoint = '/budgets/equipments/upload'
+  console.log('[budgets] POST', endpoint, { name, fileSize: file.size })
+  const response = await api.post<EquipmentPageResponse>(endpoint, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
+}
+
+/**
+ * Lista páginas de equipamentos
+ */
+export async function listEquipmentPages(params?: ListEquipmentPagesParams) {
+  const query = new URLSearchParams()
+  if (params?.page) query.append('page', String(params.page))
+  if (params?.limit) query.append('limit', String(params.limit))
+  if (params?.isDefault !== undefined) query.append('isDefault', String(params.isDefault))
+  if (params?.isActive !== undefined) query.append('isActive', String(params.isActive))
+  if (params?.search) query.append('search', params.search)
+
+  const endpoint = `/budgets/equipments${query.toString() ? `?${query.toString()}` : ''}`
+  console.log('[budgets] GET', endpoint)
+  const response = await api.get<EquipmentPagesListResponse>(endpoint)
+  return response.data
+}
+
+/**
+ * Busca página de equipamentos por ID
+ */
+export async function getEquipmentPageById(id: string) {
+  const endpoint = `/budgets/equipments/${id}`
+  console.log('[budgets] GET', endpoint)
+  const response = await api.get<EquipmentPageResponse>(endpoint)
+  return response.data
+}
+
+/**
+ * Download de página de equipamentos
+ */
+export async function downloadEquipmentPage(id: string) {
+  const endpoint = `/budgets/equipments/${id}/download`
+  console.log('[budgets] GET', endpoint, '(download)')
+  const response = await api.get(endpoint, {
+    responseType: 'blob',
+  })
+  return response.data
+}
+
+/**
+ * Atualiza metadados da página de equipamentos
+ */
+export async function updateEquipmentPage(id: string, payload: UpdateEquipmentPagePayload) {
+  const endpoint = `/budgets/equipments/${id}`
+  console.log('[budgets] PATCH', endpoint, payload)
+  const response = await api.patch<EquipmentPageResponse>(endpoint, payload)
+  return response.data
+}
+
+/**
+ * Desativa página de equipamentos
+ */
+export async function deactivateEquipmentPage(id: string) {
+  const endpoint = `/budgets/equipments/${id}/deactivate`
+  console.log('[budgets] PATCH', endpoint)
+  const response = await api.patch<{ message: string }>(endpoint)
+  return response.data
+}
+
+/**
+ * Ativa página de equipamentos
+ */
+export async function activateEquipmentPage(id: string) {
+  const endpoint = `/budgets/equipments/${id}/activate`
+  console.log('[budgets] PATCH', endpoint)
+  const response = await api.patch<{ message: string }>(endpoint)
+  return response.data
+}
+
+/**
+ * Remove página de equipamentos
+ */
+export async function deleteEquipmentPage(id: string) {
+  const endpoint = `/budgets/equipments/${id}`
+  console.log('[budgets] DELETE', endpoint)
+  const response = await api.delete<{ message: string }>(endpoint)
+  return response.data
+}
+
+// ===== TECHNICAL CERTIFICATES =====
+
+export interface TechnicalCertificatePageResponse {
+  id: string
+  name: string
+  description?: string
+  filePath: string
+  fileName: string
+  fileSize: number
+  isDefault: boolean
+  isActive: boolean
+  uploadedBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TechnicalCertificatePagesListResponse {
+  technicalCertificatePages: TechnicalCertificatePageResponse[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export interface TechnicalCertificatePageFilters {
+  page?: number
+  limit?: number
+  isDefault?: boolean
+  isActive?: boolean
+  search?: string
+}
+
+/**
+ * Upload de atestado técnico
+ */
+export async function uploadTechnicalCertificatePage(
+  file: File,
+  name: string,
+  description?: string,
+  isDefault: boolean = false,
+  isActive: boolean = true
+) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('name', name)
+  if (description) formData.append('description', description)
+  formData.append('isDefault', String(isDefault))
+  formData.append('isActive', String(isActive))
+
+  const endpoint = '/budgets/technical-certificates/upload'
+  console.log('[budgets] POST', endpoint)
+  const response = await api.post<TechnicalCertificatePageResponse>(endpoint, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return response.data
+}
+
+/**
+ * Lista atestados técnicos
+ */
+export async function listTechnicalCertificatePages(filters?: TechnicalCertificatePageFilters) {
+  const query = new URLSearchParams()
+  if (filters?.page) query.append('page', String(filters.page))
+  if (filters?.limit) query.append('limit', String(filters.limit))
+  if (filters?.isDefault !== undefined) query.append('isDefault', String(filters.isDefault))
+  if (filters?.isActive !== undefined) query.append('isActive', String(filters.isActive))
+  if (filters?.search) query.append('search', filters.search)
+
+  const endpoint = `/budgets/technical-certificates${query.toString() ? `?${query.toString()}` : ''}`
+  console.log('[budgets] GET', endpoint)
+  const response = await api.get<TechnicalCertificatePagesListResponse>(endpoint)
+  return response.data
+}
+
+/**
+ * Busca atestado técnico por ID
+ */
+export async function getTechnicalCertificatePageById(id: string) {
+  const endpoint = `/budgets/technical-certificates/${id}`
+  console.log('[budgets] GET', endpoint)
+  const response = await api.get<TechnicalCertificatePageResponse>(endpoint)
+  return response.data
+}
+
+/**
+ * Download de atestado técnico
+ */
+export async function downloadTechnicalCertificatePage(id: string) {
+  const endpoint = `/budgets/technical-certificates/${id}/download`
+  console.log('[budgets] GET', endpoint)
+  const response = await api.get(endpoint, {
+    responseType: 'blob'
+  })
+  return response.data
+}
+
+/**
+ * Atualiza atestado técnico
+ */
+export async function updateTechnicalCertificatePage(id: string, payload: Partial<{
+  name: string
+  description: string
+  isDefault: boolean
+  isActive: boolean
+}>) {
+  const endpoint = `/budgets/technical-certificates/${id}`
+  console.log('[budgets] PATCH', endpoint)
+  const response = await api.patch<TechnicalCertificatePageResponse>(endpoint, payload)
+  return response.data
+}
+
+/**
+ * Remove atestado técnico
+ */
+export async function deleteTechnicalCertificatePage(id: string) {
+  const endpoint = `/budgets/technical-certificates/${id}`
+  console.log('[budgets] DELETE', endpoint)
+  const response = await api.delete<{ message: string }>(endpoint)
   return response.data
 }

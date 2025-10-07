@@ -29,7 +29,7 @@ import {
   Search
 } from "lucide-react"
 
-import { createBudget, updateBudget, getBudgetById, CreateBudgetRequest, UpdateBudgetRequest, listCoverPages, CoverPageResponse, CoverPageType, BudgetResponse, uploadClientLogo, getClientLogo, deleteClientLogo, ClientLogoResponse } from '@/lib/api/budgets'
+import { createBudget, updateBudget, getBudgetById, CreateBudgetRequest, UpdateBudgetRequest, listCoverPages, CoverPageResponse, CoverPageType, BudgetResponse, uploadClientLogo, getClientLogo, deleteClientLogo, ClientLogoResponse, listEquipmentPages, EquipmentPageResponse, listTechnicalCertificatePages, TechnicalCertificatePageResponse } from '@/lib/api/budgets'
 import { getClients, getTrainings } from '@/lib/api/superadmin'
 
 interface Training {
@@ -112,6 +112,8 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
     description: "",
     clientId: "",
     certificatePageId: "",
+    equipmentPageId: "",
+    technicalCertificatePageId: "",
     validityDays: 30,
     observations: "",
     coverPageId: "",
@@ -145,6 +147,16 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
   const [certificatePages, setCertificatePages] = useState<CertificatePage[]>([])
   const [selectedCertificatePage, setSelectedCertificatePage] = useState<CertificatePage | null>(null)
   const [loadingCertificatePages, setLoadingCertificatePages] = useState(false)
+
+  // Equipment pages states
+  const [equipmentPages, setEquipmentPages] = useState<EquipmentPageResponse[]>([])
+  const [selectedEquipmentPage, setSelectedEquipmentPage] = useState<EquipmentPageResponse | null>(null)
+  const [loadingEquipmentPages, setLoadingEquipmentPages] = useState(false)
+
+  // Technical certificate pages states
+  const [technicalCertificatePages, setTechnicalCertificatePages] = useState<TechnicalCertificatePageResponse[]>([])
+  const [selectedTechnicalCertificatePage, setSelectedTechnicalCertificatePage] = useState<TechnicalCertificatePageResponse | null>(null)
+  const [loadingTechnicalCertificatePages, setLoadingTechnicalCertificatePages] = useState(false)
 
   // Budget loading states
   const [loadingBudget, setLoadingBudget] = useState(false)
@@ -225,6 +237,34 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
     }
   }
 
+  // Função para carregar páginas de equipamentos da API
+  const loadEquipmentPages = async () => {
+    setLoadingEquipmentPages(true)
+    try {
+      const response = await listEquipmentPages({ isActive: true })
+      setEquipmentPages(response.equipmentPages || [])
+    } catch (error) {
+      console.error('Erro ao carregar páginas de equipamentos:', error)
+      setEquipmentPages([])
+    } finally {
+      setLoadingEquipmentPages(false)
+    }
+  }
+
+  // Função para carregar páginas de atestados técnicos da API
+  const loadTechnicalCertificatePages = async () => {
+    setLoadingTechnicalCertificatePages(true)
+    try {
+      const response = await listTechnicalCertificatePages({ isActive: true })
+      setTechnicalCertificatePages(response.technicalCertificatePages || [])
+    } catch (error) {
+      console.error('Erro ao carregar páginas de atestados técnicos:', error)
+      setTechnicalCertificatePages([])
+    } finally {
+      setLoadingTechnicalCertificatePages(false)
+    }
+  }
+
   // Função para carregar dados reais do budget da API
   const loadBudgetData = async (budgetId: string) => {
     setLoadingBudget(true)
@@ -240,6 +280,8 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
         description: response.description || "",
         clientId: response.clientId,
         certificatePageId: response.certificatePageId || "",
+        equipmentPageId: response.equipmentPageId || "",
+        technicalCertificatePageId: response.technicalCertificatePageId || "",
         validityDays: response.validityDays || 30,
         observations: response.observations || "",
         coverPageId: response.coverPageId || "",
@@ -442,6 +484,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
           description: "",
           clientId: "",
           certificatePageId: "",
+          equipmentPageId: "",
           validityDays: 30,
           observations: "",
           coverPageId: "",
@@ -460,9 +503,11 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
         setAttachments([])
       }
       
-      // Carregar cover pages e páginas de certificado quando o modal abrir
+      // Carregar cover pages, páginas de certificado e equipamentos quando o modal abrir
       loadCoverPages()
       loadCertificatePages()
+      loadEquipmentPages()
+      loadTechnicalCertificatePages()
     }
   }, [isOpen, budget])
 
@@ -1076,7 +1121,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
                             <Label>Local do Treinamento</Label>
                             <Input
@@ -1092,15 +1137,6 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
                               min="1"
                               value={item.studentQuantity || 1}
                               onChange={(e) => updateItemField(item.id || item.trainingId, "studentQuantity", Number(e.target.value))}
-                            />
-                          </div>
-                          <div>
-                            <Label>Quantidade de Turmas</Label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.classQuantity || 1}
-                              onChange={(e) => updateItemField(item.id || item.trainingId, "classQuantity", Number(e.target.value))}
                             />
                           </div>
                         </div>
@@ -1209,7 +1245,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="certificatePageId">Página de Certificado</Label>
                   <Select
@@ -1233,6 +1269,58 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
                   </Select>
                   {loadingCertificatePages && (
                     <p className="text-sm text-gray-500 mt-1">Carregando páginas de certificado...</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="equipmentPageId">Página de Equipamentos</Label>
+                  <Select
+                    value={formData.equipmentPageId || ""}
+                    onValueChange={(value) => handleInputChange("equipmentPageId", value === "__none" ? "" : value)}
+                    disabled={loadingEquipmentPages}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma página de equipamentos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Nenhuma página de equipamentos</SelectItem>
+                      {equipmentPages
+                        .filter(page => page.isActive)
+                        .map(page => (
+                          <SelectItem key={page.id} value={page.id}>
+                            {page.name} {page.isDefault && '(Padrão)'}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {loadingEquipmentPages && (
+                    <p className="text-sm text-gray-500 mt-1">Carregando páginas de equipamentos...</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="technicalCertificatePageId">Atestado de Capacidade Técnica</Label>
+                  <Select
+                    value={formData.technicalCertificatePageId || ""}
+                    onValueChange={(value) => handleInputChange("technicalCertificatePageId", value === "__none" ? "" : value)}
+                    disabled={loadingTechnicalCertificatePages}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um atestado técnico" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Nenhum atestado técnico</SelectItem>
+                      {technicalCertificatePages
+                        .filter(page => page.isActive)
+                        .map(page => (
+                          <SelectItem key={page.id} value={page.id}>
+                            {page.name} {page.isDefault && '(Padrão)'}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {loadingTechnicalCertificatePages && (
+                    <p className="text-sm text-gray-500 mt-1">Carregando atestados técnicos...</p>
                   )}
                 </div>
               </div>
