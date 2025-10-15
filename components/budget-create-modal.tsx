@@ -310,19 +310,24 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
       }
 
       // Mapear items da API para selectedItems
-      const mappedItems: BudgetItem[] = response.items?.map(item => ({
-        id: item.id,
-        trainingId: item.trainingId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        totalPrice: item.totalPrice,
-        description: item.description,
-        observations: item.observations,
-        order: item.order,
-        location: item.location,
-        studentQuantity: item.studentQuantity,
-        classQuantity: item.classQuantity
-      })) || []
+      const mappedItems: BudgetItem[] = response.items?.map(item => {
+        // Se unitPrice não existir, calcular a partir do totalPrice e quantity
+        const unitPrice = item.unitPrice || (item.quantity > 0 ? item.totalPrice / item.quantity : 0)
+        
+        return {
+          id: item.id,
+          trainingId: item.trainingId,
+          quantity: item.quantity,
+          unitPrice: unitPrice,
+          totalPrice: item.totalPrice,
+          description: item.description,
+          observations: item.observations,
+          order: item.order,
+          location: item.location,
+          studentQuantity: item.studentQuantity,
+          classQuantity: item.classQuantity
+        }
+      }) || []
 
       setSelectedItems(mappedItems)
 
@@ -550,18 +555,23 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
   }
 
   const updateItemField = (itemId: string, field: keyof BudgetItem, value: string | number) => {
-    const updatedItems = selectedItems.map(item => {
-      if (item.id === itemId) {
-        const updatedItem = { ...item, [field]: value }
-
-  // unitPrice is optional; we only keep totalPrice as the source of truth
-
-        return updatedItem
-      }
-      return item
+    setSelectedItems(prevItems => {
+      return prevItems.map(item => {
+        if (item.id === itemId || item.trainingId === itemId) {
+          const updatedItem = { ...item, [field]: value }
+          
+          // Se o campo alterado for quantity ou unitPrice, recalcular totalPrice
+          if (field === 'quantity' || field === 'unitPrice') {
+            const quantity = field === 'quantity' ? Number(value) : item.quantity
+            const unitPrice = field === 'unitPrice' ? Number(value) : (item.unitPrice || 0)
+            updatedItem.totalPrice = quantity * unitPrice
+          }
+          
+          return updatedItem
+        }
+        return item
+      })
     })
-
-    setSelectedItems(updatedItems)
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1098,12 +1108,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
                               min="1"
                               value={item.quantity}
                               onChange={(e) => {
-                                const newQuantity = Number(e.target.value)
-                                updateItemField(item.id || item.trainingId, "quantity", newQuantity)
-                                // Recalcular valor total se houver unitPrice
-                                if (item.unitPrice) {
-                                  updateItemField(item.id || item.trainingId, "totalPrice", newQuantity * item.unitPrice)
-                                }
+                                updateItemField(item.id || item.trainingId, "quantity", Number(e.target.value) || 1)
                               }}
                               placeholder="Ex: 2"
                             />
@@ -1116,10 +1121,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
                               min="0"
                               value={item.unitPrice || 0}
                               onChange={(e) => {
-                                const newUnitPrice = Number(e.target.value)
-                                updateItemField(item.id || item.trainingId, "unitPrice", newUnitPrice)
-                                // Calcular automaticamente o valor total
-                                updateItemField(item.id || item.trainingId, "totalPrice", item.quantity * newUnitPrice)
+                                updateItemField(item.id || item.trainingId, "unitPrice", Number(e.target.value) || 0)
                               }}
                               placeholder="R$ 0,00"
                             />
