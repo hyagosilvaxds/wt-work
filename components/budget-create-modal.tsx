@@ -529,7 +529,8 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
     id: `${training.id}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
     trainingId: training.id,
         quantity: 1,
-        totalPrice: 0, // Usuário irá definir o valor total
+        unitPrice: 0, // Valor por turma (será preenchido pelo usuário)
+        totalPrice: 0, // Calculado automaticamente (quantity * unitPrice)
         description: training.title,
         observations: "",
         order: selectedItems.length + 1,
@@ -1091,25 +1092,58 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                           <div>
-                            <Label>Quantidade</Label>
+                            <Label>Quantidade de Turmas *</Label>
                             <Input
                               type="number"
                               min="1"
                               value={item.quantity}
-                              onChange={(e) => updateItemField(item.id || item.trainingId, "quantity", Number(e.target.value))}
+                              onChange={(e) => {
+                                const newQuantity = Number(e.target.value)
+                                updateItemField(item.id || item.trainingId, "quantity", newQuantity)
+                                // Recalcular valor total se houver unitPrice
+                                if (item.unitPrice) {
+                                  updateItemField(item.id || item.trainingId, "totalPrice", newQuantity * item.unitPrice)
+                                }
+                              }}
+                              placeholder="Ex: 2"
                             />
                           </div>
-                          {/* unitPrice removed: only totalPrice (customValue) is used */}
                           <div>
-                            <Label>Valor Total *</Label>
+                            <Label>Valor por Turma *</Label>
                             <Input
                               type="number"
                               step="0.01"
                               min="0"
-                              value={item.totalPrice || 0}
-                              onChange={(e) => updateItemField(item.id || item.trainingId, "totalPrice", Number(e.target.value))}
-                              placeholder="Digite o valor total"
+                              value={item.unitPrice || 0}
+                              onChange={(e) => {
+                                const newUnitPrice = Number(e.target.value)
+                                updateItemField(item.id || item.trainingId, "unitPrice", newUnitPrice)
+                                // Calcular automaticamente o valor total
+                                updateItemField(item.id || item.trainingId, "totalPrice", item.quantity * newUnitPrice)
+                              }}
+                              placeholder="R$ 0,00"
                             />
+                          </div>
+                          <div>
+                            <Label className="flex items-center gap-1">
+                              Valor Total
+                              <span className="text-xs text-gray-500">(automático)</span>
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                type="text"
+                                value={new Intl.NumberFormat('pt-BR', {
+                                  style: 'currency',
+                                  currency: 'BRL'
+                                }).format(item.totalPrice || 0)}
+                                readOnly
+                                disabled
+                                className="bg-gray-50 cursor-not-allowed font-semibold text-green-700"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                                {item.quantity} × R$ {(item.unitPrice || 0).toFixed(2)}
+                              </span>
+                            </div>
                           </div>
                           <div>
                             <Label>Ordem</Label>
