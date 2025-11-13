@@ -717,7 +717,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
           <DialogDescription>
             {isEditing
               ? "Edite as informações do orçamento"
-              : "Preencha as informações para criar um novo orçamento"
+              : "Preencha as informações para criar um novo orçamento."
             }
           </DialogDescription>
         </DialogHeader>
