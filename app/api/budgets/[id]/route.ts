@@ -20,6 +20,7 @@ interface Budget {
   expiresAt: string
   notes?: string
   attachments?: string[]
+  dailyWorkload?: string
 }
 
 // Mock data - em produção, isso viria do banco de dados
@@ -129,7 +130,8 @@ export async function PUT(
       expiresAt: budgetData.expiresAt,
       notes: budgetData.notes || "",
       attachments: budgetData.attachments || [],
-      status: budgetData.status || budgets[budgetIndex].status
+      status: budgetData.status || budgets[budgetIndex].status,
+      dailyWorkload: budgetData.dailyWorkload !== undefined ? budgetData.dailyWorkload : budgets[budgetIndex].dailyWorkload
     }
 
     budgets[budgetIndex] = updatedBudget

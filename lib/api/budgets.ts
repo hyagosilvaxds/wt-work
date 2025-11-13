@@ -34,6 +34,7 @@ export interface CreateBudgetRequest {
   responsibilities?: string
   clientResponsibilities?: string
   location?: string
+  dailyWorkload?: string
   items: BudgetItemRequest[]
 }
 
@@ -92,6 +93,7 @@ export interface BudgetResponse {
   responsibilities?: string
   clientResponsibilities?: string
   location?: string
+  dailyWorkload?: string
   createdBy?: string
   createdAt?: string
   updatedAt?: string
@@ -164,6 +166,7 @@ export interface UpdateBudgetRequest {
   responsibilities?: string
   clientResponsibilities?: string
   location?: string
+  dailyWorkload?: string
   items?: BudgetItemRequest[]
 }
 

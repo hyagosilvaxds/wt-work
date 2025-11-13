@@ -20,6 +20,7 @@ interface Budget {
   expiresAt: string
   notes?: string
   attachments?: string[]
+  dailyWorkload?: string
 }
 
 // Mock data - em produção, isso viria do banco de dados
@@ -133,7 +134,8 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString().split('T')[0],
       expiresAt: budgetData.expiresAt,
       notes: budgetData.notes || "",
-      attachments: budgetData.attachments || []
+      attachments: budgetData.attachments || [],
+      dailyWorkload: budgetData.dailyWorkload || ""
     }
 
     // Adicionar à lista

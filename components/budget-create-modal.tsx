@@ -126,6 +126,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
     responsibilities: "",
     clientResponsibilities: "",
     location: "",
+    dailyWorkload: "",
     items: []
   })
 
@@ -294,6 +295,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
         responsibilities: response.responsibilities || "",
         clientResponsibilities: response.clientResponsibilities || "",
         location: response.location || "",
+        dailyWorkload: response.dailyWorkload || "",
         items: [] // Will be managed separately via selectedItems
       })
 
@@ -354,6 +356,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
           responsibilities: "",
           clientResponsibilities: "",
           location: "",
+          dailyWorkload: "",
           items: []
         })
         setSelectedItems(budget.items || [])
@@ -502,6 +505,7 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
           responsibilities: "",
           clientResponsibilities: "",
           location: "",
+          dailyWorkload: "",
           items: []
         })
         setSelectedItems([])
@@ -772,6 +776,15 @@ export function BudgetCreateModal({ isOpen, onClose, budget, onSave }: BudgetCre
                     type="date"
                     value={formData.trainingDate}
                     onChange={(e) => handleInputChange("trainingDate", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="dailyWorkload">Carga Horária Diária</Label>
+                  <Input
+                    id="dailyWorkload"
+                    value={formData.dailyWorkload || ""}
+                    onChange={(e) => handleInputChange("dailyWorkload", e.target.value)}
+                    placeholder="Ex: 8h por dia, 4h (manhã) + 4h (tarde)"
                   />
                 </div>
               </div>
