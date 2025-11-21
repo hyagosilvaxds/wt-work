@@ -163,17 +163,17 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
       if (isClientView || isClient) {
         // Para usuários do tipo CLIENTE, usar endpoint dedicado com paginação
         console.log('📡 Chamando /client-dashboard/classes para usuário CLIENTE')
-        response = await getClientDashboardClasses({
+        const clientResponse = await getClientDashboardClasses({
           page: currentPageToUse,
           limit: limit,
           search: searchTerm.trim() || undefined,
           status: undefined // Pode adicionar filtro de status se necessário
         })
-        console.log('📦 Resposta da API client-dashboard/classes:', response)
+        console.log('📦 Resposta da API client-dashboard/classes:', clientResponse)
         
         // Transformar formato da resposta para o formato esperado pelo componente
         response = {
-          classes: response.classes.map((cls: any) => ({
+          classes: clientResponse.classes.map((cls: any) => ({
             id: cls.id,
             training: {
               id: cls.trainingId,
@@ -192,7 +192,7 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
             totalLessons: cls.totalLessons,
             completedLessons: cls.completedLessons
           })),
-          pagination: response.pagination
+          pagination: clientResponse.pagination
         }
       } else {
         // Para outros tipos de usuário, usar getClasses normal
