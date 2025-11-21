@@ -19,6 +19,7 @@ import { ReportsPage } from "@/components/reports-page"
 import { FinancialModule } from "@/components/financial/financial-module"
 import { SettingsPage } from "@/components/settings-page-simple"
 import { InstructorClassesPage } from "@/components/instructor-classes-page"
+import { ClientClassesPage } from "@/components/client-classes-page"
 import { ExpirationNotifications } from "@/components/expiration-notifications"
 import ProtectedRoute from "@/components/protected-route"
 import { useAuth } from "@/hooks/use-auth"
@@ -64,7 +65,7 @@ export default function Home() {
       case "instructor-classes":
         return <InstructorClassesPage />
       case "my-classes":
-        return <TurmasPage isClientView={true} />
+        return <ClientClassesPage />
       case "instructors":
         return <InstructorsPage />
       case "technical-responsibles":
