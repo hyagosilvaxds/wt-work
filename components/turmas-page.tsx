@@ -158,7 +158,6 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
     try {
       const currentPageToUse = resetPage ? 1 : currentPage
       
-      let response
       // Se for visualização de cliente (isClientView) ou se o usuário é cliente (isClient)
       if (isClientView || isClient) {
         // Para usuários do tipo CLIENTE, usar endpoint dedicado com paginação
@@ -170,6 +169,15 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
           status: undefined // Pode adicionar filtro de status se necessário
         })
         console.log('📦 Resposta da API client-dashboard/classes:', clientResponse)
+        
+        // Verificar se a resposta é válida
+        if (!clientResponse || !clientResponse.classes || !Array.isArray(clientResponse.classes)) {
+          console.error('❌ Resposta inválida do client-dashboard/classes:', clientResponse)
+          setTurmas([])
+          setTotalPages(0)
+          setTotalTurmas(0)
+          return
+        }
         
         // Transformar formato da resposta para o formato esperado pelo componente
         const transformedClasses = clientResponse.classes.map((cls: any) => ({
@@ -192,10 +200,10 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
           completedLessons: cls.completedLessons
         }))
         
-        response = {
-          classes: transformedClasses,
-          pagination: clientResponse.pagination
-        }
+        // Atualizar estado diretamente com os dados transformados
+        setTurmas(transformedClasses)
+        setTotalPages(clientResponse.pagination?.totalPages || 0)
+        setTotalTurmas(clientResponse.pagination?.total || 0)
       } else {
         // Para outros tipos de usuário, usar getClasses normal
         const searchText = searchTerm.trim()
@@ -220,14 +228,14 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
           classId 
         })
         
-        response = await getClasses(currentPageToUse, limit, searchParam, classId)
+        const response = await getClasses(currentPageToUse, limit, searchParam, classId)
         console.log('📦 Resposta da API getClasses:', response)
+        
+        // A API retorna: { classes: [...], pagination: { page, limit, total, totalPages } }
+        setTurmas(response?.classes || [])
+        setTotalPages(response?.pagination?.totalPages || 0)
+        setTotalTurmas(response?.pagination?.total || 0)
       }
-      
-      // A API retorna: { classes: [...], pagination: { page, limit, total, totalPages } }
-      setTurmas(response.classes || [])
-      setTotalPages(response.pagination?.totalPages || 0)
-      setTotalTurmas(response.pagination?.total || 0)
       
       // Se resetPage for true, atualizar a página atual
       if (resetPage) {
