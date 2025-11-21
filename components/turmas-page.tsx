@@ -172,26 +172,28 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
         console.log('📦 Resposta da API client-dashboard/classes:', clientResponse)
         
         // Transformar formato da resposta para o formato esperado pelo componente
+        const transformedClasses = clientResponse.classes.map((cls: any) => ({
+          id: cls.id,
+          training: {
+            id: cls.trainingId,
+            title: cls.trainingTitle
+          },
+          instructor: {
+            id: cls.instructorId,
+            name: cls.instructorName
+          },
+          startDate: cls.startDate,
+          endDate: cls.endDate,
+          location: cls.location,
+          status: cls.status,
+          closingDate: cls.closingDate,
+          totalStudents: cls.totalStudents,
+          totalLessons: cls.totalLessons,
+          completedLessons: cls.completedLessons
+        }))
+        
         response = {
-          classes: clientResponse.classes.map((cls: any) => ({
-            id: cls.id,
-            training: {
-              id: cls.trainingId,
-              title: cls.trainingTitle
-            },
-            instructor: {
-              id: cls.instructorId,
-              name: cls.instructorName
-            },
-            startDate: cls.startDate,
-            endDate: cls.endDate,
-            location: cls.location,
-            status: cls.status,
-            closingDate: cls.closingDate,
-            totalStudents: cls.totalStudents,
-            totalLessons: cls.totalLessons,
-            completedLessons: cls.completedLessons
-          })),
+          classes: transformedClasses,
           pagination: clientResponse.pagination
         }
       } else {
