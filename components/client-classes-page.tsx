@@ -32,6 +32,11 @@ import { ClassDetailsModal } from "@/components/class-details-modal"
 import { AttendanceListModal } from "@/components/attendance-list-modal"
 import { ClassReportsModal } from "@/components/class-reports-modal"
 import { ClassDocumentsModal } from "@/components/class-documents-modal"
+import { CompanyEvaluationModal } from "@/components/company-evaluation-modal"
+import { ClassGradesModal } from "@/components/class-grades-modal"
+import { ClassPhotosModal } from "@/components/class-photos-modal"
+import { ClassTechnicalResponsibleModal } from "@/components/class-technical-responsible-modal"
+import { generateEvidenceReport } from "@/lib/api/certificates"
 
 interface ClientClass {
   id: string
@@ -113,6 +118,11 @@ export function ClientClassesPage() {
   const [attendanceListTurma, setAttendanceListTurma] = useState<any | null>(null)
   const [reportsModalTurma, setReportsModalTurma] = useState<any | null>(null)
   const [documentsTurma, setDocumentsTurma] = useState<any | null>(null)
+  const [companyEvaluationTurma, setCompanyEvaluationTurma] = useState<any | null>(null)
+  const [gradesTurma, setGradesTurma] = useState<any | null>(null)
+  const [photosTurma, setPhotosTurma] = useState<any | null>(null)
+  const [technicalResponsibleTurma, setTechnicalResponsibleTurma] = useState<any | null>(null)
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
   // Função para carregar turmas do cliente
   const loadTurmas = async (resetPage = false) => {
@@ -291,6 +301,50 @@ export function ClientClassesPage() {
 
   const handleManageDocuments = (turma: any) => {
     setDocumentsTurma(turma)
+  }
+
+  const handleManageCompanyEvaluation = (turma: any) => {
+    setCompanyEvaluationTurma(turma)
+  }
+
+  const handleManageGrades = (turma: any) => {
+    setGradesTurma(turma)
+  }
+
+  const handleManagePhotos = (turma: any) => {
+    setPhotosTurma(turma)
+  }
+
+  const handleManageTechnicalResponsible = (turma: any) => {
+    setTechnicalResponsibleTurma(turma)
+  }
+
+  const handleGenerateEvidenceReport = async (turma: any) => {
+    if (!turma?.id) return
+    
+    try {
+      setGeneratingReport(turma.id)
+      toast({
+        title: "Gerando relatório...",
+        description: "Isso pode levar alguns instantes."
+      })
+      
+      await generateEvidenceReport(turma.id)
+      
+      toast({
+        title: "Sucesso!",
+        description: "Relatório gerado e baixado com sucesso."
+      })
+    } catch (error: any) {
+      console.error('Erro ao gerar relatório:', error)
+      toast({
+        title: "Erro",
+        description: error?.message || "Erro ao gerar relatório de evidências",
+        variant: "destructive"
+      })
+    } finally {
+      setGeneratingReport(null)
+    }
   }
 
   if (loading) {
@@ -679,14 +733,14 @@ export function ClientClassesPage() {
           isOpen={!!reportsModalTurma}
           onClose={() => setReportsModalTurma(null)}
           turma={reportsModalTurma}
-          onOpenCompanyEvaluation={() => {}}
-          onOpenEvidenceReport={() => {}}
-          onOpenGrades={() => {}}
-          onOpenPhotos={() => {}}
-          onOpenTechnicalResponsible={() => {}}
+          onOpenCompanyEvaluation={() => handleManageCompanyEvaluation(reportsModalTurma)}
+          onOpenEvidenceReport={() => handleGenerateEvidenceReport(reportsModalTurma)}
+          onOpenGrades={() => handleManageGrades(reportsModalTurma)}
+          onOpenPhotos={() => handleManagePhotos(reportsModalTurma)}
+          onOpenTechnicalResponsible={() => handleManageTechnicalResponsible(reportsModalTurma)}
           onOpenDocuments={() => handleManageDocuments(reportsModalTurma)}
           isClientView={true}
-          generatingReport={false}
+          generatingReport={generatingReport === reportsModalTurma?.id}
         />
       )}
 
@@ -695,6 +749,40 @@ export function ClientClassesPage() {
           isOpen={!!documentsTurma}
           onClose={() => setDocumentsTurma(null)}
           turma={documentsTurma}
+        />
+      )}
+
+      {companyEvaluationTurma && (
+        <CompanyEvaluationModal
+          isOpen={!!companyEvaluationTurma}
+          onClose={() => setCompanyEvaluationTurma(null)}
+          turma={companyEvaluationTurma}
+        />
+      )}
+
+      {gradesTurma && (
+        <ClassGradesModal
+          isOpen={!!gradesTurma}
+          onClose={() => setGradesTurma(null)}
+          turma={gradesTurma}
+          onSuccess={() => loadTurmas()}
+        />
+      )}
+
+      {photosTurma && (
+        <ClassPhotosModal
+          isOpen={!!photosTurma}
+          onClose={() => setPhotosTurma(null)}
+          turma={photosTurma}
+        />
+      )}
+
+      {technicalResponsibleTurma && (
+        <ClassTechnicalResponsibleModal
+          isOpen={!!technicalResponsibleTurma}
+          onClose={() => setTechnicalResponsibleTurma(null)}
+          turma={technicalResponsibleTurma}
+          onSuccess={() => loadTurmas()}
         />
       )}
     </>
