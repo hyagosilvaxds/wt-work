@@ -160,33 +160,14 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
       let response
       // Se for visualização de cliente (isClientView) ou se o usuário é cliente (isClient)
       if (isClientView || isClient) {
-        // Para usuários do tipo CLIENTE, usar getClientClasses
-        console.log('📡 Chamando getClientClasses para usuário CLIENTE')
-        const clientClasses = await getClientClasses()
-        console.log('📦 Resposta da API getClientClasses:', clientClasses)
-        let classes = clientClasses.classes || clientClasses || []
-        
-        // Aplicar filtro de busca localmente para usuários CLIENTE
-        if (searchTerm.trim()) {
-          const searchLower = searchTerm.toLowerCase()
-          classes = classes.filter((turma: TurmaData) =>
-            turma.id?.toLowerCase().includes(searchLower) ||
-            turma.training?.title?.toLowerCase().includes(searchLower) ||
-            turma.instructor?.name?.toLowerCase().includes(searchLower) ||
-            turma.client?.name?.toLowerCase().includes(searchLower) ||
-            turma.location?.toLowerCase().includes(searchLower)
-          )
-        }
-        
-        response = {
-          classes: classes,
-          pagination: {
-            page: 1,
-            limit: classes.length,
-            total: classes.length,
-            totalPages: 1
-          }
-        }
+        // Para usuários do tipo CLIENTE, usar endpoint com paginação
+        console.log('📡 Chamando /superadmin/my-classes com paginação para usuário CLIENTE')
+        response = await getClasses(
+          currentPageToUse,
+          limit,
+          searchTerm.trim() || undefined
+        )
+        console.log('📦 Resposta da API my-classes:', response)
       } else {
         // Para outros tipos de usuário, usar getClasses normal
         const searchText = searchTerm.trim()
@@ -919,8 +900,8 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
           </div>
         )}
 
-        {/* Paginação - Não exibir para usuários CLIENTE */}
-        {!isClientView && totalPages > 1 && (
+        {/* Paginação */}
+        {totalPages > 1 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
             <div className="text-sm text-gray-600">
               Mostrando {((currentPage - 1) * limit) + 1} - {Math.min(currentPage * limit, totalTurmas)} de {totalTurmas} turma{totalTurmas !== 1 ? 's' : ''}
