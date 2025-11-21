@@ -50,6 +50,12 @@ import {
   type ClientEligibleClassesResponse
 } from "@/lib/api/superadmin"
 import { getCompletedClassesFiltered, type CompletedClassesResponseDto } from "@/lib/api/certificates"
+import { 
+  getClientEligibleClassesForCertificates, 
+  type ClientEligibleClassesResponse as AuthClientEligibleClassesResponse,
+  type EligibleClass,
+  type EligibleStudent
+} from "@/lib/api/auth"
 import { CertificateGeneratorModal } from "./certificate-generator-modal"
 import { CertificatePreviewModal } from "./certificate-preview-modal"
 import { toast } from "sonner"
@@ -90,8 +96,9 @@ export function CertificatesPage() {
   })
 
   useEffect(() => {
-    if (isClient && user?.id) {
-      loadClientId()
+    if (isClient) {
+      // Para clientes, carregar diretamente (JWT token identifica o cliente)
+      loadFinishedClasses()
     } else if (isInstructor && user?.id) {
       loadInstructorId()
     } else {
@@ -149,12 +156,6 @@ export function CertificatesPage() {
   }
 
   useEffect(() => {
-    if (clientId) {
-      loadFinishedClasses()
-    }
-  }, [clientId])
-
-  useEffect(() => {
     if (instructorId) {
       loadFinishedClasses()
     }
@@ -189,7 +190,62 @@ export function CertificatesPage() {
 
       setLoading(true)
       
-      // Usar o novo endpoint de turmas concluídas com filtros
+      // Se for cliente, usar o endpoint específico
+      if (isClient) {
+        const response = await getClientEligibleClassesForCertificates()
+        
+        // Transformar dados para o formato esperado pelo componente
+        const classes = response.classes.map(cls => ({
+          id: cls.classId,
+          training: { 
+            title: cls.trainingName,
+            durationHours: cls.trainingDurationHours,
+            validityDays: cls.certificateValidityDays
+          },
+          startDate: cls.startDate,
+          endDate: cls.endDate,
+          status: cls.status,
+          location: cls.location,
+          totalStudents: cls.totalStudents,
+          students: cls.students.map(student => ({
+            id: student.studentId,
+            name: student.studentName,
+            cpf: '', // Não fornecido pelo novo endpoint
+            email: '', // Não fornecido pelo novo endpoint
+            practicalGrade: student.practicalGrade,
+            theoreticalGrade: student.theoreticalGrade,
+            averageGrade: student.averageGrade,
+            totalLessons: student.totalLessons,
+            attendedLessons: student.presences,
+            absences: student.absences,
+            isEligible: student.isEligible,
+            eligibilityReason: student.isEligible 
+              ? 'Apto para receber certificado' 
+              : student.absences > 0 
+                ? 'Possui faltas registradas'
+                : (student.practicalGrade && student.practicalGrade < 5) || (student.theoreticalGrade && student.theoreticalGrade < 5)
+                  ? 'Nota abaixo da média mínima (5.0)'
+                  : 'Não elegível',
+            hasAbsences: student.absences > 0
+          }))
+        }))
+        
+        // Aplicar filtro de busca no frontend (se houver)
+        const filteredClasses = searchTerm.trim() 
+          ? classes.filter(cls => 
+              cls.training.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              cls.location?.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+          : classes
+        
+        setFinishedClasses(filteredClasses)
+        // Para cliente, não há paginação no backend, então definir como 1 página
+        setTotalPages(1)
+        
+        return
+      }
+      
+      // Para não-clientes, usar o endpoint existente com filtros
       const filters: any = {
         page: currentPage,
         limit: 10,
