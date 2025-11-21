@@ -363,3 +363,105 @@ export const getClientDashboard = async (clientId: string, filters?: { month?: n
     }
 };
 
+// Função para buscar estatísticas do cliente autenticado
+export const getClientStatistics = async () => {
+    try {
+        const response = await api.get('/client-dashboard/statistics');
+        console.log('Estatísticas do cliente:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas do cliente:', error);
+        throw error;
+    }
+};
+
+// Função para buscar aulas do cliente autenticado
+export const getClientLessons = async () => {
+    try {
+        const response = await api.get('/client-dashboard/lessons');
+        console.log('Aulas do cliente:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar aulas do cliente:', error);
+        throw error;
+    }
+};
+
+// Função para buscar turmas do cliente autenticado
+export const getClientDashboardClasses = async (params?: {
+    page?: number
+    limit?: number
+    search?: string
+    status?: 'completed' | 'ongoing'
+}) => {
+    try {
+        const queryParams = new URLSearchParams();
+        
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.search) queryParams.append('search', params.search);
+        if (params?.status) queryParams.append('status', params.status);
+        
+        const queryString = queryParams.toString();
+        const url = queryString 
+            ? `/client-dashboard/classes?${queryString}` 
+            : '/client-dashboard/classes';
+        
+        const response = await api.get(url);
+        console.log('Turmas do cliente:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar turmas do cliente:', error);
+        throw error;
+    }
+};
+
+// Interfaces para turmas elegíveis para certificados
+export interface EligibleStudent {
+    studentId: string
+    studentName: string
+    averageGrade: number
+    practicalGrade?: number
+    theoreticalGrade?: number
+    absences: number
+    presences: number
+    totalLessons: number
+    isEligible: boolean
+}
+
+export interface EligibleClass {
+    classId: string
+    trainingName: string
+    startDate: string
+    endDate: string
+    status: string
+    location?: string
+    trainingDurationHours: number
+    certificateValidityDays?: number
+    totalStudents: number
+    studentsWithoutAbsences: number
+    studentsWithAbsences: number
+    totalLessons: number
+    students: EligibleStudent[]
+}
+
+export interface ClientEligibleClassesResponse {
+    clientId: string
+    clientName: string
+    totalClasses: number
+    eligibleClasses: number
+    classes: EligibleClass[]
+}
+
+// Função para buscar turmas elegíveis para certificados (cliente autenticado)
+export const getClientEligibleClassesForCertificates = async (): Promise<ClientEligibleClassesResponse> => {
+    try {
+        const response = await api.get('/client-dashboard/eligible-classes');
+        console.log('Turmas elegíveis para certificados:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao buscar turmas elegíveis:', error);
+        throw error;
+    }
+};
+

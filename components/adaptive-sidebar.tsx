@@ -53,7 +53,6 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, isClient: 
   if (isClient) {
     items.push({ id: "my-classes", label: "Minhas Turmas", icon: UsersRound, badge: null })
     items.push({ id: "certificates", label: "Certificados", icon: Award, badge: null })
-    items.push({ id: "expiration-notifications", label: "Notificações de Expiração", icon: AlertTriangle, badge: null })
     // Removido: Configurações não devem estar disponíveis para clientes
     // items.push({ id: "settings", label: "Configurações", icon: Settings, badge: null })
     return items
