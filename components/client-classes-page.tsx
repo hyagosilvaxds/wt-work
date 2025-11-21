@@ -60,7 +60,7 @@ export function ClientClassesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<'completed' | 'ongoing' | ''>("")
   const [currentPage, setCurrentPage] = useState(1)
-  const limit = 9 // 9 cards por página (3x3 grid)
+  const limit = 10 // Ajustado para 10 (alinhado com o backend)
 
   useEffect(() => {
     const fetchClasses = async () => {
