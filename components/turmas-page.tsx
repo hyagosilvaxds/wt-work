@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { getClasses, getStudents, addStudentsToClass, removeStudentsFromClass, getLessonAttendanceByClass, createLessonAttendance, patchLessonAttendance, deleteLessonAttendance } from "@/lib/api/superadmin"
+import { getClientDashboardClasses } from "@/lib/api/auth"
 import { generateEvidenceReport } from "@/lib/api/certificates"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
@@ -160,14 +161,39 @@ export default function TurmasPage({ isClientView = false }: TurmasPageProps) {
       let response
       // Se for visualização de cliente (isClientView) ou se o usuário é cliente (isClient)
       if (isClientView || isClient) {
-        // Para usuários do tipo CLIENTE, usar endpoint com paginação
-        console.log('📡 Chamando /superadmin/my-classes com paginação para usuário CLIENTE')
-        response = await getClasses(
-          currentPageToUse,
-          limit,
-          searchTerm.trim() || undefined
-        )
-        console.log('📦 Resposta da API my-classes:', response)
+        // Para usuários do tipo CLIENTE, usar endpoint dedicado com paginação
+        console.log('📡 Chamando /client-dashboard/classes para usuário CLIENTE')
+        response = await getClientDashboardClasses({
+          page: currentPageToUse,
+          limit: limit,
+          search: searchTerm.trim() || undefined,
+          status: undefined // Pode adicionar filtro de status se necessário
+        })
+        console.log('📦 Resposta da API client-dashboard/classes:', response)
+        
+        // Transformar formato da resposta para o formato esperado pelo componente
+        response = {
+          classes: response.classes.map((cls: any) => ({
+            id: cls.id,
+            training: {
+              id: cls.trainingId,
+              title: cls.trainingTitle
+            },
+            instructor: {
+              id: cls.instructorId,
+              name: cls.instructorName
+            },
+            startDate: cls.startDate,
+            endDate: cls.endDate,
+            location: cls.location,
+            status: cls.status,
+            closingDate: cls.closingDate,
+            totalStudents: cls.totalStudents,
+            totalLessons: cls.totalLessons,
+            completedLessons: cls.completedLessons
+          })),
+          pagination: response.pagination
+        }
       } else {
         // Para outros tipos de usuário, usar getClasses normal
         const searchText = searchTerm.trim()
