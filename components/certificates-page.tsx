@@ -164,11 +164,12 @@ export function CertificatesPage() {
   // Recarregar quando o termo de busca mudar
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      // Reset para página 1 quando há busca
-      if (currentPage !== 1) {
+      // Reset para página 1 quando há busca (exceto para clientes que não têm paginação)
+      if (!isClient && currentPage !== 1) {
         setCurrentPage(1)
       } else {
-        if (isClient && clientId) {
+        if (isClient) {
+          // Para clientes, recarregar diretamente
           loadFinishedClasses()
         } else if (isInstructor) {
           // Para instrutor, carregar sempre que instructorId estiver disponível
@@ -180,7 +181,7 @@ export function CertificatesPage() {
   }, 1000) // Debounce de 1000ms (aumentado)
 
     return () => clearTimeout(timeoutId)
-  }, [searchTerm, instructorId])
+  }, [searchTerm, instructorId, isClient])
 
   const loadFinishedClasses = async () => {
     let hadFocus = false

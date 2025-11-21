@@ -150,9 +150,10 @@ export function ClientClassesPage() {
   }
 
   const classes = data?.classes || []
-  const totalStudents = classes.reduce((acc, c) => acc + (c.totalStudents || 0), 0)
-  const activeClasses = classes.filter(c => c.status === 'Em andamento' || c.status === 'Agendada').length
-  const completedClasses = classes.filter(c => c.status === 'Concluída').length
+  // Estatísticas calculadas apenas para a página atual
+  const totalStudentsCurrentPage = classes.reduce((acc, c) => acc + (c.totalStudents || 0), 0)
+  const activeClassesCurrentPage = classes.filter(c => c.status === 'Em andamento' || c.status === 'Agendada').length
+  const completedClassesCurrentPage = classes.filter(c => c.status === 'Concluída').length
 
   return (
     <div className="space-y-6">
@@ -231,8 +232,8 @@ export function ClientClassesPage() {
             <CardTitle className="text-sm font-medium text-gray-600">Turmas Ativas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeClasses}</div>
-            <p className="text-xs text-gray-600">Em andamento</p>
+            <div className="text-2xl font-bold">{activeClassesCurrentPage}</div>
+            <p className="text-xs text-gray-600">Nesta página</p>
           </CardContent>
         </Card>
         
@@ -241,8 +242,8 @@ export function ClientClassesPage() {
             <CardTitle className="text-sm font-medium text-gray-600">Total de Alunos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalStudents}</div>
-            <p className="text-xs text-gray-600">Matriculados</p>
+            <div className="text-2xl font-bold">{totalStudentsCurrentPage}</div>
+            <p className="text-xs text-gray-600">Nesta página</p>
           </CardContent>
         </Card>
         
@@ -251,8 +252,8 @@ export function ClientClassesPage() {
             <CardTitle className="text-sm font-medium text-gray-600">Turmas Concluídas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{completedClasses}</div>
-            <p className="text-xs text-gray-600">Finalizadas</p>
+            <div className="text-2xl font-bold">{completedClassesCurrentPage}</div>
+            <p className="text-xs text-gray-600">Nesta página</p>
           </CardContent>
         </Card>
       </div>
